@@ -17,13 +17,14 @@ Everything that does not serve that sentence is deferred.
 - Profile: name, village, photo
 
 ### Field mapping ★
-- GPS boundary walk with live accuracy indicator
-- Offline capture, sync on reconnect
+- **Draw on satellite** — trace the field, tap the corners. The default method.
+- GPS boundary walk with live accuracy indicator, for fields not visible from above
+- Offline capture for the walk, sync on reconnect
 - Track smoothing, simplification and rectangle fitting
-- Satellite correction screen with draggable corners
+- Satellite correction screen with draggable corners (after a walk)
 - Compound area display — *2 killa 3 kanal 8 marla*
 - Saved, named fields, reusable forever
-- Fallbacks: draw on map, or declare (flagged as unverified)
+- Declare-by-typing as a last resort, flagged unverified
 
 ### Captains and machinery
 - Machine registry with **owned / arrangeable** distinction and lead time

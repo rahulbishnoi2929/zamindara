@@ -178,7 +178,9 @@ create table captain_services (
 ## Fields
 
 ```sql
-create type capture_method as enum ('walked', 'drawn', 'declared');
+-- 'drawn' is the default path: traced on satellite imagery.
+-- 'walked' is for fields that cannot be identified from above.
+create type capture_method as enum ('drawn', 'walked', 'declared');
 
 create table fields (
   id             uuid primary key default gen_random_uuid(),

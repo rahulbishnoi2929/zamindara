@@ -1,6 +1,6 @@
 # Zamindara — mobile
 
-Android app. Currently the **boundary walk prototype**: measure a field, check it against satellite, save it.
+Android app. Currently the **field measurement prototype**: draw or walk a field boundary, check it, save it.
 
 That is deliberately the whole scope. [BUILD_PLAN.md](../../docs/BUILD_PLAN.md) says nothing else gets built until a walked boundary is proven against a measuring tape in a real field, and this is the app that answers that.
 
@@ -26,27 +26,38 @@ The satellite map needs a Google Maps key. In [app.json](app.json), replace:
 
 Get one from the Google Cloud console — enable **Maps SDK for Android**. It sits inside the free monthly credit at this volume. Without it the walk still works; the confirmation screen shows a blank map.
 
-> ⚠️ Expo Go cannot show Google Maps on Android. For the confirmation screen you need a development build:
+> ⚠️ Expo Go cannot show Google Maps on Android. Since drawing is now the primary method, **a development build is required to use the app at all**:
 > ```bash
 > npx expo run:android
 > ```
+> The walk screen alone still works in Expo Go.
 
 ## The flow
 
 ```
-Home  →  Walk  →  Confirm  →  Saved
+Home ─→ Choose ─┬─→ Draw ─────────────────→ Saved
+                └─→ Walk ─→ Confirm ──────→ Saved
 ```
+
+**Draw** — [`DrawScreen.tsx`](src/DrawScreen.tsx). **The default.** Satellite map, centred by GPS on where he is standing, and he taps the corners of his field. Numbered handles, draggable, live area from the third corner. A Labels toggle brings in roads and village names for orientation.
+
+No confirmation step afterwards: he traced it on the imagery and watched the area the whole time.
 
 **Walk** — [`WalkScreen.tsx`](src/WalkScreen.tsx). Green/amber/red signal dot, live area, distance walked. Refuses to start on a red signal. Vibrates when he returns to the starting corner, because the phone is in his pocket and vibration is the only channel that reaches him there.
 
-**Confirm** — [`ConfirmScreen.tsx`](src/ConfirmScreen.tsx). The field on satellite imagery with draggable corners; area updates live as he drags. Warns on plots under one killa, where GPS alone cannot reach 2%.
+**Confirm** — [`ConfirmScreen.tsx`](src/ConfirmScreen.tsx). Required after a walk, and not after a draw. The field on satellite imagery with draggable corners; area updates live. Warns on plots under one killa, where GPS alone cannot reach 2%.
 
-On the evidence this second screen matters more than the first. See [Units & Measurement](../../docs/UNITS_AND_MEASUREMENT.md).
+### Why drawing is the default
+
+A georeferencing offset shifts the traced outline without changing its **area** — so error comes only from how precisely he taps four visible corners, not from two hundred noisy GPS fixes. And he can *see* whether it is right, which a walked track never lets him do.
+
+That is reasoning, not measurement. [Phase 1](../../docs/BUILD_PLAN.md#phase-1--prove-the-measurement-) settles it by testing both methods against a tape on the same plots.
 
 ## How it is put together
 
 | File | Does |
 |---|---|
+| [`DrawScreen.tsx`](src/DrawScreen.tsx) | Tap-to-trace on satellite, numbered draggable corners |
 | [`useBoundaryWalk.ts`](src/useBoundaryWalk.ts) | GPS subscription, walk state machine, crash recovery |
 | [`storage.ts`](src/storage.ts) | Offline persistence. The walk is checkpointed on every point. |
 | [`ConfirmScreen.tsx`](src/ConfirmScreen.tsx) | Satellite map, draggable corners, live area |
@@ -57,13 +68,15 @@ On the evidence this second screen matters more than the first. See [Units & Mea
 
 ## Offline
 
-The walk works with no signal at all, which is the normal condition in the middle of a Fazilka field:
+**Walking works with no signal at all**, which is the normal condition in the middle of a Fazilka field:
 
 - GPS needs no network
 - Every point is written to storage as it arrives
 - An interrupted walk is recovered on next launch
 
 Losing twenty minutes of walking to a dropped connection would only ever happen to the farmer least able to tolerate it.
+
+**Drawing needs a connection**, because map tiles have to load. This is the one real cost of making it the default, and it is unresolved: either pre-cache tiles around the farmer's village, or fall back to walking when offline. Phase 1 measures how often signal is actually missing in the fields that matter, which decides whether it needs solving.
 
 ## Status
 

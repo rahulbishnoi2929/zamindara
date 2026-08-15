@@ -53,10 +53,40 @@ The signature interaction. Detail in [Units & Measurement](UNITS_AND_MEASUREMENT
 My Fields → Add Field → Choose method → Walk → Correct → Name → Saved
 ```
 
-**1. Choose method** — three cards:
-- 🚶 **Walk the boundary** — most accurate *(recommended)*
-- ✏️ **Draw on map** — for standing crop or inaccessible plots
-- ⌨️ **Just type the size** — least accurate, gets flagged
+**1. Choose method** — two cards:
+- 🗺️ **Draw on the map** — *default.* Trace the field on satellite imagery. No walking.
+- 🚶 **Walk the boundary** — for fields that cannot be picked out from above, or where the imagery is stale
+
+Drawing leads because he can *see* whether it is right while he does it — and because a georeferencing offset shifts the outline without changing its area. Reasoning in [Units](UNITS_AND_MEASUREMENT.md#why-drawing-is-the-default-not-the-fallback); the Phase 1 field test settles it against a tape.
+
+### Drawing
+
+Satellite map, centred by GPS on where he is standing — he is almost certainly beside the field he wants, which removes the hardest part of the task.
+
+```
+        ┌─────────────────────┐
+        │ [Labels]            │
+        │                     │
+        │      ①────────②     │
+        │      │  satellite│  │
+        │      ④────────③     │
+        │                     │
+        ├─────────────────────┤
+        │ 2 killa 3 kanal     │
+        │ Tap each corner     │
+        │ [ Undo ]  [ Done ]  │
+        └─────────────────────┘
+```
+
+- Tap each corner along the bund; corners are numbered so a mistake is obvious
+- Any point can be dragged afterwards
+- Area updates live from the third corner onward
+- **Labels** toggle brings in roads and village names for orientation
+- Undo removes the last corner; Clear starts over
+
+No separate confirmation screen — he traced it on the imagery and watched the area the whole time. Showing him the same picture again would be friction, not a safeguard.
+
+### Walking
 
 **2. Walking** — full-screen, minimal, glanceable at arm's length in sunlight:
 
@@ -78,9 +108,11 @@ My Fields → Add Field → Choose method → Walk → Correct → Name → Save
 - If he stops moving for 3 minutes, ask whether to pause
 - Auto-suggest closing the loop when he returns near the start
 
-**3. Correction** — the captured shape drawn over satellite imagery, reduced to a clean four-corner rectangle where the plot is one. Draggable corner handles. Area updates live in compound units as he adjusts.
+**3. Correction** — required after a walk, unlike after a draw. The captured shape is laid over satellite imagery, reduced to a clean four-corner rectangle where the plot is one. Draggable handles. Area updates live in compound units as he adjusts.
 
 This step carries more weight than it looks. Measurement says the algorithm alone gets a one-killa plot to about 2%, and a half-killa plot nowhere near it — so on small fields the drag is not a formality, and the UI should say so. See [Units](UNITS_AND_MEASUREMENT.md#️-field-size-dominates-everything).
+
+It exists here and not after drawing for a simple reason: a walked track hands him a number he cannot judge. This is the screen where he gets to judge it.
 
 ```
         2 killa 3 kanal 8 marla

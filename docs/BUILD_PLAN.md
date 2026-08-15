@@ -101,11 +101,14 @@ A 50 m fibreglass tape costs about ₹500–1,000 and is accurate to roughly 0.2
 **Test**
 
 - [ ] **20 real plots in Fazilka**, each measured with the tape
+- [ ] **Measure every plot both ways — drawn and walked — against the same tape.** This is the comparison that decides which method should be the default. Drawing is currently the default on reasoning alone, and reasoning has already been wrong once in this project.
 - [ ] Deliberately spread the sizes: at least 5 under one killa, at least 5 over two
-- [ ] Walk 5 of them **twice** to measure real repeatability
+- [ ] Repeat 5 plots **twice by each method** to measure real repeatability
 - [ ] Record GPS accuracy alongside every walk
+- [ ] Note where satellite imagery is too old or unclear to trace — that frequency decides how much walking actually matters
 - [ ] Device test: battery drain over a 20-minute walk, screen off
 - [ ] Device test: airplane mode throughout — the walk must survive and recover
+- [ ] Device test: drawing with no signal. Map tiles will not load — decide whether to pre-cache or to require connectivity for this method.
 
 **Do**
 
@@ -118,11 +121,13 @@ A 50 m fibreglass tape costs about ₹500–1,000 and is accurate to roughly 0.2
 
 | Check | Bar |
 |---|---|
-| Plots ≥ 2 killa | within **2%** |
-| Plots < 2 killa | within **4%** |
-| Two walks of the same plot | agree within **3%** |
+| Plots ≥ 2 killa, better method | within **2%** |
+| Plots < 2 killa, better method | within **4%** |
+| Two measurements of the same plot | agree within **3%** |
 | Walk survives airplane mode | recovered on relaunch |
 | Battery, 20-min walk | under 10% |
+
+**Decide here, on the data:** which method becomes the default. If drawing wins — as the reasoning in [Units](UNITS_AND_MEASUREMENT.md#why-drawing-is-the-default-not-the-fallback) predicts — the walk becomes the fallback for fields that cannot be seen from above, and GPS accuracy stops being on the critical path for the whole product.
 
 **Separately, and not a pass/fail:** the median gap between walked area and jamabandi across the sample. If it is large or one-sided, it becomes a product problem — how the app presents a number that disagrees with a farmer's papers — and needs a decision before launch.
 

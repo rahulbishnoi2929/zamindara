@@ -200,17 +200,31 @@ The field is saved with a name he chooses — *"Nehar wala khet"*, *"Ghar ke pee
 
 This is both the trust mechanism and the retention hook: after one field is mapped, a competitor has to be dramatically better to be worth re-measuring for.
 
-## 5. Fallbacks
-
-Not every farmer will walk a boundary. Two alternatives:
+## 5. The two capture methods
 
 | Method | When | Confidence |
 |---|---|---|
-| **Walk** | Default. Most accurate. | High |
-| **Draw on satellite** | Standing crop, muddy field, or a plot he can't access | Medium |
+| **Draw on satellite** ⭐ | Default | High |
+| **Walk the boundary** | Field not identifiable from above, imagery stale or cloudy | High |
 | **Declare** | He just types "4 killa" | Low — flag it |
 
-`fields.capture_method` records which was used. A declared field shows a small warning to the captain so he knows the area is unverified and can query it before starting.
+`fields.capture_method` records which was used. A declared field shows a small warning to the captain, so he knows the area is unverified and can query it before starting work.
+
+### Why drawing is the default, not the fallback
+
+An earlier version of this document treated tracing on satellite imagery as a fallback for farmers who could not walk. That had it backwards, for two reasons.
+
+**Georeferencing offset does not change area.** This is the technical point, and it is easy to miss. If Google's imagery sits three metres north of truth, the entire traced polygon sits three metres north — and the *area* is identical. Position error and area error are not the same thing. So the error in a traced field comes only from how precisely the farmer taps a boundary he can see, across four corners, rather than from two hundred noisy GPS fixes around a perimeter.
+
+**He can see whether it is right.** This is the bigger point. A walked track hands him a number he has no means of judging — if the app says 4 killa, he can only accept or reject it on faith. Tracing puts him in front of his own field, with his bunds and his trees and his watercourse, and the outline drawn on top. He is not trusting the measurement; he is making it.
+
+That distinction is the whole trust argument of this product, and it favours drawing.
+
+**Canal-colony land makes it easier still.** Fazilka's plots are rectangles with visible bunds. Four taps is the entire interaction.
+
+**Walking is not deprecated.** It handles what drawing cannot: imagery too old to match the current partition, cloud cover, a plot he genuinely cannot pick out from above, and boundaries with nothing visible to trace. It remains fully built and tested.
+
+**Which is actually more accurate is an open question**, and the [Phase 1 field test](BUILD_PLAN.md#phase-1--prove-the-measurement-) answers it by measuring both against a tape on the same plots. The reasoning above is a hypothesis, and this document has already been wrong once about a plausible-sounding one.
 
 ## 6. Where area flows
 

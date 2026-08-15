@@ -24,12 +24,41 @@ const strings = {
 
   // — capture method
   howMeasure: { pa: 'ਖੇਤ ਕਿਵੇਂ ਨਾਪਣਾ ਹੈ?', hi: 'खेत कैसे नापना है?', en: 'How to measure?' },
+
+  drawOnMap: { pa: 'ਨਕਸ਼ੇ ਤੇ ਖੇਤ ਬਣਾਓ', hi: 'नक़्शे पर खेत बनाएँ', en: 'Draw on the map' },
+  drawOnMapHint: {
+    pa: 'ਸਭ ਤੋਂ ਸੌਖਾ — ਤੁਰਨ ਦੀ ਲੋੜ ਨਹੀਂ',
+    hi: 'सबसे आसान — चलने की ज़रूरत नहीं',
+    en: 'Easiest — no walking needed',
+  },
   walkBoundary: { pa: 'ਖੇਤ ਦੇ ਦੁਆਲੇ ਤੁਰੋ', hi: 'खेत के चारों ओर चलें', en: 'Walk the boundary' },
   walkBoundaryHint: {
-    pa: 'ਸਭ ਤੋਂ ਸਹੀ ਤਰੀਕਾ',
-    hi: 'सबसे सही तरीका',
-    en: 'Most accurate',
+    pa: 'ਜੇ ਨਕਸ਼ੇ ਤੇ ਖੇਤ ਨਾ ਦਿਸੇ',
+    hi: 'अगर नक़्शे पर खेत न दिखे',
+    en: 'If you cannot see the field on the map',
   },
+
+  // — drawing
+  tapCorners: {
+    pa: 'ਖੇਤ ਦੇ ਕੋਨਿਆਂ ਤੇ ਦਬਾਓ',
+    hi: 'खेत के कोनों पर दबाएँ',
+    en: 'Tap the corners of your field',
+  },
+  tapCornersHint: {
+    pa: 'ਵੱਟ ਦੇ ਨਾਲ-ਨਾਲ ਹਰ ਕੋਨੇ ਤੇ ਦਬਾਓ। ਗ਼ਲਤ ਹੋਵੇ ਤਾਂ ਖਿੱਚ ਕੇ ਠੀਕ ਕਰੋ।',
+    hi: 'मेड़ के साथ हर कोने पर दबाएँ। ग़लत हो तो खींचकर ठीक करें।',
+    en: 'Tap each corner along the bund. Drag any point to fix it.',
+  },
+  needThreePoints: {
+    pa: 'ਘੱਟੋ-ਘੱਟ ਤਿੰਨ ਕੋਨੇ ਚਾਹੀਦੇ ਹਨ',
+    hi: 'कम से कम तीन कोने चाहिए',
+    en: 'At least three corners needed',
+  },
+  undo: { pa: 'ਪਿੱਛੇ', hi: 'पीछे', en: 'Undo' },
+  clearAll: { pa: 'ਸਾਰੇ ਹਟਾਓ', hi: 'सब हटाएँ', en: 'Clear' },
+  done: { pa: 'ਹੋ ਗਿਆ', hi: 'हो गया', en: 'Done' },
+  labels: { pa: 'ਨਾਂ', hi: 'नाम', en: 'Labels' },
+  findingYou: { pa: 'ਤੁਹਾਡੀ ਥਾਂ ਲੱਭ ਰਹੇ ਹਾਂ...', hi: 'आपकी जगह ढूँढ रहे हैं...', en: 'Finding your location…' },
 
   // — walking
   gpsGood: { pa: 'GPS ਵਧੀਆ', hi: 'GPS अच्छा', en: 'GPS good' },
