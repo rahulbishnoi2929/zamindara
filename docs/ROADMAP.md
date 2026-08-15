@@ -40,7 +40,7 @@ Two shots before the harvest that matters: the **October–November sowing windo
 - Captain onboarding and machine registry
 - GPS boundary walk: capture, filtering, smoothing, simplification, rectangle fit
 - Satellite correction screen
-- **Field-test the walk on 20 real plots and compare against jamabandi records.** Include several plots under one killa and several above two — simulation says the error depends far more on plot size than on anything in the code.
+- **Field-test the walk on 20 real plots, measured against a 50 m tape.** Include several plots under one killa and several above two — simulation says the error depends far more on plot size than on anything in the code. Record the jamabandi separately: it is not ground truth, but the gap between paper and ground is its own finding. See [Build Plan, Phase 1](BUILD_PLAN.md#ground-truth-is-a-measuring-tape-not-the-jamabandi).
 
   Pass bar, revised from simulation: **within 2% on plots of two killa and above**, within 4% below that. If it misses, stop and fix before building anything else. Also settle two open questions here: whether real canal-colony plots sit close enough to the surveyed grid for karam snapping to pay off (simulation says no), and whether real correlated GPS error is worse than the independent noise the simulator assumes (it probably is).
 

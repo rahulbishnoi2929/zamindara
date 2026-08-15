@@ -103,7 +103,7 @@ Consumer phone GPS is accurate to **3–8 metres**. On a one-killa plot that is 
 
 Everything below has been **measured, not assumed**. `packages/geo` simulates walking a field of known size with realistic GPS error, so recovered-versus-truth is a number rather than an opinion. The sweeps live in `packages/geo/test/accuracy.test.ts` and run on every commit.
 
-> ⚠️ The simulator uses independent Gaussian error. Real GPS error is **correlated over time** — a tree line or a bad ionosphere skews a whole edge one way — so these figures are a *floor* on the error, not a prediction. The 20-plot field test against jamabandi records is the real measurement.
+> ⚠️ The simulator uses independent Gaussian error. Real GPS error is **correlated over time** — a tree line or a bad ionosphere skews a whole edge one way — so these figures are a *floor* on the error, not a prediction. The 20-plot field test, measured against a tape, is the real measurement.
 
 ### Defence 1 — Filter while walking
 

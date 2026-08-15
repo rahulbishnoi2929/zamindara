@@ -13,7 +13,7 @@
 | # | Phase | When | Gate |
 |---|---|---|---|
 | **0** | Foundations — units, geometry, walk app | Aug 2026 | ✅ **done** |
-| **1** | Prove the measurement in a real field | Late Aug | 🚦 within 2% / 4% vs jamabandi |
+| **1** | Prove the measurement in a real field | Late Aug | 🚦 within 2% / 4% vs a measuring tape |
 | **2** | Backend — Supabase, PostGIS, auth, sync | Sep | Field walked on phone appears in Postgres |
 | **3** | Captain onboarding + machine registry | Sep–Oct | You register a real captain on his own phone |
 | **4** | Jobs and dispatch | Oct | A request reaches a captain and he accepts |
@@ -72,18 +72,35 @@ Three design assumptions died here, before any of them could cost a season:
 
 *Late August 2026 · ~2 weeks · **this is a gate***
 
-Nothing else gets built until this passes. If a walked boundary does not match a farmer's papers, every downstream feature is built on sand.
+Nothing else gets built until this passes. If a walked boundary does not match physical reality, every downstream feature is built on sand.
+
+### Ground truth is a measuring tape, not the jamabandi
+
+An earlier draft of this plan graded the app against land records. That was wrong, and the distinction matters enough to state plainly:
+
+| Question | Answered by |
+|---|---|
+| **Is the app accurate?** | A 50 m measuring tape |
+| **Will the farmer accept the number?** | The jamabandi, and his reaction to it |
+
+Jamabandi records the **legal parcel**, not the cultivated field — a khasra can be split by a watercourse, partitioned between brothers, or partly leased. The records are also often decades stale. And for pricing it is the wrong number regardless: the captain is paid for ground actually worked, so tuning the app toward the record would be tuning it toward the wrong answer.
+
+A 50 m fibreglass tape costs about ₹500–1,000 and is accurate to roughly 0.2% — the margin a reference needs when validating a 2% target. A surveyor's wheel is easier alone but drifts to ~1%, too close to the thing being measured to settle a dispute.
+
+**Measure rectangular plots only for the accuracy test.** Fazilka's canal-colony plots are rectangles, so two sides and a multiplication is the whole job. Taping an irregular boundary is a survey task and is not worth it for twenty plots.
+
+**Record the jamabandi anyway, as a separate column.** Not as truth — as the number the farmer already believes. If walked areas come in consistently below the records across twenty plots, that is not an app bug; it is a fact about land records versus actual cultivation, and it means farmers will arrive already convinced the app is cheating them. Far better to learn that in August than in April.
 
 **Build**
 
 - [ ] Development build on a real Android phone (`npx expo run:android`)
 - [ ] Google Maps API key wired into `app.json`
-- [ ] **Field-test recorder** — a screen that captures, per plot: walked area, jamabandi area, plot size, GPS accuracy, walk duration, and whether the corners needed dragging
-- [ ] CSV export so the results can be analysed rather than remembered
+- [ ] **Field-test recorder** — captures per plot: walked area, **taped area**, jamabandi area (optional), plot size, GPS accuracy, walk duration, and whether corners needed dragging
+- [ ] CSV export so the results are analysed rather than remembered
 
 **Test**
 
-- [ ] **20 real plots in Fazilka**, each with a known jamabandi area
+- [ ] **20 real plots in Fazilka**, each measured with the tape
 - [ ] Deliberately spread the sizes: at least 5 under one killa, at least 5 over two
 - [ ] Walk 5 of them **twice** to measure real repeatability
 - [ ] Record GPS accuracy alongside every walk
@@ -92,10 +109,12 @@ Nothing else gets built until this passes. If a walked boundary does not match a
 
 **Do**
 
-- [ ] Ask 3–4 farmers you know for access and their jamabandi numbers
+- [ ] Buy a 50 m fibreglass measuring tape
+- [ ] Ask 3–4 farmers you know for access to their fields
+- [ ] Pull the jamabandi for those plots where it is easy, and record the gap
 - [ ] Watch someone who is *not* you use the app, without helping
 
-**Gate — all must pass**
+**Gate — all must pass, measured against the tape**
 
 | Check | Bar |
 |---|---|
@@ -104,6 +123,8 @@ Nothing else gets built until this passes. If a walked boundary does not match a
 | Two walks of the same plot | agree within **3%** |
 | Walk survives airplane mode | recovered on relaunch |
 | Battery, 20-min walk | under 10% |
+
+**Separately, and not a pass/fail:** the median gap between walked area and jamabandi across the sample. If it is large or one-sided, it becomes a product problem — how the app presents a number that disagrees with a farmer's papers — and needs a decision before launch.
 
 **If it fails:** stop. Do not build features on top of a broken measurement. Fall back to draw-on-satellite as the primary method and re-plan.
 

@@ -59,7 +59,7 @@ See [apps/mobile/README.md](apps/mobile/README.md) — the satellite map needs a
 
 ## Where things stand
 
-Phase 0 is complete. **The next thing is not code — it's the 20-plot field test** that proves a walked boundary matches a farmer's jamabandi. Nothing else gets built until it passes. See [Build Plan, Phase 1](docs/BUILD_PLAN.md#phase-1--prove-the-measurement-).
+Phase 0 is complete. **The next thing is not code — it's the 20-plot field test**, measuring walked areas against a tape. Nothing else gets built until it passes. See [Build Plan, Phase 1](docs/BUILD_PLAN.md#phase-1--prove-the-measurement-).
 
 ## Open items
 

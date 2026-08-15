@@ -2,7 +2,7 @@
 
 Android app. Currently the **boundary walk prototype**: measure a field, check it against satellite, save it.
 
-That is deliberately the whole scope. [ROADMAP.md](../../docs/ROADMAP.md) says nothing else gets built until a walked boundary is proven to match a farmer's jamabandi, and this is the app that answers that.
+That is deliberately the whole scope. [BUILD_PLAN.md](../../docs/BUILD_PLAN.md) says nothing else gets built until a walked boundary is proven against a measuring tape in a real field, and this is the app that answers that.
 
 ## Running it
 

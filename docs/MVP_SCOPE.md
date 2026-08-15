@@ -97,7 +97,7 @@ Where the real risk sits, in order:
 
 v1 ships when **all** of these are true:
 
-- [ ] A farmer walks a two-killa field and the area matches his jamabandi within 2%
+- [ ] A farmer walks a two-killa field and the area matches a taped measurement within 2%
 - [ ] A half-killa plot is within 4%, and the UI tells him the number is less certain
 - [ ] The same field books a second job in under 30 seconds
 - [ ] A captain accepts a job from the lock screen without opening the app
