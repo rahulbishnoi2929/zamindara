@@ -17,7 +17,8 @@ Launching in **Fazilka district, Punjab**.
 | [User Flows](docs/USER_FLOWS.md) | Screen-by-screen walkthroughs of every core journey. |
 | [Units & Measurement](docs/UNITS_AND_MEASUREMENT.md) | Killa/kanal/marla, GPS capture, grid snapping. The trust core of the app. |
 | [Data Model](docs/DATA_MODEL.md) | Postgres + PostGIS schema. |
-| [Tech Architecture](docs/TECH_ARCHITECTURE.md) | Stack, dispatch engine, offline strategy, notifications. |
+| [Tech Stack](docs/TECH_STACK.md) | Every technology: what, where, why, and what it beat. |
+| [Tech Architecture](docs/TECH_ARCHITECTURE.md) | How the pieces fit — dispatch engine, offline strategy, notifications. |
 | [Pricing](docs/PRICING.md) | Rate model, distance surcharge, and the path to revenue. |
 | [Competitive Analysis](docs/COMPETITIVE_ANALYSIS.md) | CHC/FARMS, private players, and the informal market. |
 | [Roadmap](docs/ROADMAP.md) | Season-by-season plan. |

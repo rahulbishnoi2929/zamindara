@@ -1,5 +1,7 @@
 # Technical Architecture
 
+How the pieces fit together. For *why each piece was chosen* — and what it was chosen over — see **[TECH_STACK.md](TECH_STACK.md)**.
+
 Chosen under one dominant constraint: **a solo, non-specialist founder must be able to build and maintain all of it.**
 
 ---
