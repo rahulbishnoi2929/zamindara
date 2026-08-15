@@ -28,7 +28,7 @@ Launching in **Fazilka district, Punjab**.
 ```
 packages/units    area conversion + compound display (killa/kanal/marla)   41 tests
 packages/geo      boundary-walk geometry pipeline                          24 tests
-apps/mobile       Android app — the boundary walk prototype
+apps/mobile       Android app — field measurement + Phase 1 recorder       17 tests
 ```
 
 ```bash

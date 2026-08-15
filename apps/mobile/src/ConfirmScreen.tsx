@@ -10,7 +10,8 @@ import { colors, radius, space, type } from './theme';
 interface Props {
   locale: Locale;
   result: WalkResult;
-  onConfirm: (polygon: LatLng[], areaSqm: number) => void;
+  /** `adjusted` records whether he actually had to move the outline. */
+  onConfirm: (polygon: LatLng[], areaSqm: number, adjusted: boolean) => void;
   onWalkAgain: () => void;
 }
 
@@ -48,6 +49,11 @@ function regionFor(ring: readonly LatLng[]): Region {
 export function ConfirmScreen({ locale, result, onConfirm, onWalkAgain }: Props) {
   const [corners, setCorners] = useState<LatLng[]>(() => openRing(result.polygon));
 
+  // How often the pipeline's output needs correcting by hand is itself a
+  // measurement — it says how much of the accuracy is coming from the
+  // algorithm and how much from the farmer's own eyes.
+  const [adjusted, setAdjusted] = useState(false);
+
   // Live area as he drags. Every corner move updates the number he is about
   // to agree to, so there is never a gap between what he sees and what he
   // accepts.
@@ -57,6 +63,7 @@ export function ConfirmScreen({ locale, result, onConfirm, onWalkAgain }: Props)
   const isSmallPlot = areaSqm < SMALL_PLOT_SQM;
 
   const moveCorner = (index: number, next: LatLng) => {
+    setAdjusted(true);
     setCorners((prev) => prev.map((p, i) => (i === index ? next : p)));
   };
 
@@ -122,7 +129,7 @@ export function ConfirmScreen({ locale, result, onConfirm, onWalkAgain }: Props)
           />
           <Button
             label={t('confirm', locale)}
-            onPress={() => onConfirm(closeRing(corners), areaSqm)}
+            onPress={() => onConfirm(closeRing(corners), areaSqm, adjusted)}
             flex
           />
         </View>

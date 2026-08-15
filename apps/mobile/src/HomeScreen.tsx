@@ -10,6 +10,7 @@ interface Props {
   fields: SavedField[];
   onAddField: () => void;
   onLocaleChange: (locale: Locale) => void;
+  onOpenFieldTest: () => void;
 }
 
 const LOCALE_LABEL: Record<Locale, string> = {
@@ -18,7 +19,13 @@ const LOCALE_LABEL: Record<Locale, string> = {
   en: 'English',
 };
 
-export function HomeScreen({ locale, fields, onAddField, onLocaleChange }: Props) {
+export function HomeScreen({
+  locale,
+  fields,
+  onAddField,
+  onLocaleChange,
+  onOpenFieldTest,
+}: Props) {
   return (
     <View style={s.screen}>
       <View style={s.header}>
@@ -60,6 +67,11 @@ export function HomeScreen({ locale, fields, onAddField, onLocaleChange }: Props
 
       <View style={s.footer}>
         <Button label={t('addField', locale)} onPress={onAddField} />
+        {/* Founder's tool, not the farmer's — deliberately small, English,
+            and out of the way. Removed once Phase 1 clears. */}
+        <Pressable onPress={onOpenFieldTest} hitSlop={12} style={s.testLink}>
+          <Text style={s.testLinkText}>Field test</Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -88,5 +100,7 @@ const s = StyleSheet.create({
   fieldName: { ...type.body, color: colors.text, marginBottom: space.xs },
   pending: { ...type.label, color: colors.fair },
 
-  footer: { padding: space.md, minHeight: TOUCH_MIN + space.lg },
+  footer: { padding: space.md, minHeight: TOUCH_MIN + space.lg, gap: space.sm },
+  testLink: { alignSelf: 'center', paddingVertical: space.sm },
+  testLinkText: { ...type.label, fontSize: 13, color: colors.textMuted },
 });

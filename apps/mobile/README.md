@@ -53,6 +53,22 @@ A georeferencing offset shifts the traced outline without changing its **area** 
 
 That is reasoning, not measurement. [Phase 1](../../docs/BUILD_PLAN.md#phase-1--prove-the-measurement-) settles it by testing both methods against a tape on the same plots.
 
+## Field test recorder
+
+Reached from a small **Field test** link at the bottom of the home screen. Deliberately English, dense, and out of the way — it is the founder's tool, not the farmer's, and it comes out once [Phase 1](../../docs/BUILD_PLAN.md#phase-1--prove-the-measurement-) clears.
+
+**Per plot:** tape reading (two sides, in m / ft / karam), jamabandi typed the way it reads on the paper — *"4 killa 2 kanal"* — and any number of measurements by either method.
+
+**Per measurement, captured automatically:** area, signed error against the tape, mean GPS accuracy, walk duration, fixes accepted vs rejected, which pipeline path ran, and **whether the corners had to be dragged**. That last one matters: it separates accuracy coming from the algorithm from accuracy coming from the farmer's own eyes.
+
+**The summary answers the gate directly** — accuracy by method, accuracy by plot size against a size-dependent bar, repeatability across repeat walks, and the median gap versus the jamabandi. The gate card says pass or fail and lists exactly what is still missing.
+
+**Export** writes a wide, flat CSV and opens the Android share sheet. One row per measurement, plots with no measurements included, so an untested plot is visible as a gap in the sample.
+
+The recorder drives the **same capture screens the app ships**, not a copy — a test that exercises different code would prove nothing.
+
+`stats.ts` and `csvBuilder.ts` are pure and carry **17 tests**. They decide whether the project proceeds, so they are tested before they are trusted.
+
 ## How it is put together
 
 | File | Does |
@@ -63,6 +79,7 @@ That is reasoning, not measurement. [Phase 1](../../docs/BUILD_PLAN.md#phase-1--
 | [`ConfirmScreen.tsx`](src/ConfirmScreen.tsx) | Satellite map, draggable corners, live area |
 | [`i18n.ts`](src/i18n.ts) | Punjabi, Hindi, English |
 | [`theme.ts`](src/theme.ts) | Sunlight contrast, 56 px minimum touch targets |
+| [`fieldTest/`](src/fieldTest) | Phase 1 recorder — tape reference, stats, gate, CSV export |
 
 **No geometry lives here.** Every decision about filtering, smoothing, area and rectangle fitting comes from [`@zamindara/geo`](../../packages/geo), which is tested against fields of known size. This app owns the device — permissions, the location stream, persistence, and the screens.
 
@@ -80,4 +97,4 @@ Losing twenty minutes of walking to a dropped connection would only ever happen 
 
 ## Status
 
-Typechecks, and bundles for Android (663 modules, verified with `expo export`). **It has not been run on a physical device or against real GPS** — that is the next step, and the 20-plot field test is what actually validates any of it.
+Typechecks, 17 tests green, and bundles for Android (694 modules, verified with `expo export`). **It has not been run on a physical device or against real GPS** — that is the next step, and the 20-plot field test is what actually validates any of it.

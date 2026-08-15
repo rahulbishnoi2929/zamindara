@@ -95,8 +95,7 @@ A 50 m fibreglass tape costs about ₹500–1,000 and is accurate to roughly 0.2
 
 - [ ] Development build on a real Android phone (`npx expo run:android`)
 - [ ] Google Maps API key wired into `app.json`
-- [ ] **Field-test recorder** — captures per plot: walked area, **taped area**, jamabandi area (optional), plot size, GPS accuracy, walk duration, and whether corners needed dragging
-- [ ] CSV export so the results are analysed rather than remembered
+- [x] ~~**Field-test recorder**~~ — built. `apps/mobile/src/fieldTest`, 17 tests. Tape reference in m/ft/karam, jamabandi typed as it reads on the paper, automatic capture of GPS accuracy, walk duration, fixes accepted/rejected, pipeline path, and whether corners were dragged. Live gate card and CSV export.
 
 **Test**
 

@@ -38,8 +38,11 @@
           "locationWhenInUsePermission": "Zamindara uses your location to measure your field while you walk its boundary.",
           "isAndroidForegroundServiceEnabled": true
         }
-      ]
+      ],
+      "expo-sharing"
     ],
-    "assetBundlePatterns": ["**/*"]
+    "assetBundlePatterns": [
+      "**/*"
+    ]
   }
 }

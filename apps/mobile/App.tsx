@@ -7,6 +7,10 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { ChooseMethodScreen } from './src/ChooseMethodScreen';
 import { ConfirmScreen } from './src/ConfirmScreen';
 import { DrawScreen } from './src/DrawScreen';
+import { FieldTestScreen } from './src/fieldTest/FieldTestScreen';
+import { PlotDetailScreen } from './src/fieldTest/PlotDetailScreen';
+import * as testStore from './src/fieldTest/storage';
+import type { CaptureMethod, TestMeasurement, TestPlot } from './src/fieldTest/types';
 import { HomeScreen } from './src/HomeScreen';
 import {
   clearActiveWalk,
@@ -19,37 +23,36 @@ import {
 import { colors } from './src/theme';
 import { WalkScreen } from './src/WalkScreen';
 
+/**
+ * Why a measurement is being taken.
+ *
+ * The same capture screens serve both paths: a farmer saving a field, and the
+ * founder recording a Phase 1 test reading. Sharing them is the point — the
+ * field test has to exercise the code that actually ships, not a copy of it.
+ */
+type Intent = { kind: 'field' } | { kind: 'test'; plotId: string };
+
 type Screen =
   | { name: 'home' }
-  | { name: 'choose' }
-  | { name: 'draw' }
-  | { name: 'walk' }
-  | { name: 'confirm'; result: WalkResult };
+  | { name: 'choose'; intent: Intent }
+  | { name: 'draw'; intent: Intent }
+  | { name: 'walk'; intent: Intent }
+  | { name: 'confirm'; intent: Intent; result: WalkResult }
+  | { name: 'test' }
+  | { name: 'testPlot'; plotId: string };
 
-/**
- * Zamindara — field measurement prototype.
- *
- * Scope: measure a field and save it. Enough to answer the question the build
- * plan puts before everything else — does a measured boundary match a tape?
- *
- * Two capture methods, and the choice between them is not a formality:
- *
- *   Draw   — trace the field on satellite imagery. The default. Faster, and
- *            he can see whether it is right while he does it.
- *   Walk   — pace the boundary with GPS. For fields that cannot be picked out
- *            from above, or where the imagery is too old to trust.
- *
- * A hand-rolled screen union rather than a navigation library: one linear
- * flow does not need one, and the APK stays small.
- */
 export default function App() {
   const [screen, setScreen] = useState<Screen>({ name: 'home' });
   const [locale, setLocale] = useState<Locale>('pa');
   const [fields, setFields] = useState<SavedField[]>([]);
+  const [plots, setPlots] = useState<TestPlot[]>([]);
+  const [measurements, setMeasurements] = useState<TestMeasurement[]>([]);
 
   useEffect(() => {
     void (async () => {
       setFields(await loadFields());
+      setPlots(await testStore.loadPlots());
+      setMeasurements(await testStore.loadMeasurements());
       const saved = await loadLocale();
       if (saved === 'pa' || saved === 'hi' || saved === 'en') setLocale(saved);
     })();
@@ -60,12 +63,45 @@ export default function App() {
     void saveLocale(next);
   };
 
-  const persist = async (
+  /** A finished measurement, routed by why it was taken. */
+  const record = async (
+    intent: Intent,
+    method: CaptureMethod,
     polygon: LatLng[],
     areaSqm: number,
-    method: string,
-    meanAccuracyM: number,
+    walk: WalkResult | null,
+    cornersAdjusted: boolean | null,
   ) => {
+    if (intent.kind === 'test') {
+      const durationSec =
+        walk === null || walk.accepted.length < 2
+          ? null
+          : (walk.accepted[walk.accepted.length - 1]!.timestamp -
+              walk.accepted[0]!.timestamp) /
+            1000;
+
+      const measurement: TestMeasurement = {
+        id: String(Date.now()),
+        plotId: intent.plotId,
+        method,
+        areaSqm,
+        polygon,
+        createdAt: Date.now(),
+        meanAccuracyM: walk?.meanAccuracyM ?? null,
+        durationSec,
+        pointsAccepted: walk?.accepted.length ?? null,
+        pointsRejected: walk?.rejected.length ?? null,
+        pipelineMethod: walk?.method ?? null,
+        cornersAdjusted,
+        imageryUsable: method === 'drawn' ? true : null,
+      };
+
+      setMeasurements(await testStore.addMeasurement(measurement));
+      await clearActiveWalk();
+      setScreen({ name: 'testPlot', plotId: intent.plotId });
+      return;
+    }
+
     const field: SavedField = {
       id: String(Date.now()),
       // Naming comes next; the prototype's job is the measurement.
@@ -73,8 +109,8 @@ export default function App() {
       polygon,
       areaSqm,
       capturedAt: Date.now(),
-      method,
-      meanAccuracyM,
+      method: walk?.method ?? 'drawn',
+      meanAccuracyM: walk?.meanAccuracyM ?? 0,
       synced: false,
     };
 
@@ -82,6 +118,27 @@ export default function App() {
     await clearActiveWalk();
     setScreen({ name: 'home' });
   };
+
+  const openPlot = (plotId: string) => setScreen({ name: 'testPlot', plotId });
+
+  const addPlot = async () => {
+    const plot: TestPlot = {
+      id: String(Date.now()),
+      label: '',
+      village: '',
+      sideA: null,
+      sideB: null,
+      tapeUnit: 'm',
+      jamabandiSqm: null,
+      notes: '',
+      createdAt: Date.now(),
+    };
+    setPlots(await testStore.upsertPlot(plot));
+    openPlot(plot.id);
+  };
+
+  const currentPlot =
+    screen.name === 'testPlot' ? plots.find((p) => p.id === screen.plotId) : undefined;
 
   return (
     <SafeAreaProvider>
@@ -92,16 +149,17 @@ export default function App() {
           <HomeScreen
             locale={locale}
             fields={fields}
-            onAddField={() => setScreen({ name: 'choose' })}
+            onAddField={() => setScreen({ name: 'choose', intent: { kind: 'field' } })}
             onLocaleChange={changeLocale}
+            onOpenFieldTest={() => setScreen({ name: 'test' })}
           />
         )}
 
         {screen.name === 'choose' && (
           <ChooseMethodScreen
             locale={locale}
-            onDraw={() => setScreen({ name: 'draw' })}
-            onWalk={() => setScreen({ name: 'walk' })}
+            onDraw={() => setScreen({ name: 'draw', intent: screen.intent })}
+            onWalk={() => setScreen({ name: 'walk', intent: screen.intent })}
             onCancel={() => setScreen({ name: 'home' })}
           />
         )}
@@ -112,16 +170,28 @@ export default function App() {
         {screen.name === 'draw' && (
           <DrawScreen
             locale={locale}
-            onDone={(polygon, areaSqm) => void persist(polygon, areaSqm, 'drawn', 0)}
-            onCancel={() => setScreen({ name: 'choose' })}
+            onDone={(polygon, areaSqm) =>
+              void record(screen.intent, 'drawn', polygon, areaSqm, null, null)
+            }
+            onCancel={() =>
+              screen.intent.kind === 'test'
+                ? openPlot(screen.intent.plotId)
+                : setScreen({ name: 'choose', intent: screen.intent })
+            }
           />
         )}
 
         {screen.name === 'walk' && (
           <WalkScreen
             locale={locale}
-            onDone={(result) => setScreen({ name: 'confirm', result })}
-            onCancel={() => setScreen({ name: 'choose' })}
+            onDone={(result) =>
+              setScreen({ name: 'confirm', intent: screen.intent, result })
+            }
+            onCancel={() =>
+              screen.intent.kind === 'test'
+                ? openPlot(screen.intent.plotId)
+                : setScreen({ name: 'choose', intent: screen.intent })
+            }
           />
         )}
 
@@ -131,15 +201,62 @@ export default function App() {
           <ConfirmScreen
             locale={locale}
             result={screen.result}
-            onConfirm={(polygon, areaSqm) =>
-              void persist(
+            onConfirm={(polygon, areaSqm, adjusted) =>
+              void record(
+                screen.intent,
+                'walked',
                 polygon,
                 areaSqm,
-                screen.result.method,
-                screen.result.meanAccuracyM,
+                screen.result,
+                adjusted,
               )
             }
-            onWalkAgain={() => setScreen({ name: 'walk' })}
+            onWalkAgain={() => setScreen({ name: 'walk', intent: screen.intent })}
+          />
+        )}
+
+        {screen.name === 'test' && (
+          <FieldTestScreen
+            plots={plots}
+            measurements={measurements}
+            onOpenPlot={openPlot}
+            onAddPlot={() => void addPlot()}
+            onBack={() => setScreen({ name: 'home' })}
+          />
+        )}
+
+        {screen.name === 'testPlot' && currentPlot !== undefined && (
+          <PlotDetailScreen
+            plot={currentPlot}
+            measurements={measurements.filter((m) => m.plotId === currentPlot.id)}
+            onChange={(next) => {
+              setPlots((prev) => prev.map((p) => (p.id === next.id ? next : p)));
+              void testStore.upsertPlot(next);
+            }}
+            onMeasureDrawn={() =>
+              setScreen({ name: 'draw', intent: { kind: 'test', plotId: currentPlot.id } })
+            }
+            onMeasureWalked={() =>
+              setScreen({ name: 'walk', intent: { kind: 'test', plotId: currentPlot.id } })
+            }
+            onUpdateMeasurement={(m) => {
+              setMeasurements((prev) => prev.map((x) => (x.id === m.id ? m : x)));
+              void testStore.updateMeasurement(m);
+            }}
+            onDeleteMeasurement={(id) => {
+              setMeasurements((prev) => prev.filter((m) => m.id !== id));
+              void testStore.deleteMeasurement(id);
+            }}
+            onDeletePlot={() => {
+              void testStore.deletePlot(currentPlot.id).then(() => {
+                setPlots((prev) => prev.filter((p) => p.id !== currentPlot.id));
+                setMeasurements((prev) =>
+                  prev.filter((m) => m.plotId !== currentPlot.id),
+                );
+                setScreen({ name: 'test' });
+              });
+            }}
+            onBack={() => setScreen({ name: 'test' })}
           />
         )}
       </SafeAreaView>
