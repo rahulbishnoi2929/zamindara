@@ -11,6 +11,7 @@ Launching in **Fazilka district, Punjab**.
 | Document | What it covers |
 |---|---|
 | [PRD](docs/PRD.md) | The anchor document. Problem, vision, users, scope, metrics, risks. |
+| **[Build Plan](docs/BUILD_PLAN.md)** | **Phase by phase: what to build, what to test, what to do. Start here to work.** |
 | [MVP Scope](docs/MVP_SCOPE.md) | What ships in v1 and — more importantly — what does not. |
 | [Personas](docs/PERSONAS.md) | The four people in the system, written as real people. |
 | [User Flows](docs/USER_FLOWS.md) | Screen-by-screen walkthroughs of every core journey. |
@@ -55,6 +56,10 @@ See [apps/mobile/README.md](apps/mobile/README.md) — the satellite map needs a
 | Platform | **Android only** at launch |
 | Region design | Punjab, Haryana, North Rajasthan share one unit system |
 | Team | Solo founder |
+
+## Where things stand
+
+Phase 0 is complete. **The next thing is not code — it's the 20-plot field test** that proves a walked boundary matches a farmer's jamabandi. Nothing else gets built until it passes. See [Build Plan, Phase 1](docs/BUILD_PLAN.md#phase-1--prove-the-measurement-).
 
 ## Open items
 
