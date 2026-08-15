@@ -1,0 +1,45 @@
+{
+  "expo": {
+    "name": "Zamindara",
+    "slug": "zamindara",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1B5E20"
+    },
+    "android": {
+      "package": "com.zamindara.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1B5E20"
+      },
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION"
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "REPLACE_WITH_YOUR_GOOGLE_MAPS_ANDROID_API_KEY"
+        }
+      }
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Zamindara uses your location to measure your field while you walk its boundary.",
+          "locationWhenInUsePermission": "Zamindara uses your location to measure your field while you walk its boundary.",
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ]
+    ],
+    "assetBundlePatterns": ["**/*"]
+  }
+}

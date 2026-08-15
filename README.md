@@ -26,11 +26,18 @@ Launching in **Fazilka district, Punjab**.
 ```
 packages/units    area conversion + compound display (killa/kanal/marla)   41 tests
 packages/geo      boundary-walk geometry pipeline                          24 tests
+apps/mobile       Android app — the boundary walk prototype
 ```
 
 ```bash
 npm install && npm test
 ```
+
+```bash
+npm run android --workspace @zamindara/mobile
+```
+
+See [apps/mobile/README.md](apps/mobile/README.md) — the satellite map needs a Google Maps key before the confirmation screen will render.
 
 `packages/units` is the most safety-critical code here — a bug in it overbills a farmer — so it was built and tested before any UI existed.
 
