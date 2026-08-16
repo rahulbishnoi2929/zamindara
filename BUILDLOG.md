@@ -1,0 +1,259 @@
+# Build Log
+
+A running record of **what we built and why**, one entry per instruction.
+
+Newest first, so the most recent work is always at the top. Each entry says what was asked, what changed, which decisions were made, how it was verified, and which commit it landed in.
+
+> **Maintained by Claude.** A new entry is appended at the top after every piece of work. If an entry is missing, the work was not finished.
+
+---
+
+## Where things stand
+
+| | |
+|---|---|
+| **Phase** | 0 complete. Phase 1 (field test) is the next gate. |
+| **Tests** | 82 passing — units 41, geo 24, mobile 17 |
+| **App** | Typechecks, bundles for Android (694 modules) |
+| **Not yet done** | Never run on a physical device |
+| **Blocking next step** | A dev build, a Google Maps key, and a 50 m measuring tape |
+
+```
+C:\Zamidara\
+├── docs\              11 product and engineering documents
+├── packages\units\    killa/kanal/bigha/marla — 41 tests
+├── packages\geo\      GPS boundary geometry — 24 tests
+├── apps\mobile\       Expo SDK 57 Android app — 17 tests
+└── assets\            logo
+```
+
+---
+
+## Reversals — decisions we changed our minds about
+
+The most useful part of this log. Each of these was believed, written down, then overturned by evidence or by a question worth asking.
+
+| # | We thought | Turned out | Why it changed |
+|---|---|---|---|
+| 1 | Canal-grid **karam snapping** would collapse the error — "Fazilka's unfair advantage" | It makes accuracy **worse** (53% vs 60% within 2%) | One karam is 2.8% of a 36-karam side. Quantising an estimate already inside 2% rounds it away from truth. Now ships off, kept as a passing test so nobody re-enables it. |
+| 2 | **MongoDB can't do the geospatial work** | It can — GeoJSON polygons, `2dsphere`, `$near` all work | Confused it with Firestore, which genuinely cannot store a polygon. The real argument for Supabase is operational, not technical. Recorded honestly in [TECH_STACK](docs/TECH_STACK.md). |
+| 3 | The field test grades the app against the **jamabandi** | Ground truth is a **50 m measuring tape** | The record describes the legal parcel, not the cultivated field, and is often decades stale. Prompted by the user asking "why would we need jamabandi". |
+| 4 | **Walking** the boundary is the primary capture method | **Drawing on satellite** is, and walking is the fallback | Georeferencing offset shifts a polygon without changing its area — and the farmer can *see* whether a traced field is right. Prompted by the user asking for map drawing. |
+| 5 | A minimum **bounding** rectangle would clean up a noisy walk | It inflates area by **+22%** | It must enclose every point, so it latches onto the worst noise excursion on each side. Replaced with median edge fitting: +1.3%. |
+| 6 | Reject GPS fixes moving faster than walking pace | That rejected **150 of 196 honest fixes** | Two fixes 1 s apart, each ±5 m, can sit 10 m apart while the walker barely moved. Now subtracts the admitted error budget first. |
+
+**Rule that came out of this:** when a measurement contradicts a plan, the measurement wins. It is written into [BUILD_PLAN](docs/BUILD_PLAN.md#standing-rules).
+
+---
+
+# Entries
+
+## 14 · Build log
+
+**Asked:** maintain a file recording what we build and how, updated every prompt.
+
+**Built:** this file. Newest-first entries, a current-state summary, and a reversals table collecting every decision that was overturned.
+
+**Decision:** reversals get their own table at the top. They are the highest-value thing to re-read — each one is a mistake caught before it cost a season, and the pattern in them is worth seeing.
+
+---
+
+## 13 · Field test recorder
+
+**Asked:** build the field test recorder.
+
+**Built:** `apps/mobile/src/fieldTest/` — the tool for the Phase 1 gate.
+
+- **Per plot:** tape reading as two sides in **m / ft / karam**, and jamabandi typed the way it reads on the paper ("4 killa 2 kanal"), parsed by `@zamindara/units`
+- **Per measurement, captured automatically:** area, signed error vs tape, mean GPS accuracy, walk duration, fixes accepted/rejected, pipeline path, and **whether corners were dragged**
+- **Summary:** accuracy by method, accuracy by plot size against a size-dependent bar, repeatability, median jamabandi gap, and a pass/fail gate card listing what is missing
+- **CSV export** — wide and flat, one row per measurement, unmeasured plots included so a gap in the sample is visible
+
+**Decisions:**
+- The recorder drives **the same capture screens the app ships**, not a copy. A test exercising different code proves nothing.
+- `cornersAdjusted` is captured automatically, because it separates accuracy coming from the algorithm from accuracy coming from the farmer's eyes.
+- English, dense, and behind a small link — this is the founder's tool, and it comes out once Phase 1 clears.
+- `stats.ts` and `csvBuilder.ts` were split to be pure and testable. They decide whether the project proceeds, so they are tested before trusted.
+
+**Verified:** 17 new tests, typecheck clean, bundles at 694 modules.
+
+**Commit:** `0eee3c6`
+
+---
+
+## 12 · Tech stack decision register
+
+**Asked:** a tech stack file — what we use, where, and why.
+
+**Built:** [docs/TECH_STACK.md](docs/TECH_STACK.md). Every technology with its alternatives, a cost table, a lock-in table with exit paths, and the five constraints that decided everything.
+
+**Decisions:**
+- Kept separate from `TECH_ARCHITECTURE.md` — that covers *how the pieces fit*, this covers *why they are the pieces*
+- Recorded the MongoDB correction (reversal #2) rather than quietly leaving the wrong reason in place
+- Added the lock-in table because for a solo founder before a fixed deadline, "can I leave?" matters as much as any feature comparison
+
+**Flagged:** DLT registration with TRAI takes weeks and blocks phone OTP entirely. Most likely schedule surprise in the plan.
+
+**Commit:** `0891e57`
+
+---
+
+## 11 · Draw the field on satellite
+
+**Asked:** farmers should be able to draw their field on the map.
+
+**Built:** `DrawScreen` — satellite map centred by GPS on where the farmer stands, tap to place numbered draggable corners, live area from the third corner, labels toggle for orientation. Plus `ChooseMethodScreen`. **Made the default** (reversal #4).
+
+**Decisions:**
+- Drawing leads because georeferencing offset shifts an outline without changing its **area**, and because he can *see* whether it is right — a walked track gives him a number he cannot judge
+- **No confirmation screen after drawing.** He traced it on the imagery and watched the area throughout; showing the same picture again is friction, not a safeguard. Walking keeps its confirmation step for exactly the opposite reason.
+- Map centred on his GPS position, which removes the hardest part of the task: finding your own field on a satellite map
+
+**Open, honestly:** this is reasoning, not measurement. Phase 1 now tests **both methods against the same tape on the same plots** and decides on data. Also: drawing needs a connection for map tiles, where walking works in full airplane mode. Unresolved — Phase 1 measures how often signal is actually absent first.
+
+**Commit:** `cbca81c`
+
+---
+
+## 10 · Ground truth is a tape
+
+**Asked:** "why would we need jamabandi"
+
+**Changed:** Phase 1 now grades the app against a **50 m fibreglass tape** (~0.2% error, against a 2% target), on rectangular canal-colony plots. Jamabandi is recorded as a separate, non-gating column.
+
+**Decisions:**
+- Two questions had been conflated: *is the app accurate* (tape) and *will the farmer accept the number* (jamabandi). Only the first is a test of the code.
+- The gap between tape and paper is kept because it is its own finding — if walked areas come in consistently below the records, every farmer meets our number already convinced it is wrong. That is a launch problem, better found in August than April.
+
+**Commit:** `69c5027`
+
+---
+
+## 9 · Phase-by-phase build plan
+
+**Asked:** a phase-wise document of what we build, test, and do.
+
+**Built:** [docs/BUILD_PLAN.md](docs/BUILD_PLAN.md) — eleven phases from August 2026 to the April 2027 wheat harvest, each with *build / test / do / gate*.
+
+**Decisions:**
+- Two phases are **gates that can stop the project**: Phase 1 (measurement vs tape) and Phase 6 (soft launch — fewer than 30 captains signing up face to face means the supply assumption is wrong). Written as explicit kill criteria now, rather than as things to rationalise away in February.
+- Every phase includes work that is not code. Phase 8's most important line is *go to Sri Ganganagar and register 15 combine operators before the season starts.*
+- Migrant mode is Phase 8, not Phase 4 — it needs a working marketplace underneath it, and it must be stable *before* the fleet moves north in March.
+- Testing strategy is per-layer, because reaching for the wrong kind of proof gives false confidence. Anything touching GPS, push or battery needs a **real phone**; emulators lie about all three.
+
+**Commit:** `cb1decb`
+
+---
+
+## 8 · Expo app — the walk
+
+**Asked:** build the Expo screen.
+
+**Built:** `apps/mobile` on Expo SDK 57. Home, walk and satellite-confirmation screens, Punjabi/Hindi/English, offline capture.
+
+**Decisions:**
+- **Refuses to start on a red GPS signal.** A walk begun on weak GPS produces a number nobody should bill against, and the farmer would not know.
+- **Vibrates when he returns to the starting corner.** The phone is meant to be in his pocket; vibration is the only channel that reaches him there.
+- **Every GPS point is checkpointed to storage.** Losing twenty minutes of walking would only ever happen to the farmer least able to tolerate it.
+- **No geometry in the app** — it all comes from `@zamindara/geo`. The app owns the device: permissions, the location stream, persistence, screens.
+- Metro configured to consume workspace packages as TypeScript source, rewriting their ESM `.js` import specifiers.
+
+**Verified:** typecheck clean, bundles for Android, and confirmed the workspace packages genuinely made it into the bundle — including the Gurmukhi strings, which Hermes stores as UTF-16 (a first check using UTF-8 grep wrongly reported them missing).
+
+**Commit:** `391d203`
+
+---
+
+## 7 · Units and geometry packages
+
+**Asked:** start with the units package, then the boundary walk prototype.
+
+**Built:**
+- `packages/units` — killa/kanal/bigha/marla, compound display, Gurmukhi and Devanagari parsing. **41 tests.**
+- `packages/geo` — filter → smooth → simplify → rectangle fit, plus a walk simulator. **24 tests**, including a statistical accuracy suite.
+- Git initialised.
+
+**Decisions:**
+- Every unit is a whole number of marlas, so decomposition is integer arithmetic. This removes floating-point carry bugs from the most price-sensitive code in the project — 19.6 marla must render as "4 kanal", never "3 kanal 20 marla".
+- Area is stored as square metres only, never as killa or bigha. *Bigha* means four different sizes in four states.
+- Own geometry rather than turf.js: it sets prices, so it needed to be understood line by line and tested against known ground truth.
+
+**Three findings that overturned the design** — reversals #1, #5, #6 above. All three surfaced only because the accuracy suite measures rather than assumes.
+
+**The finding that changed the product:** accuracy is a property of the *plot*, not the app. Half a killa → 3.16% error; five killa → 0.54%. The 2% bar is unreachable on small plots from a single measurement. Cheapest fix, needing no new technology: **measure twice and average** — 3.16% → 2.31%.
+
+**Also corrected:** the worked example across all docs. 9,714 m² is *2 killa 3 kanal 4 marla*, not 8 marla.
+
+**Commit:** `e77a3a7`
+
+---
+
+## 6 · Documents, and clearing the decks
+
+**Asked:** Fazilka as the beachhead; then "delete everything and continue with new file".
+
+**Built:** ten product documents plus a README index.
+
+**Removed:** `uber/` — an 80 MB MERN Uber-clone tutorial project. **Rescued `zamidara.jpg` first**, since the logo was the founder's own asset rather than tutorial code. Left `temp/` (a 702 MB tutorial video) untouched, since "delete the files" was about the codebase and re-downloading 700 MB on a guess would be careless.
+
+**Decision:** Supabase over the existing Express/MongoDB scaffolding. The tutorial code was not an asset — it was followed, not written — and the frontend was a *web* app, which cannot do background GPS or lock-screen push regardless.
+
+**Why Fazilka works:** it sits on the Rajasthan border next to Sri Ganganagar, so it is the gate migrant combines drive through heading north. Cotton–wheat belt, heavily mechanised, and the Abohar kinnow orchards give a second demand season in winter when everyone else is idle.
+
+---
+
+## 5 · The launch belt
+
+**Asked:** Punjab, Haryana, Rajasthan.
+
+**Flagged:** the unit set breaks in most of Rajasthan, which uses **bigha and biswa**, not kanal and marla — and its bigha has pucca (~2,529 m²) and kaccha (~1,618 m²) variants that differ **by district**. Assuming the wrong one overbills a farmer by a third, silently.
+
+**Decided:** design tri-state, launch on the belt where the units already work — Punjab, Haryana, and **north Rajasthan** (Ganganagar, Hanumangarh), which were settled under the same canal-colony system and use killa/kanal/marla. Southern Rajasthan becomes a separate region row later, no schema change.
+
+**Also noted:** the tri-state choice is strategically right, because the wheat harvest moves as a northbound wave — MP/Gujarat in March, Rajasthan late March, Haryana early April, Punjab mid-April. That is not three markets; it is one migration route.
+
+---
+
+## 4 · Unit set locked
+
+**Asked:** drop murabba and sarsahi, keep kanal and marla.
+
+**Locked:** marla (25.293 m²), kanal (20 marla), bigha (5 kanal), killa (8 kanal = 1 acre).
+
+**Note:** dropping sarsahi was right for a reason beyond simplicity — at 2.8 m² it is *smaller than GPS error*, so displaying it would be false precision. Marla is the correct floor.
+
+**Also:** bigha and killa are both top-level units and never stack, so there are two display chains and the farmer picks one.
+
+---
+
+## 3 · Local units
+
+**Asked:** killa is 8 kanal, bigha is 5 kanal.
+
+**Confirmed** against Punjab revenue standards — the bigha at 5 kanal is the *pucca* bigha, exactly 5/8 of a killa.
+
+**Decision that came out of it — never show a decimal.** A jamabandi does not say "2.4 killa"; it says **2 killa 3 kanal 8 marla**. Showing a decimal shows a farmer a number he has never seen on a document. This became the core rule of `packages/units`.
+
+---
+
+## 2 · Founding decisions and the stack
+
+**Asked:** captain first, GPS boundary, free at launch, cash and digital, surcharge beyond 5 km, solo founder — and which tech stack.
+
+**Recommended:** TypeScript everywhere — Expo/React Native, Supabase (Postgres + PostGIS), Next.js admin. Android only.
+
+**Reasoning:** the app is a geospatial app with a marketplace on top, and PostGIS answers every core question in one line. One language across mobile, backend, admin and database types is the highest-leverage choice available to one person.
+
+**Also advised cutting from v1:** iOS, payments (nothing to collect while free), and a full offline sync engine.
+
+**Flagged:** GPS is accurate to 3–8 m, which is 5–10% of a one-killa plot. This was the first statement of the risk that later drove all of `packages/geo`.
+
+---
+
+## 1 · The idea
+
+**Asked:** understand the concept before building.
+
+**Played back:** Uber, where the ride is farm work and the car is a machine. Farmer selects his field first, the app computes the area, he picks the job, nearby captains get the request. Captains declare machinery they **own or can arrange**. Farmers with idle machines are suppliers too. Migrant combines following the harvest north can go live in a new district.
+
+**Identified where it is not Uber:** fare is per acre not per km; a job lasts hours or days; a combine serves eight fields back to back, so captains have a **queue**; booking is mostly scheduled; demand is brutally seasonal; trust is local and offline; connectivity is bad; money is cash.

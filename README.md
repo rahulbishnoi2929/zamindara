@@ -6,6 +6,8 @@ Launching in **Fazilka district, Punjab**.
 
 ---
 
+**[BUILDLOG.md](BUILDLOG.md)** — running record of what was built and why, newest first. Includes a table of every decision we reversed and what overturned it.
+
 ## Document set
 
 | Document | What it covers |
