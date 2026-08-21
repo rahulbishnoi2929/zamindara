@@ -4,6 +4,8 @@ import * as Location from 'expo-location';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import MapView, { Marker, Polygon, Polyline, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
+import { MapKeyWarning } from './MapKeyWarning';
+import { googleMapsKeyMissing } from './mapsKey';
 import { AreaDisplay, Button } from './components';
 import { t } from './i18n';
 import { colors, radius, space, type } from './theme';
@@ -157,6 +159,8 @@ export function DrawScreen({ locale, onDone, onCancel }: Props) {
             </Marker>
           ))}
         </MapView>
+
+        {googleMapsKeyMissing() && <MapKeyWarning />}
 
         {/* Roads and village names help him orient before he starts tapping. */}
         <Pressable

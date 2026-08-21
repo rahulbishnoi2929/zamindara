@@ -4,33 +4,70 @@ Android app. Currently the **field measurement prototype**: draw or walk a field
 
 That is deliberately the whole scope. [BUILD_PLAN.md](../../docs/BUILD_PLAN.md) says nothing else gets built until a walked boundary is proven against a measuring tape in a real field, and this is the app that answers that.
 
-## Running it
+## Getting it onto a phone
 
-```bash
-npm install
-```
+### 1. The Google Maps key — do this first
 
-```bash
-npm run android --workspace @zamindara/mobile
-```
-
-Or from this directory, `npx expo start` and scan the QR code with **Expo Go**.
-
-### One thing you must do first
-
-The satellite map needs a Google Maps key. In [app.json](app.json), replace:
+Both map screens are dead without it. In [app.json](app.json), replace:
 
 ```
 "apiKey": "REPLACE_WITH_YOUR_GOOGLE_MAPS_ANDROID_API_KEY"
 ```
 
-Get one from the Google Cloud console — enable **Maps SDK for Android**. It sits inside the free monthly credit at this volume. Without it the walk still works; the confirmation screen shows a blank map.
+Get one from the Google Cloud console with **Maps SDK for Android** enabled. It sits inside the free monthly credit at this volume.
 
-> ⚠️ Expo Go cannot show Google Maps on Android. Since drawing is now the primary method, **a development build is required to use the app at all**:
-> ```bash
-> npx expo run:android
-> ```
-> The walk screen alone still works in Expo Go.
+If you skip it, the app now *tells* you rather than showing a blank grey rectangle — but you still cannot draw a field.
+
+### 2. Build the APK
+
+```bash
+cd apps/mobile && npx expo prebuild --platform android --clean
+```
+
+Then **build release, not debug**:
+
+```bash
+cd apps/mobile/android && ./gradlew assembleRelease
+```
+
+The APK lands at `apps/mobile/android/app/build/outputs/apk/release/app-release.apk`.
+
+> ⚠️ **Do not take a debug APK into a field.** `assembleDebug` does not embed the
+> JavaScript bundle — it expects Metro running on your laptop, and shows an error
+> screen without it. That is exactly the failure you would discover after driving
+> to a plot. `assembleRelease` bundles the JS and runs standalone.
+
+The release build is signed with the **debug keystore**, which is fine for
+sideloading and the field test. Generate a real keystore before the Play Store —
+an app signed with the debug key cannot be published or updated.
+
+`android/` is generated and gitignored — regenerate it any time with `expo
+prebuild`. Never edit it by hand; the next prebuild throws the edits away.
+
+### 3. Install it
+
+With the phone plugged in and USB debugging on:
+
+```bash
+adb install -r apps/mobile/android/app/build/outputs/apk/release/app-release.apk
+```
+
+Or copy the APK to the phone and tap it — Android will ask permission to install from unknown sources.
+
+### Day-to-day development
+
+For coding at a desk, a debug build plus Metro gives live reload:
+
+```bash
+cd apps/mobile/android && ./gradlew assembleDebug
+```
+
+```bash
+cd apps/mobile && npx expo start --dev-client
+```
+
+Rebuild natively only when a native dependency or `app.json` changes. Rebuild
+**release** whenever you are about to go out and measure something.
 
 ## The flow
 

@@ -3,6 +3,8 @@ import { SQM, type Locale } from '@zamindara/units';
 import { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import MapView, { Marker, Polygon, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
+import { MapKeyWarning } from './MapKeyWarning';
+import { googleMapsKeyMissing } from './mapsKey';
 import { AreaDisplay, Banner, Button } from './components';
 import { t } from './i18n';
 import { colors, radius, space, type } from './theme';
@@ -108,6 +110,8 @@ export function ConfirmScreen({ locale, result, onConfirm, onWalkAgain }: Props)
             </Marker>
           ))}
         </MapView>
+
+        {googleMapsKeyMissing() && <MapKeyWarning />}
       </View>
 
       <View style={s.panel}>
