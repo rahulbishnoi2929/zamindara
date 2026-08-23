@@ -12,7 +12,7 @@ Newest first, so the most recent work is always at the top. Each entry says what
 
 | | |
 |---|---|
-| **Phase** | 0 complete. Phase 1 (field test) is the next gate. |
+| **Phase** | 0 complete. Phase 1 (field test) is the gate. Phase 2 step 2.1 in progress. |
 | **Tests** | 82 passing — units 41, geo 24, mobile 17 |
 | **App** | **Installable release APK built** — 70 MB, `com.zamindara.app`, targetSdk 36 |
 | **Not yet done** | Never run on a physical device |
@@ -47,6 +47,35 @@ The most useful part of this log. Each of these was believed, written down, then
 ---
 
 # Entries
+
+## 16 · Phase 2.1 — backend schema (written, not yet verified)
+
+**Asked:** design and build the backend; then, after a correction, go phase by phase rather than all at once.
+
+**Pushed back on one thing:** the brief said "scale to millions of users". That is the wrong target and would actively hurt — the plan is 50 captains and 400 farmers in one district by April. Postgres and PostGIS serve a million users on a $25/month box for this workload. Built for correctness and safety, not premature distributed systems.
+
+**Written — 11 migrations, seed data, two test suites:**
+
+- Regions with region-scoped unit sets, so adding a bigha/biswa district is a row insert
+- Profiles and captains — phone is the identity, no email and no password anywhere
+- Machinery with the **owned / arrangeable** split enforced in the dispatch query, not the app
+- Fields, with area and centroid **derived server-side** from the geometry
+- Jobs, dispatch, an append-only audit trail, two-way ratings
+- `eligible_captains`, `quote_job`, `rate_guidance`, `accept_job`
+- RLS on all twelve tables
+- Fazilka catalogue: 21 machine types, 14 services — straw reaper and orchard sprayer included, because both are real second markets here
+
+**Decisions:**
+- Business logic lives in the database because it decides who gets work and what a farmer pays. A client cannot be trusted with either.
+- `accept_job` handles the race with a status predicate inside the UPDATE. Two captains tapping accept in the same second yield exactly one winner.
+- Land constants are duplicated in SQL (`sqm_per_unit`) and asserted equal to `packages/units` by test, because a silent divergence would misprice jobs.
+- Job area is **snapshotted** at booking. Re-measuring a field next season must not move historical prices.
+
+**⚠️ Status: unverified.** None of this has run against a database. Docker Desktop will not start its WSL backend — the UI reports "already running" while the `docker-desktop` distro sits Stopped, which needs attention in the Docker UI. **Nothing here should be trusted until `supabase test db` passes.**
+
+**Three guarantees the tests exist to prove:** a client cannot set its own acreage; farmer A cannot read farmer B's boundary; two captains contesting a job produce one winner.
+
+---
 
 ## 15 · An APK you can actually install
 
