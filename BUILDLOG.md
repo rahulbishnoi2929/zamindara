@@ -12,8 +12,8 @@ Newest first, so the most recent work is always at the top. Each entry says what
 
 | | |
 |---|---|
-| **Phase** | 0 complete. Phase 1 (field test) is the gate. Phase 2 step 2.1 in progress. |
-| **Tests** | 82 passing — units 41, geo 24, mobile 17 |
+| **Phase** | Phase 3 started — captain onboarding. Phase 1 field test still the accuracy gate. |
+| **Tests** | 100 passing — units 41, geo 24, mobile 17, catalog 18 |
 | **App** | **Installable release APK built** — 70 MB, `com.zamindara.app`, targetSdk 36 |
 | **Not yet done** | Never run on a physical device |
 | **Blocking next step** | A Google Maps key and a 50 m measuring tape |
@@ -47,6 +47,33 @@ The most useful part of this log. Each of these was believed, written down, then
 ---
 
 # Entries
+
+## 17 · Phase 3 — captain onboarding and the machine registry
+
+**Asked:** stop waiting on the field-test data and start making the app.
+
+**Right call.** The data gate blocks *trusting the measurement*, not building the product around it. That makes Phase 3 next — the phase the business actually depends on, since captains are the side you seed first. It needs no backend, so it is unblocked by Docker too.
+
+**Built:**
+
+- **`packages/catalog`** — 21 machine types and 14 services, named in Gurmukhi, Devanagari and English. **18 tests.**
+- **`supabase/seed.sql` is now generated from it** (`npm run gen:seed`). The database and the app can no longer disagree about what a Happy Seeder is.
+- **Onboarding flow** — language, role, name and village, then machines and rates. A farmer skips the last two; "I do both" does not.
+- **Machine registry** — a grid of glyphs and local names, never a dropdown of English words. Records **owned or arrangeable**, with lead time, plus Balwinder's "I go with the machine" constraint.
+- **Rates derived from machinery.** Register a combine, get offered wheat and paddy harvesting. He never says it twice.
+- **Home reshaped by role** — a captain opens to his availability toggle and his machines; a farmer to his fields.
+
+**Decisions:**
+- The catalogue is one source of truth in TypeScript, and the SQL seed is derived. Two hand-maintained lists would drift, which is the same class of bug as `sqm_per_unit` and was worth solving the same way.
+- Removing a machine drops the rates for work it enabled, so a price can never be quoted for something he cannot do.
+- Emoji glyphs are placeholders. The flows call for photographs of the actual machines, and a farmer choosing between captains chooses the one whose machine he can see.
+- Village is free text for now, flagged in code. It needs a searchable list of Fazilka villages or it will collect five spellings of the same place.
+
+**Verified:** 100 tests green, typecheck clean across four packages, Metro bundles at 702 modules.
+
+**Not done:** no phone auth, nothing syncs to Postgres — both wait on the backend. Local storage sits behind a model that mirrors the schema, so wiring Supabase is a change of storage rather than a rewrite.
+
+---
 
 ## 16 · Phase 2.1 — backend schema (written, not yet verified)
 

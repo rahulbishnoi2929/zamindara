@@ -22,6 +22,76 @@ const strings = {
     en: 'No fields yet. Measure your first one.',
   },
 
+  // — onboarding
+  chooseLanguage: { pa: 'ਭਾਸ਼ਾ ਚੁਣੋ', hi: 'भाषा चुनें', en: 'Choose your language' },
+  whoAreYou: { pa: 'ਤੁਸੀਂ ਕੌਣ ਹੋ?', hi: 'आप कौन हैं?', en: 'Who are you?' },
+  iAmFarmer: { pa: 'ਮੈਨੂੰ ਖੇਤ ਦਾ ਕੰਮ ਕਰਵਾਉਣਾ ਹੈ', hi: 'मुझे खेत का काम करवाना है', en: 'I need work done on my field' },
+  iAmCaptain: { pa: 'ਮੇਰੇ ਕੋਲ ਮਸ਼ੀਨ ਹੈ', hi: 'मेरे पास मशीन है', en: 'I have machinery' },
+  iAmBoth: { pa: 'ਮੈਂ ਦੋਵੇਂ ਕਰਦਾ ਹਾਂ', hi: 'मैं दोनों करता हूँ', en: 'I do both' },
+  yourName: { pa: 'ਤੁਹਾਡਾ ਨਾਂ', hi: 'आपका नाम', en: 'Your name' },
+  yourVillage: { pa: 'ਪਿੰਡ', hi: 'गाँव', en: 'Village' },
+  next: { pa: 'ਅੱਗੇ', hi: 'आगे', en: 'Next' },
+  back: { pa: 'ਪਿੱਛੇ', hi: 'पीछे', en: 'Back' },
+  skip: { pa: 'ਬਾਅਦ ਵਿੱਚ', hi: 'बाद में', en: 'Later' },
+  finishSetup: { pa: 'ਪੂਰਾ ਕਰੋ', hi: 'पूरा करें', en: 'Finish' },
+
+  // — machine registry
+  yourMachines: { pa: 'ਤੁਹਾਡੀਆਂ ਮਸ਼ੀਨਾਂ', hi: 'आपकी मशीनें', en: 'Your machinery' },
+  addMachine: { pa: 'ਮਸ਼ੀਨ ਜੋੜੋ', hi: 'मशीन जोड़ें', en: 'Add a machine' },
+  pickMachine: { pa: 'ਕਿਹੜੀ ਮਸ਼ੀਨ?', hi: 'कौन सी मशीन?', en: 'Which machine?' },
+  noMachinesYet: {
+    pa: 'ਅਜੇ ਕੋਈ ਮਸ਼ੀਨ ਨਹੀਂ ਜੋੜੀ। ਜੋ ਵੀ ਤੁਹਾਡੇ ਕੋਲ ਹੈ ਉਹ ਜੋੜੋ।',
+    hi: 'अभी कोई मशीन नहीं जोड़ी। जो भी आपके पास है वो जोड़ें।',
+    en: 'No machines yet. Add whatever you have.',
+  },
+  ownership: { pa: 'ਮਸ਼ੀਨ ਕਿਸ ਦੀ ਹੈ?', hi: 'मशीन किसकी है?', en: 'Whose machine is it?' },
+  ownedByMe: { pa: 'ਮੇਰੀ ਆਪਣੀ', hi: 'मेरी अपनी', en: 'Mine' },
+  canArrange: { pa: 'ਮੰਗਵਾ ਸਕਦਾ ਹਾਂ', hi: 'मँगवा सकता हूँ', en: 'I can arrange it' },
+  canArrangeHint: {
+    pa: 'ਰਿਸ਼ਤੇਦਾਰ ਜਾਂ ਗੁਆਂਢੀ ਤੋਂ। ਕਿੰਨਾ ਸਮਾਂ ਲੱਗੇਗਾ?',
+    hi: 'रिश्तेदार या पड़ोसी से। कितना समय लगेगा?',
+    en: 'From a relative or neighbour. How much notice do you need?',
+  },
+  sameDay: { pa: 'ਉਸੇ ਦਿਨ', hi: 'उसी दिन', en: 'Same day' },
+  oneDay: { pa: 'ਇੱਕ ਦਿਨ', hi: 'एक दिन', en: '1 day' },
+  twoDays: { pa: 'ਦੋ-ਤਿੰਨ ਦਿਨ', hi: 'दो-तीन दिन', en: '2–3 days' },
+  withOperatorOnly: {
+    pa: 'ਮਸ਼ੀਨ ਨਾਲ ਮੈਂ ਖ਼ੁਦ ਜਾਵਾਂਗਾ',
+    hi: 'मशीन के साथ मैं ख़ुद जाऊँगा',
+    en: 'I go with the machine',
+  },
+  remove: { pa: 'ਹਟਾਓ', hi: 'हटाएँ', en: 'Remove' },
+
+  // — rates
+  yourRates: { pa: 'ਤੁਹਾਡੇ ਰੇਟ', hi: 'आपके रेट', en: 'Your rates' },
+  ratesHint: {
+    pa: 'ਰੇਟ ਹੁਣ ਨਾ ਦੱਸਣਾ ਹੋਵੇ ਤਾਂ ਖਾਲੀ ਛੱਡ ਦਿਓ — ਹਰ ਕੰਮ ਤੇ ਗੱਲ ਕਰ ਲੈਣਾ।',
+    hi: 'रेट अभी न बताना हो तो खाली छोड़ दें — हर काम पर बात कर लेना।',
+    en: 'Leave blank to negotiate each job instead.',
+  },
+  perKilla: { pa: 'ਪ੍ਰਤੀ ਕਿੱਲਾ', hi: 'प्रति किल्ला', en: 'per killa' },
+  perHour: { pa: 'ਪ੍ਰਤੀ ਘੰਟਾ', hi: 'प्रति घंटा', en: 'per hour' },
+  perDay: { pa: 'ਪ੍ਰਤੀ ਦਿਨ', hi: 'प्रति दिन', en: 'per day' },
+  perJob: { pa: 'ਪ੍ਰਤੀ ਕੰਮ', hi: 'प्रति काम', en: 'per job' },
+  noServicesYet: {
+    pa: 'ਪਹਿਲਾਂ ਮਸ਼ੀਨ ਜੋੜੋ — ਕੰਮ ਆਪੇ ਆ ਜਾਣਗੇ।',
+    hi: 'पहले मशीन जोड़ें — काम अपने आप आ जाएँगे।',
+    en: 'Add a machine first — the work follows from it.',
+  },
+
+  // — captain home
+  captainHome: { pa: 'ਕੰਮ', hi: 'काम', en: 'Work' },
+  goOnline: { pa: 'ਆਨਲਾਈਨ ਹੋਵੋ', hi: 'ऑनलाइन हों', en: 'Go online' },
+  goOffline: { pa: 'ਆਫ਼ਲਾਈਨ ਹੋਵੋ', hi: 'ऑफ़लाइन हों', en: 'Go offline' },
+  online: { pa: 'ਆਨਲਾਈਨ', hi: 'ऑनलाइन', en: 'Online' },
+  offline: { pa: 'ਆਫ਼ਲਾਈਨ', hi: 'ऑफ़लाइन', en: 'Offline' },
+  waitingForWork: {
+    pa: 'ਕੰਮ ਦੀ ਉਡੀਕ ਹੈ। ਨਵਾਂ ਕੰਮ ਆਉਣ ਤੇ ਫ਼ੋਨ ਵੱਜੇਗਾ।',
+    hi: 'काम का इंतज़ार है। नया काम आने पर फ़ोन बजेगा।',
+    en: 'Waiting for work. Your phone will ring when a job comes in.',
+  },
+  editProfile: { pa: 'ਪ੍ਰੋਫ਼ਾਈਲ', hi: 'प्रोफ़ाइल', en: 'Profile' },
+
   // — capture method
   howMeasure: { pa: 'ਖੇਤ ਕਿਵੇਂ ਨਾਪਣਾ ਹੈ?', hi: 'खेत कैसे नापना है?', en: 'How to measure?' },
 

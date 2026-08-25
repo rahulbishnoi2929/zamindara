@@ -2,7 +2,7 @@ import type { LatLng, WalkResult } from '@zamindara/geo';
 import type { Locale } from '@zamindara/units';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { StyleSheet } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { ChooseMethodScreen } from './src/ChooseMethodScreen';
 import { ConfirmScreen } from './src/ConfirmScreen';
@@ -12,12 +12,12 @@ import { PlotDetailScreen } from './src/fieldTest/PlotDetailScreen';
 import * as testStore from './src/fieldTest/storage';
 import type { CaptureMethod, TestMeasurement, TestPlot } from './src/fieldTest/types';
 import { HomeScreen } from './src/HomeScreen';
+import { OnboardingFlow } from './src/onboarding/OnboardingFlow';
+import { loadProfile, saveProfile, type Profile } from './src/profile';
 import {
   clearActiveWalk,
   loadFields,
-  loadLocale,
   saveField,
-  saveLocale,
   type SavedField,
 } from './src/storage';
 import { colors } from './src/theme';
@@ -34,6 +34,7 @@ type Intent = { kind: 'field' } | { kind: 'test'; plotId: string };
 
 type Screen =
   | { name: 'home' }
+  | { name: 'onboarding' }
   | { name: 'choose'; intent: Intent }
   | { name: 'draw'; intent: Intent }
   | { name: 'walk'; intent: Intent }
@@ -42,25 +43,28 @@ type Screen =
   | { name: 'testPlot'; plotId: string };
 
 export default function App() {
+  const [ready, setReady] = useState(false);
   const [screen, setScreen] = useState<Screen>({ name: 'home' });
-  const [locale, setLocale] = useState<Locale>('pa');
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [fields, setFields] = useState<SavedField[]>([]);
   const [plots, setPlots] = useState<TestPlot[]>([]);
   const [measurements, setMeasurements] = useState<TestMeasurement[]>([]);
 
   useEffect(() => {
     void (async () => {
+      setProfile(await loadProfile());
       setFields(await loadFields());
       setPlots(await testStore.loadPlots());
       setMeasurements(await testStore.loadMeasurements());
-      const saved = await loadLocale();
-      if (saved === 'pa' || saved === 'hi' || saved === 'en') setLocale(saved);
+      setReady(true);
     })();
   }, []);
 
-  const changeLocale = (next: Locale) => {
-    setLocale(next);
-    void saveLocale(next);
+  const locale: Locale = profile?.language ?? 'pa';
+
+  const persistProfile = async (next: Profile) => {
+    setProfile(await saveProfile(next));
+    setScreen({ name: 'home' });
   };
 
   /** A finished measurement, routed by why it was taken. */
@@ -104,7 +108,6 @@ export default function App() {
 
     const field: SavedField = {
       id: String(Date.now()),
-      // Naming comes next; the prototype's job is the measurement.
       name: `Field ${fields.length + 1}`,
       polygon,
       areaSqm,
@@ -140,124 +143,144 @@ export default function App() {
   const currentPlot =
     screen.name === 'testPlot' ? plots.find((p) => p.id === screen.plotId) : undefined;
 
+  // Onboarding gates everything. Until we know who this is and — for a
+  // captain — what he has, the rest of the app has nothing to work with.
+  const needsOnboarding = profile === null || profile.onboardedAt === null;
+
   return (
     <SafeAreaProvider>
       <SafeAreaView style={s.root} edges={['top', 'bottom']}>
         <StatusBar style="light" />
 
-        {screen.name === 'home' && (
-          <HomeScreen
-            locale={locale}
-            fields={fields}
-            onAddField={() => setScreen({ name: 'choose', intent: { kind: 'field' } })}
-            onLocaleChange={changeLocale}
-            onOpenFieldTest={() => setScreen({ name: 'test' })}
+        {!ready ? (
+          <View style={s.loading}>
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
+        ) : needsOnboarding || screen.name === 'onboarding' ? (
+          <OnboardingFlow
+            initial={profile}
+            onDone={(next) => void persistProfile(next)}
           />
-        )}
+        ) : (
+          <>
+            {screen.name === 'home' && profile !== null && (
+              <HomeScreen
+                profile={profile}
+                fields={fields}
+                onAddField={() => setScreen({ name: 'choose', intent: { kind: 'field' } })}
+                onEditProfile={() => setScreen({ name: 'onboarding' })}
+                onToggleOnline={() =>
+                  void persistProfile({ ...profile, isOnline: !profile.isOnline })
+                }
+                onOpenFieldTest={() => setScreen({ name: 'test' })}
+              />
+            )}
 
-        {screen.name === 'choose' && (
-          <ChooseMethodScreen
-            locale={locale}
-            onDraw={() => setScreen({ name: 'draw', intent: screen.intent })}
-            onWalk={() => setScreen({ name: 'walk', intent: screen.intent })}
-            onCancel={() => setScreen({ name: 'home' })}
-          />
-        )}
+            {screen.name === 'choose' && (
+              <ChooseMethodScreen
+                locale={locale}
+                onDraw={() => setScreen({ name: 'draw', intent: screen.intent })}
+                onWalk={() => setScreen({ name: 'walk', intent: screen.intent })}
+                onCancel={() => setScreen({ name: 'home' })}
+              />
+            )}
 
-        {/* No confirmation step after drawing — he traced it on satellite
-            imagery and was watching the area the whole time. A second screen
-            showing him the same picture would be friction, not a safeguard. */}
-        {screen.name === 'draw' && (
-          <DrawScreen
-            locale={locale}
-            onDone={(polygon, areaSqm) =>
-              void record(screen.intent, 'drawn', polygon, areaSqm, null, null)
-            }
-            onCancel={() =>
-              screen.intent.kind === 'test'
-                ? openPlot(screen.intent.plotId)
-                : setScreen({ name: 'choose', intent: screen.intent })
-            }
-          />
-        )}
+            {/* No confirmation step after drawing — he traced it on satellite
+                imagery and was watching the area the whole time. A second screen
+                showing him the same picture would be friction, not a safeguard. */}
+            {screen.name === 'draw' && (
+              <DrawScreen
+                locale={locale}
+                onDone={(polygon, areaSqm) =>
+                  void record(screen.intent, 'drawn', polygon, areaSqm, null, null)
+                }
+                onCancel={() =>
+                  screen.intent.kind === 'test'
+                    ? openPlot(screen.intent.plotId)
+                    : setScreen({ name: 'choose', intent: screen.intent })
+                }
+              />
+            )}
 
-        {screen.name === 'walk' && (
-          <WalkScreen
-            locale={locale}
-            onDone={(result) =>
-              setScreen({ name: 'confirm', intent: screen.intent, result })
-            }
-            onCancel={() =>
-              screen.intent.kind === 'test'
-                ? openPlot(screen.intent.plotId)
-                : setScreen({ name: 'choose', intent: screen.intent })
-            }
-          />
-        )}
+            {screen.name === 'walk' && (
+              <WalkScreen
+                locale={locale}
+                onDone={(result) =>
+                  setScreen({ name: 'confirm', intent: screen.intent, result })
+                }
+                onCancel={() =>
+                  screen.intent.kind === 'test'
+                    ? openPlot(screen.intent.plotId)
+                    : setScreen({ name: 'choose', intent: screen.intent })
+                }
+              />
+            )}
 
-        {/* A walked track, by contrast, must be checked against imagery. He
-            has no way to judge the number otherwise. */}
-        {screen.name === 'confirm' && (
-          <ConfirmScreen
-            locale={locale}
-            result={screen.result}
-            onConfirm={(polygon, areaSqm, adjusted) =>
-              void record(
-                screen.intent,
-                'walked',
-                polygon,
-                areaSqm,
-                screen.result,
-                adjusted,
-              )
-            }
-            onWalkAgain={() => setScreen({ name: 'walk', intent: screen.intent })}
-          />
-        )}
+            {/* A walked track, by contrast, must be checked against imagery. He
+                has no way to judge the number otherwise. */}
+            {screen.name === 'confirm' && (
+              <ConfirmScreen
+                locale={locale}
+                result={screen.result}
+                onConfirm={(polygon, areaSqm, adjusted) =>
+                  void record(
+                    screen.intent,
+                    'walked',
+                    polygon,
+                    areaSqm,
+                    screen.result,
+                    adjusted,
+                  )
+                }
+                onWalkAgain={() => setScreen({ name: 'walk', intent: screen.intent })}
+              />
+            )}
 
-        {screen.name === 'test' && (
-          <FieldTestScreen
-            plots={plots}
-            measurements={measurements}
-            onOpenPlot={openPlot}
-            onAddPlot={() => void addPlot()}
-            onBack={() => setScreen({ name: 'home' })}
-          />
-        )}
+            {screen.name === 'test' && (
+              <FieldTestScreen
+                plots={plots}
+                measurements={measurements}
+                onOpenPlot={openPlot}
+                onAddPlot={() => void addPlot()}
+                onBack={() => setScreen({ name: 'home' })}
+              />
+            )}
 
-        {screen.name === 'testPlot' && currentPlot !== undefined && (
-          <PlotDetailScreen
-            plot={currentPlot}
-            measurements={measurements.filter((m) => m.plotId === currentPlot.id)}
-            onChange={(next) => {
-              setPlots((prev) => prev.map((p) => (p.id === next.id ? next : p)));
-              void testStore.upsertPlot(next);
-            }}
-            onMeasureDrawn={() =>
-              setScreen({ name: 'draw', intent: { kind: 'test', plotId: currentPlot.id } })
-            }
-            onMeasureWalked={() =>
-              setScreen({ name: 'walk', intent: { kind: 'test', plotId: currentPlot.id } })
-            }
-            onUpdateMeasurement={(m) => {
-              setMeasurements((prev) => prev.map((x) => (x.id === m.id ? m : x)));
-              void testStore.updateMeasurement(m);
-            }}
-            onDeleteMeasurement={(id) => {
-              setMeasurements((prev) => prev.filter((m) => m.id !== id));
-              void testStore.deleteMeasurement(id);
-            }}
-            onDeletePlot={() => {
-              void testStore.deletePlot(currentPlot.id).then(() => {
-                setPlots((prev) => prev.filter((p) => p.id !== currentPlot.id));
-                setMeasurements((prev) =>
-                  prev.filter((m) => m.plotId !== currentPlot.id),
-                );
-                setScreen({ name: 'test' });
-              });
-            }}
-            onBack={() => setScreen({ name: 'test' })}
-          />
+            {screen.name === 'testPlot' && currentPlot !== undefined && (
+              <PlotDetailScreen
+                plot={currentPlot}
+                measurements={measurements.filter((m) => m.plotId === currentPlot.id)}
+                onChange={(next) => {
+                  setPlots((prev) => prev.map((p) => (p.id === next.id ? next : p)));
+                  void testStore.upsertPlot(next);
+                }}
+                onMeasureDrawn={() =>
+                  setScreen({ name: 'draw', intent: { kind: 'test', plotId: currentPlot.id } })
+                }
+                onMeasureWalked={() =>
+                  setScreen({ name: 'walk', intent: { kind: 'test', plotId: currentPlot.id } })
+                }
+                onUpdateMeasurement={(m) => {
+                  setMeasurements((prev) => prev.map((x) => (x.id === m.id ? m : x)));
+                  void testStore.updateMeasurement(m);
+                }}
+                onDeleteMeasurement={(id) => {
+                  setMeasurements((prev) => prev.filter((m) => m.id !== id));
+                  void testStore.deleteMeasurement(id);
+                }}
+                onDeletePlot={() => {
+                  void testStore.deletePlot(currentPlot.id).then(() => {
+                    setPlots((prev) => prev.filter((p) => p.id !== currentPlot.id));
+                    setMeasurements((prev) =>
+                      prev.filter((m) => m.plotId !== currentPlot.id),
+                    );
+                    setScreen({ name: 'test' });
+                  });
+                }}
+                onBack={() => setScreen({ name: 'test' })}
+              />
+            )}
+          </>
         )}
       </SafeAreaView>
     </SafeAreaProvider>
@@ -266,4 +289,5 @@ export default function App() {
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
+  loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 });
