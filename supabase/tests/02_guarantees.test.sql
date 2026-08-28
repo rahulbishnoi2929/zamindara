@@ -11,7 +11,7 @@
 -- one, if wrong, either costs someone money or leaks their land.
 
 begin;
-select plan(17);
+select plan(18);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures
@@ -179,13 +179,22 @@ values
 
 select tests.act_as('44444444-4444-4444-4444-444444444444');
 
-update public.captains set verification = 'verified'
-where profile_id = '44444444-4444-4444-4444-444444444444';
+-- He must be able to change his own operational state. Going online is the
+-- one decision he makes every morning, and a policy that blocked it would
+-- break the product while looking like good security.
+select lives_ok(
+  $$ update public.captains set is_online = false
+     where profile_id = '44444444-4444-4444-4444-444444444444' $$,
+  'a captain can take himself offline'
+);
 
-select is(
-  (select verification::text from public.captains
-   where profile_id = '44444444-4444-4444-4444-444444444444'),
-  'pending',
+-- But he cannot promote himself. The policy raises rather than silently
+-- dropping the row, which is the better failure: an attempt is visible.
+select throws_ok(
+  $$ update public.captains set verification = 'verified'
+     where profile_id = '44444444-4444-4444-4444-444444444444' $$,
+  '42501',
+  null,
   'a captain cannot verify himself'
 );
 
