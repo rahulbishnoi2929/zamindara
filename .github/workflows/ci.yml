@@ -99,3 +99,13 @@ jobs:
       - name: Show logs on failure
         if: failure()
         run: supabase status && docker ps -a
+
+      - name: Phone auth is configured, with codes for CI
+        # Phone is the only way in — there is no email column and no password
+        # in the schema. A config change that quietly disabled it would lock
+        # every user out, and nothing else here would notice.
+        run: |
+          set -e
+          grep -q '^\[auth.sms.test_otp\]' supabase/config.toml
+          awk '/^\[auth.sms\]/{f=1} f&&/^enable_signup/{print; exit}' supabase/config.toml | grep -q 'true'
+          echo "phone auth enabled with fixed test codes"

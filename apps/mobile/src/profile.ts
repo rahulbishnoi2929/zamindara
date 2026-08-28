@@ -40,7 +40,10 @@ export interface ServiceRate {
 }
 
 export interface Profile {
+  /** Local id until signed in, then the Supabase auth user id. */
   id: string;
+  /** E.164 without the plus, e.g. 919876500001. Null while offline-only. */
+  phone: string | null;
   fullName: string;
   village: string;
   role: Role;
@@ -62,6 +65,7 @@ const KEY = 'zamindara/profile';
 export function emptyProfile(): Profile {
   return {
     id: String(Date.now()),
+    phone: null,
     fullName: '',
     village: '',
     role: 'farmer',

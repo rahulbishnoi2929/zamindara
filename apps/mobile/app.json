@@ -45,6 +45,10 @@
     ],
     "assetBundlePatterns": [
       "**/*"
-    ]
+    ],
+    "extra": {
+      "supabaseUrl": "",
+      "supabaseAnonKey": ""
+    }
   }
 }

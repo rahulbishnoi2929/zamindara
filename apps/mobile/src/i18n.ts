@@ -22,6 +22,50 @@ const strings = {
     en: 'No fields yet. Measure your first one.',
   },
 
+  // — sign in
+  yourPhone: { pa: 'ਤੁਹਾਡਾ ਫ਼ੋਨ ਨੰਬਰ', hi: 'आपका फ़ोन नंबर', en: 'Your phone number' },
+  phoneHint: {
+    pa: 'ਇਸੇ ਨੰਬਰ ਤੇ ਕੰਮ ਦੀ ਖ਼ਬਰ ਆਵੇਗੀ।',
+    hi: 'इसी नंबर पर काम की ख़बर आएगी।',
+    en: 'Work requests come to this number.',
+  },
+  sendCode: { pa: 'ਕੋਡ ਭੇਜੋ', hi: 'कोड भेजें', en: 'Send code' },
+  enterCode: { pa: 'ਕੋਡ ਪਾਓ', hi: 'कोड डालें', en: 'Enter the code' },
+  codeSentTo: { pa: 'ਕੋਡ ਭੇਜਿਆ', hi: 'कोड भेजा', en: 'Code sent to' },
+  verify: { pa: 'ਅੱਗੇ ਵਧੋ', hi: 'आगे बढ़ें', en: 'Continue' },
+  resend: { pa: 'ਦੁਬਾਰਾ ਭੇਜੋ', hi: 'दोबारा भेजें', en: 'Send again' },
+  changeNumber: { pa: 'ਨੰਬਰ ਬਦਲੋ', hi: 'नंबर बदलें', en: 'Change number' },
+  errBadNumber: {
+    pa: 'ਦਸ ਅੰਕਾਂ ਦਾ ਨੰਬਰ ਪਾਓ।',
+    hi: 'दस अंकों का नंबर डालें।',
+    en: 'Enter a 10-digit number.',
+  },
+  errWrongCode: {
+    pa: 'ਕੋਡ ਗ਼ਲਤ ਹੈ। ਨਵਾਂ ਕੋਡ ਮੰਗਵਾਓ।',
+    hi: 'कोड ग़लत है। नया कोड मँगवाएँ।',
+    en: 'That code is wrong. Ask for a new one.',
+  },
+  errRateLimited: {
+    pa: 'ਥੋੜ੍ਹਾ ਰੁਕੋ, ਫਿਰ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
+    hi: 'थोड़ा रुकें, फिर दोबारा कोशिश करें।',
+    en: 'Wait a moment, then try again.',
+  },
+  errOffline: {
+    pa: 'ਇੰਟਰਨੈੱਟ ਨਹੀਂ ਚੱਲ ਰਿਹਾ।',
+    hi: 'इंटरनेट नहीं चल रहा।',
+    en: 'No internet connection.',
+  },
+  continueOffline: {
+    pa: 'ਬਿਨਾਂ ਲਾਗਇਨ ਅੱਗੇ ਵਧੋ',
+    hi: 'बिना लॉगिन आगे बढ़ें',
+    en: 'Continue without signing in',
+  },
+  offlineModeNote: {
+    pa: 'ਖੇਤ ਨਾਪਣਾ ਬਿਨਾਂ ਲਾਗਇਨ ਵੀ ਚੱਲਦਾ ਹੈ। ਕੰਮ ਲੈਣ-ਦੇਣ ਲਈ ਲਾਗਇਨ ਚਾਹੀਦਾ ਹੈ।',
+    hi: 'खेत नापना बिना लॉगिन भी चलता है। काम लेन-देन के लिए लॉगिन चाहिए।',
+    en: 'Measuring fields works without signing in. Booking and taking work needs an account.',
+  },
+
   // — onboarding
   chooseLanguage: { pa: 'ਭਾਸ਼ਾ ਚੁਣੋ', hi: 'भाषा चुनें', en: 'Choose your language' },
   whoAreYou: { pa: 'ਤੁਸੀਂ ਕੌਣ ਹੋ?', hi: 'आप कौन हैं?', en: 'Who are you?' },

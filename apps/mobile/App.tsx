@@ -32,6 +32,10 @@ import {
   type PaymentMode,
 } from './src/jobs';
 import { OnboardingFlow } from './src/onboarding/OnboardingFlow';
+import { SignInScreen } from './src/SignInScreen';
+import { currentSession } from './src/auth';
+import { normalisePhone, startAutoRefresh, stopAutoRefresh } from './src/supabase';
+import { AppState } from 'react-native';
 import { loadProfile, saveProfile, type Profile } from './src/profile';
 import {
   clearActiveWalk,
@@ -69,6 +73,10 @@ export default function App() {
   const [fields, setFields] = useState<SavedField[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [completing, setCompleting] = useState<Job | null>(null);
+  const [signedIn, setSignedIn] = useState(false);
+  // He chose to carry on without an account. Field measurement works fully
+  // offline, so this is a legitimate way to use the app, not an escape hatch.
+  const [skippedAuth, setSkippedAuth] = useState(false);
   const [plots, setPlots] = useState<TestPlot[]>([]);
   const [measurements, setMeasurements] = useState<TestMeasurement[]>([]);
 
@@ -79,8 +87,25 @@ export default function App() {
       setJobs(await loadJobs());
       setPlots(await testStore.loadPlots());
       setMeasurements(await testStore.loadMeasurements());
+      const session = await currentSession();
+      setSignedIn(session !== null);
       setReady(true);
     })();
+  }, []);
+
+  // Refresh tokens only while the app is in front of him. The default timer
+  // keeps the phone awake, which costs battery across a ten-hour day in a
+  // pocket and buys nothing.
+  useEffect(() => {
+    startAutoRefresh();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') startAutoRefresh();
+      else stopAutoRefresh();
+    });
+    return () => {
+      sub.remove();
+      stopAutoRefresh();
+    };
   }, []);
 
   // The channel must exist before the first ping: Android fixes a channel's
@@ -266,6 +291,20 @@ export default function App() {
           <View style={s.loading}>
             <ActivityIndicator size="large" color={colors.primary} />
           </View>
+        ) : !signedIn && !skippedAuth ? (
+          <SignInScreen
+            locale={locale}
+            onSignedIn={(phone) => {
+              setSignedIn(true);
+              const e164 = normalisePhone(phone);
+              if (profile !== null && e164 !== null) {
+                void persistProfile({ ...profile, phone: e164 });
+              }
+            }}
+            // Measuring a field works with no account and no signal. Only
+            // booking and taking work needs one.
+            onSkip={() => setSkippedAuth(true)}
+          />
         ) : needsOnboarding || screen.name === 'onboarding' ? (
           <OnboardingFlow
             initial={profile}

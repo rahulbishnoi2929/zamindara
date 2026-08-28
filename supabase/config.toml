@@ -256,17 +256,23 @@ otp_expiry = 3600
 
 [auth.sms]
 # Allow/disallow new user signups via SMS to your project.
-enable_signup = false
+enable_signup = true
 # If enabled, users need to confirm their phone number before signing in.
-enable_confirmations = false
+enable_confirmations = true
 # Template for sending OTP to users
-template = "Your code is {{ .Code }}"
+template = "Zamindara code: {{ .Code }}"
 # Controls the minimum amount of time that must pass before sending another sms otp.
 max_frequency = "5s"
 
-# Use pre-defined map of phone number to OTP for testing.
-# [auth.sms.test_otp]
-# 4152127777 = "123456"
+# Fixed codes for development and CI, so the whole login flow is testable
+# without an SMS provider. India requires DLT registration with TRAI before
+# real SMS can be sent, and that takes weeks (docs/BUILD_PLAN.md, Phase 2).
+# These exist so the paperwork does not block the app.
+[auth.sms.test_otp]
+9876500001 = "100001"
+9876500002 = "100002"
+9876500003 = "100003"
+9876500004 = "100004"
 
 # Configure logged in session timeouts.
 # [auth.sessions]
