@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A new push supersedes an in-flight run on the same branch.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Unit tests and types.
+  #
+  # The suites that matter most here are units and pricing: a regression in
+  # either misprices a job, and that is money out of a farmer's pocket.
+  # ---------------------------------------------------------------------------
+  test:
+    name: Tests and types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Typecheck
+        run: npm run typecheck
+
+  # ---------------------------------------------------------------------------
+  # Does the app still bundle?
+  #
+  # Typechecking is not enough. Metro resolves the workspace packages as
+  # TypeScript source and rewrites their ESM .js specifiers; a broken import
+  # passes tsc and fails here. This step has caught real breakage before.
+  # ---------------------------------------------------------------------------
+  bundle:
+    name: Android bundle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Export Android bundle
+        working-directory: apps/mobile
+        run: npx expo export --platform android --output-dir /tmp/export
+
+  # ---------------------------------------------------------------------------
+  # The database.
+  #
+  # This is the job that matters. The migrations have never run on the
+  # founder's machine — Docker Desktop will not start its WSL backend — so
+  # until now the schema has been written but unproven. Runners have Docker,
+  # so CI is where it finally gets verified.
+  #
+  # It proves three things nothing else can: that a client cannot set its own
+  # acreage, that a farmer's field boundary is invisible to strangers, and
+  # that two captains contesting a job produce exactly one winner.
+  # ---------------------------------------------------------------------------
+  database:
+    name: Schema and guarantees
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start Postgres and apply migrations
+        run: supabase start -x realtime,storage-api,imgproxy,studio,edge-runtime,logflare,vector,supavisor,mailpit
+
+      - name: Enable pgTAP
+        # Test-only. Deliberately not a migration — pgTAP has no business in
+        # the production database.
+        run: |
+          psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" \
+            -c 'create extension if not exists pgtap with schema extensions;'
+
+      - name: Run guarantee tests
+        run: supabase test db
+
+      - name: Show logs on failure
+        if: failure()
+        run: supabase status && docker ps -a
