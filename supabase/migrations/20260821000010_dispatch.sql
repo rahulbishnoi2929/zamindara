@@ -243,9 +243,14 @@ begin
     raise exception 'not authenticated' using errcode = '28000';
   end if;
 
+  -- Membership, not pending-ness. When the first captain accepts, every other
+  -- pending row is marked timed_out — so testing for 'pending' here told a
+  -- captain who merely lost the race that the job was never offered to him.
+  -- Wrong, and insulting to someone who answered in three seconds. Losing the
+  -- race is handled below, with its own message.
   if not exists (
     select 1 from public.job_dispatch
-    where job_id = p_job_id and captain_id = me and response = 'pending'
+    where job_id = p_job_id and captain_id = me
   ) then
     raise exception 'this job was not offered to you' using errcode = '42501';
   end if;
