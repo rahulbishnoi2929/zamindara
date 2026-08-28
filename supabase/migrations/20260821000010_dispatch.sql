@@ -267,8 +267,13 @@ begin
     raise exception 'job already taken' using errcode = '55006';
   end if;
 
+  -- The CASE yields text, and Postgres will not implicitly cast text into an
+  -- enum here. Without the explicit cast this raises 42804 on every single
+  -- accept — the whole dispatch path, dead on the first job.
   update public.job_dispatch
-  set response = case when captain_id = me then 'accepted' else 'timed_out' end,
+  set response = (
+        case when captain_id = me then 'accepted' else 'timed_out' end
+      )::public.dispatch_response,
       responded_at = now()
   where job_id = p_job_id and response = 'pending';
 
