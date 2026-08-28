@@ -12,8 +12,8 @@ Newest first, so the most recent work is always at the top. Each entry says what
 
 | | |
 |---|---|
-| **Phase** | Phases 3 and 4 built locally — onboarding, jobs, dispatch. Phase 1 field test still the accuracy gate. |
-| **Tests** | 120 passing — units 41, geo 24, mobile 17, catalog 18, pricing 20 |
+| **Phase** | Phases 3–5 built locally — onboarding, jobs, queue, the ping. Phase 1 field test still the accuracy gate. |
+| **Tests** | 139 passing — units 41, geo 24, mobile 17, catalog 18, pricing 20, scheduling 19 |
 | **App** | **Installable release APK built** — 70 MB, `com.zamindara.app`, targetSdk 36 |
 | **Not yet done** | Never run on a physical device |
 | **Blocking next step** | A Google Maps key and a 50 m measuring tape |
@@ -47,6 +47,33 @@ The most useful part of this log. Each of these was believed, written down, then
 ---
 
 # Entries
+
+## 19 · Phase 5 — the queue, the ping, and finishing a job
+
+**Asked:** build the next phase.
+
+**5.1 — `packages/scheduling`, 19 tests.** A combine serves eight fields back to back, so a captain has a *queue*, not one job at a time. The farmer's real question is never "is a machine coming" but "when does it reach me" — and that is a promise made to someone whose crop is on the ground, so it gets tests before it gets a screen.
+
+Work past knocking-off time **rolls to the next morning** rather than being quietly promised for tonight. A farmer told 8pm who sees nobody arrive stops believing the app.
+
+Time-priced work (levelling, earthwork) has no knowable duration, so it books a half day rather than being treated as instant — otherwise the next farmer is told his combine arrives in twenty minutes.
+
+**5.2 — the job ping.** Its own Android channel at **maximum importance**, a long insistent vibration pattern, `bypassDnd`, and accept/decline reachable from the lock screen without opening the app. The channel is created before the first ping, because Android fixes a channel's importance at creation and ignores later changes — get it wrong once and every captain on that install has a quiet ping until he reinstalls.
+
+Nothing rings outside declared working hours. A captain woken at midnight for work he was never going to take turns notifications off, and then misses the ones that mattered.
+
+**5.3 — completion.** Amount and payment mode, prefilled from his own rate and the field's area so the common case is one tap. v1 takes no commission, so no money moves through the app — but what was *agreed* is recorded, because that is the number a dispute turns on and a season of them is what makes rate guidance honest.
+
+**Decisions:**
+- ETA shows **"around 14:30", never an exact time.** Travel between fields is left at zero until the backend supplies real distances; work duration dominates, and inventing distances would make the promise worse rather than better.
+- Queue order is the captain's own, with a suggested nearest-first ordering he can override. Greedy nearest-neighbour, not anything cleverer — at eight stops the difference is minutes, and he knows the roads.
+- The ping is local until there is a server to push from. The *presentation* is the real thing, so what a captain sees and feels now is what he sees in April.
+
+**Verified:** 139 tests green, typecheck clean across six packages, Metro bundles at 772 modules.
+
+**Honest gap:** Expo does not expose Android's full-screen intent, so the ping is a maximum-importance heads-up notification rather than a true incoming-call takeover. Whether that is loud enough over a running combine is a **device test in April's conditions**, not something answerable here. A custom sound file would also help and none exists yet.
+
+---
 
 ## 18 · Phase 4 — jobs and dispatch
 

@@ -1,4 +1,6 @@
-import { MACHINE_BY_CODE } from '@zamindara/catalog';
+import { MACHINE_BY_CODE, SERVICE_BY_CODE } from '@zamindara/catalog';
+import { buildSchedule, findInSchedule, type QueueJob } from '@zamindara/scheduling';
+import { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { AreaDisplay, Button, Card } from './components';
 import { t } from './i18n';
@@ -54,6 +56,39 @@ export function HomeScreen({
     : [];
 
   const myJobs = jobs.filter((j) => j.captainName !== profile.fullName || !captain);
+
+  /**
+   * When does the machine reach each farmer?
+   *
+   * Built per captain from the jobs he holds, in the order he holds them.
+   * Travel between fields is left at zero until the backend supplies real
+   * distances — work duration dominates anyway, and inventing distances
+   * would make the promise worse, not better. Hence "around", never a
+   * precise time.
+   */
+  const schedules = useMemo(() => {
+    const byCaptain = new Map<string, QueueJob[]>();
+
+    for (const j of sortForCaptain(jobs.filter((x) => x.captainName !== null && isLive(x)))) {
+      const list = byCaptain.get(j.captainName!) ?? [];
+      list.push({
+        id: j.id,
+        areaSqm: j.areaSqm,
+        estMinutesPerKilla: SERVICE_BY_CODE.get(j.serviceCode)?.estMinutesPerKilla ?? null,
+        distanceKm: j.distanceKm ?? 0,
+      });
+      byCaptain.set(j.captainName!, list);
+    }
+
+    const out = new Map<string, ReturnType<typeof buildSchedule>>();
+    for (const [name, list] of byCaptain) out.set(name, buildSchedule(list, new Date()));
+    return out;
+  }, [jobs]);
+
+  const scheduleFor = (job: Job) =>
+    job.captainName === null
+      ? null
+      : findInSchedule(schedules.get(job.captainName) ?? [], job.id);
 
   return (
     <View style={s.screen}>
@@ -156,9 +191,18 @@ export function HomeScreen({
             {myJobs.length === 0 ? (
               <EmptyJobs locale={locale} captain={false} />
             ) : (
-              myJobs.map((job) => (
-                <FarmerJobCard key={job.id} job={job} locale={locale} />
-              ))
+              myJobs.map((job) => {
+                const slot = scheduleFor(job);
+                return (
+                  <FarmerJobCard
+                    key={job.id}
+                    job={job}
+                    locale={locale}
+                    position={slot?.position}
+                    etaAt={slot?.startsAt}
+                  />
+                );
+              })
             )}
 
             <Text style={s.sectionTitle}>{t('myFields', locale)}</Text>

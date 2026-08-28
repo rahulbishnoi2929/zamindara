@@ -154,6 +154,8 @@ const strings = {
   payPending: { pa: 'ਬਾਅਦ ਵਿੱਚ', hi: 'बाद में', en: 'Later' },
   callFarmer: { pa: 'ਫ਼ੋਨ ਕਰੋ', hi: 'फ़ोन करें', en: 'Call' },
   awayKm: { pa: 'ਕਿ.ਮੀ. ਦੂਰ', hi: 'कि.मी. दूर', en: 'km away' },
+  queuePosition: { pa: 'ਤੁਹਾਡਾ ਨੰਬਰ', hi: 'आपका नंबर', en: 'You are number' },
+  around: { pa: 'ਲਗਭਗ', hi: 'लगभग', en: 'around' },
 
   // — capture method
   howMeasure: { pa: 'ਖੇਤ ਕਿਵੇਂ ਨਾਪਣਾ ਹੈ?', hi: 'खेत कैसे नापना है?', en: 'How to measure?' },

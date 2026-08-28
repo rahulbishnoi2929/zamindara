@@ -13,7 +13,15 @@ import * as testStore from './src/fieldTest/storage';
 import type { CaptureMethod, TestMeasurement, TestPlot } from './src/fieldTest/types';
 import { t } from './src/i18n';
 import { HomeScreen } from './src/HomeScreen';
+import { CompleteJobSheet } from './src/CompleteJobSheet';
 import { JobPostFlow } from './src/JobPostFlow';
+import {
+  pingForJob,
+  requestNotificationPermission,
+  setupNotifications,
+  withinWorkingHours,
+} from './src/notifications';
+import * as Notifications from 'expo-notifications';
 import {
   acceptJob,
   addJob,
@@ -21,6 +29,7 @@ import {
   updateJob,
   type Job,
   type JobStatus,
+  type PaymentMode,
 } from './src/jobs';
 import { OnboardingFlow } from './src/onboarding/OnboardingFlow';
 import { loadProfile, saveProfile, type Profile } from './src/profile';
@@ -59,6 +68,7 @@ export default function App() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [fields, setFields] = useState<SavedField[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [completing, setCompleting] = useState<Job | null>(null);
   const [plots, setPlots] = useState<TestPlot[]>([]);
   const [measurements, setMeasurements] = useState<TestMeasurement[]>([]);
 
@@ -70,6 +80,15 @@ export default function App() {
       setPlots(await testStore.loadPlots());
       setMeasurements(await testStore.loadMeasurements());
       setReady(true);
+    })();
+  }, []);
+
+  // The channel must exist before the first ping: Android fixes a channel's
+  // importance when it is created and ignores later changes.
+  useEffect(() => {
+    void (async () => {
+      await setupNotifications();
+      await requestNotificationPermission();
     })();
   }, []);
 
@@ -151,14 +170,40 @@ export default function App() {
     const next = nextStatus[job.status];
     if (next === undefined) return;
 
+    // Completion asks what was actually taken, so it goes through a sheet
+    // rather than a single tap. The recorded amount is what a dispute turns
+    // on, and a season of them is what makes rate guidance honest.
+    if (next === 'completed') {
+      setCompleting(job);
+      return;
+    }
+
     setJobs(
       await updateJob({
         ...job,
         status: next,
         startedAt: next === 'in_progress' ? Date.now() : job.startedAt,
-        completedAt: next === 'completed' ? Date.now() : job.completedAt,
       }),
     );
+  };
+
+  const finishJob = async (amount: number, payment: PaymentMode) => {
+    if (completing === null || profile === null) return;
+    const rate =
+      profile.rates.find((r) => r.serviceCode === completing.serviceCode)?.rate ?? null;
+
+    setJobs(
+      await updateJob({
+        ...completing,
+        status: 'completed',
+        completedAt: Date.now(),
+        finalAmount: amount,
+        paymentMode: payment,
+        // Recorded so this job can feed rate guidance for the next farmer.
+        quotedRate: completing.quotedRate ?? rate,
+      }),
+    );
+    setCompleting(null);
   };
 
   const claimJob = async (job: Job) => {
@@ -170,6 +215,22 @@ export default function App() {
       Alert.alert(t('alreadyTaken', locale));
     }
   };
+
+  // Accept or decline straight from the lock screen, without opening the app.
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const jobId = response.notification.request.content.data?.['jobId'];
+      if (typeof jobId !== 'string') return;
+      if (response.actionIdentifier !== 'accept') return;
+
+      void (async () => {
+        const current = await loadJobs();
+        const target = current.find((j) => j.id === jobId);
+        if (target !== undefined) await claimJob(target);
+      })();
+    });
+    return () => sub.remove();
+  });
 
   const openPlot = (plotId: string) => setScreen({ name: 'testPlot', plotId });
 
@@ -297,6 +358,15 @@ export default function App() {
                 village={profile.village}
                 onPost={(job) => {
                   void addJob(job).then(setJobs);
+                  // Until there is a server to push from, the ping is local.
+                  // The presentation is the real thing, so what a captain
+                  // sees and feels here is what he sees in April.
+                  if (
+                    profile.isOnline &&
+                    withinWorkingHours(new Date(), 7, 19)
+                  ) {
+                    void pingForJob(job, locale);
+                  }
                   setScreen({ name: 'home' });
                 }}
                 onCancel={() => setScreen({ name: 'home' })}
@@ -347,6 +417,19 @@ export default function App() {
                 onBack={() => setScreen({ name: 'test' })}
               />
             )}
+            <CompleteJobSheet
+              job={completing}
+              locale={locale}
+              captainRate={
+                completing === null || profile === null
+                  ? null
+                  : profile.rates.find(
+                      (r) => r.serviceCode === completing.serviceCode,
+                    )?.rate ?? null
+              }
+              onComplete={(amount, payment) => void finishJob(amount, payment)}
+              onCancel={() => setCompleting(null)}
+            />
           </>
         )}
       </SafeAreaView>

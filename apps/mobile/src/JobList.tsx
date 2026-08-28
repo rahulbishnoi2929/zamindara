@@ -24,8 +24,17 @@ const STATUS_COLOR: Record<JobStatus, string> = {
   cancelled: colors.textMuted,
 };
 
+interface FarmerCardProps {
+  job: Job;
+  locale: Locale;
+  /** 1-based place in the captain's day, once one has accepted. */
+  position?: number | undefined;
+  /** Approximate start. Work durations only — see HomeScreen. */
+  etaAt?: Date | undefined;
+}
+
 /** A job as the farmer who booked it sees it. */
-export function FarmerJobCard({ job, locale }: { job: Job; locale: Locale }) {
+export function FarmerJobCard({ job, locale, position, etaAt }: FarmerCardProps) {
   const service = SERVICE_BY_CODE.get(job.serviceCode);
   return (
     <Card>
@@ -39,6 +48,14 @@ export function FarmerJobCard({ job, locale }: { job: Job; locale: Locale }) {
         {`${job.fieldName} · ${formatAreaShort(job.areaSqm, { locale })}`}
       </Text>
       {job.captainName !== null && <Text style={s.captain}>{job.captainName}</Text>}
+
+      {/* The question a farmer actually asks is never "is a machine coming"
+          but "when does it reach me". */}
+      {position !== undefined && etaAt !== undefined && (
+        <Text style={s.queue}>
+          {`${t('queuePosition', locale)} ${position} · ${t('around', locale)} ${formatClock(etaAt)}`}
+        </Text>
+      )}
       {job.finalAmount !== null && (
         <Text style={s.amount}>{`₹${Math.round(job.finalAmount)}`}</Text>
       )}
@@ -112,6 +129,11 @@ export function CaptainJobCard({ job, locale, onAccept, onAdvance }: CaptainCard
   );
 }
 
+/** 24-hour clock, which is how a time is read here. */
+function formatClock(date: Date): string {
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
 export function EmptyJobs({ locale, captain }: { locale: Locale; captain: boolean }) {
   return (
     <Card>
@@ -128,6 +150,7 @@ const s = StyleSheet.create({
   meta: { ...type.label, fontWeight: '400', color: colors.textMuted, marginTop: space.xs },
   metaIncoming: { color: 'rgba(255,255,255,0.85)' },
   captain: { ...type.body, color: colors.primary, marginTop: space.xs },
+  queue: { ...type.body, color: colors.text, marginTop: space.xs },
   amount: { ...type.body, fontSize: 20, color: colors.good, marginTop: space.xs },
   empty: { ...type.body, color: colors.textMuted, lineHeight: 25 },
 

@@ -11,20 +11,22 @@
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@zamindara/catalog": "*",
     "@zamindara/geo": "*",
+    "@zamindara/pricing": "*",
     "@zamindara/units": "*",
     "expo": "~57.0.13",
     "expo-file-system": "~57.0.4",
     "expo-keep-awake": "~57.0.1",
     "expo-location": "~57.0.10",
+    "expo-notifications": "~57.0.15",
     "expo-sharing": "~57.0.12",
     "expo-status-bar": "~57.0.1",
     "react": "19.2.3",
     "react-native": "0.86.2",
     "react-native-maps": "1.27.2",
     "react-native-safe-area-context": "~5.7.0",
-    "@zamindara/catalog": "*",
-    "@zamindara/pricing": "*"
+    "@zamindara/scheduling": "*"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
