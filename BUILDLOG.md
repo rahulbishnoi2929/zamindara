@@ -12,7 +12,7 @@ Newest first, so the most recent work is always at the top. Each entry says what
 
 | | |
 |---|---|
-| **Phase** | Phases 3–5 built locally — onboarding, jobs, queue, the ping. Phase 1 field test still the accuracy gate. |
+| **Phase** | Phases 3–5 built; 2.4 auth done. Sync (2.5) is next. Phase 1 field test still the accuracy gate. |
 | **Tests** | 139 unit + **49 database assertions**, all green in CI |
 | **App** | **Installable release APK built** — 70 MB, `com.zamindara.app`, targetSdk 36 |
 | **Not yet done** | Never run on a physical device |
@@ -50,6 +50,30 @@ The most useful part of this log. Each of these was believed, written down, then
 ---
 
 # Entries
+
+## 22 · Phase 2.4 — sign in with a phone number
+
+**Asked:** build the next phase.
+
+**Why this one.** Phases 3–5 were built local-only, which means two captains on two phones cannot see each other — a single-device simulation rather than a marketplace. With the schema now verified, identity is the step that changes that, and it was skipped when Docker blocked Phase 2.
+
+**Built:** phone number, one code, no password. Supabase client with sessions in AsyncStorage, an auth module that returns outcomes rather than throwing, and a sign-in screen.
+
+**Decisions:**
+- **Fixed OTP codes for development and CI.** The whole login flow is testable with no SMS provider at all. India requires DLT registration with TRAI before real SMS can be sent and that takes weeks — this exists so the paperwork does not block the app. Swapping in MSG91 later is config, not code.
+- **Sessions persist.** Being logged out in a field mid-harvest would be unforgivable, and there is no password to type back in even if he wanted to.
+- **Token refresh follows app state, not a timer.** The default keeps the phone awake to renew tokens; across ten hours in a pocket that costs battery and buys nothing.
+- **Signing in is skippable.** Measuring a field works fully offline with no account. A captain in a yard with no signal should be able to see what the app does before committing to one.
+- **Phone numbers are normalised** — ten digits, a leading zero, or +91 all mean the same person and must not create three accounts.
+- Every auth function returns a typed outcome rather than throwing. A captain on one bar of signal will hit every failure mode, and each needs advice he can act on.
+
+**CI now asserts phone auth stays enabled.** It is the only way in — no email column, no password — so a config change that quietly disabled it would lock out every user, and nothing else in the suite would notice.
+
+**Verified:** all three CI jobs green. 139 unit tests, 49 database assertions, 824 modules bundling.
+
+**Not done:** nothing syncs yet. Profiles, fields and jobs still live only on the device. That is 2.5, and it is the last thing between here and a working marketplace.
+
+---
 
 ## 21 · CI, and the schema finally runs
 
