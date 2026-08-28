@@ -68,6 +68,13 @@ returns geography language sql immutable as $fn$
   ));
 $fn$;
 
+-- The helpers are called while acting as a signed-in user, so the
+-- authenticated role needs rights on them. Granted after the functions
+-- exist, since `all functions` only covers what is already there.
+grant usage on schema tests to postgres, anon, authenticated, service_role;
+grant execute on all functions in schema tests
+  to postgres, anon, authenticated, service_role;
+
 select tests.act_as_admin();
 select tests.make_user('11111111-1111-1111-1111-111111111111', '9876500001', 'Gurmeet');
 select tests.make_user('22222222-2222-2222-2222-222222222222', '9876500002', 'Balwinder');

@@ -3,7 +3,7 @@
 -- Run with:  supabase test db
 
 begin;
-select plan(28);
+select plan(31);
 
 -- ---------------------------------------------------------------------------
 -- Extensions and tables
