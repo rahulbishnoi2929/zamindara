@@ -17,6 +17,7 @@ Newest first, so the most recent work is always at the top. Each entry says what
 | **App** | **Installable release APK built** — 70 MB, `com.zamindara.app`, targetSdk 36 |
 | **Not yet done** | Never run on a physical device |
 | **Blocking next step** | A Google Maps key and a 50 m measuring tape |
+| **Repo** | [rahulbishnoi2929/zamindara](https://github.com/rahulbishnoi2929/zamindara) — private |
 
 ```
 C:\Zamidara\
@@ -47,6 +48,22 @@ The most useful part of this log. Each of these was believed, written down, then
 ---
 
 # Entries
+
+## 20 · On GitHub
+
+**Asked:** push it to GitHub.
+
+**Done:** [rahulbishnoi2929/zamindara](https://github.com/rahulbishnoi2929/zamindara), **private**, 13 commits, 121 files, default branch renamed `master` → `main`.
+
+**Checked before pushing, not after:**
+- No `.env`, keystore, or PEM tracked
+- The Google Maps key is still the placeholder, not a live key
+- `supabase/config.toml` carries only `env()` references and defaults
+- `android/`, `node_modules/` and `temp/` (a 702 MB tutorial video) all correctly excluded — the whole repo is 2.1 MB
+
+**Private on purpose.** The docs are the entire playbook: the PRD, the competitive analysis, the pricing strategy, the Fazilka launch plan, and the migrant-combine wedge nobody else is serving. Public would hand a competitor the strategy *and* the kill criteria. It can be flipped public any time; what has been indexed or forked cannot be recalled.
+
+---
 
 ## 19 · Phase 5 — the queue, the ping, and finishing a job
 
