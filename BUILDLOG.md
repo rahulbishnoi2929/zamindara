@@ -13,11 +13,12 @@ Newest first, so the most recent work is always at the top. Each entry says what
 | | |
 |---|---|
 | **Phase** | Phases 3–5 built locally — onboarding, jobs, queue, the ping. Phase 1 field test still the accuracy gate. |
-| **Tests** | 139 passing — units 41, geo 24, mobile 17, catalog 18, pricing 20, scheduling 19 |
+| **Tests** | 139 unit + **49 database assertions**, all green in CI |
 | **App** | **Installable release APK built** — 70 MB, `com.zamindara.app`, targetSdk 36 |
 | **Not yet done** | Never run on a physical device |
 | **Blocking next step** | A Google Maps key and a 50 m measuring tape |
-| **Repo** | [rahulbishnoi2929/zamindara](https://github.com/rahulbishnoi2929/zamindara) — private |
+| **Repo** | [rahulbishnoi2929/zamindara](https://github.com/rahulbishnoi2929/zamindara) — private, CI green |
+| **Backend** | ✅ **Schema verified.** 11 migrations apply; all three guarantees hold. |
 
 ```
 C:\Zamidara\
@@ -41,6 +42,7 @@ The most useful part of this log. Each of these was believed, written down, then
 | 3 | The field test grades the app against the **jamabandi** | Ground truth is a **50 m measuring tape** | The record describes the legal parcel, not the cultivated field, and is often decades stale. Prompted by the user asking "why would we need jamabandi". |
 | 4 | **Walking** the boundary is the primary capture method | **Drawing on satellite** is, and walking is the fallback | Georeferencing offset shifts a polygon without changing its area — and the farmer can *see* whether a traced field is right. Prompted by the user asking for map drawing. |
 | 5 | A minimum **bounding** rectangle would clean up a noisy walk | It inflates area by **+22%** | It must enclose every point, so it latches onto the worst noise excursion on each side. Replaced with median edge fitting: +1.3%. |
+| 7 | The backend SQL was carefully reviewed and probably sound | **Two bugs, both fatal to dispatch** | Reading SQL is not running it. Three sessions of review missed an enum cast that killed every accept, and a guard that told the losing captain he was never asked. CI found both in twenty minutes. |
 | 6 | Reject GPS fixes moving faster than walking pace | That rejected **150 of 196 honest fixes** | Two fixes 1 s apart, each ±5 m, can sit 10 m apart while the walker barely moved. Now subtracts the admitted error budget first. |
 
 **Rule that came out of this:** when a measurement contradicts a plan, the measurement wins. It is written into [BUILD_PLAN](docs/BUILD_PLAN.md#standing-rules).
@@ -48,6 +50,36 @@ The most useful part of this log. Each of these was believed, written down, then
 ---
 
 # Entries
+
+## 21 · CI, and the schema finally runs
+
+**Asked:** set up CI.
+
+**Built:** three GitHub Actions jobs — unit tests and typecheck, an Android bundle export, and **the database**.
+
+**The database job is why this mattered.** The migrations had never run anywhere: Docker Desktop will not start its WSL backend on the founder's machine, so for two sessions the schema was written, committed, and marked UNVERIFIED. GitHub's runners have Docker. CI is where it finally executed — and it will keep executing on every push, which is better than a one-off local check would have been.
+
+**It found two real bugs in twenty minutes, both fatal.**
+
+1. **Every accept was broken.** `accept_job` set `job_dispatch.response` from a CASE expression yielding `text`, and Postgres will not implicitly cast text into an enum in an UPDATE. Error 42804 on every call — meaning no captain could ever have taken a job. The function reads perfectly well.
+
+2. **The losing captain was told he was never asked.** The guard checked for a *pending* dispatch row, but the winning accept marks every other pending row `timed_out`. So the second captain — legitimately offered the job, answered in seconds — got "this job was not offered to you". Wrong, and insulting to someone who was quick.
+
+**Three test bugs of mine as well:** a miscounted plan (31 assertions declared as 28), a `tests` schema the `authenticated` role had no rights on, and an assertion that expected the self-verification policy to silently drop the row when it actually raises — which is the better behaviour, so the test moved rather than the policy.
+
+**Added while fixing that:** an assertion that a captain **can** still take himself offline. The same policy governs both, and one that blocked his availability toggle would break the product every morning while looking like good security.
+
+**Now verified, not asserted:**
+- 11 migrations apply cleanly from zero
+- The Fazilka catalogue loads, Gurmukhi and Devanagari intact
+- SQL and TypeScript agree exactly on the size of a killa
+- A client cannot set its own acreage
+- A farmer's field boundary is invisible to strangers
+- Two captains contesting a job produce exactly one winner
+
+**Also:** pgTAP is enabled in the CI step rather than in a migration — a test framework has no business in the production database. Line endings normalised, which were warning on every commit.
+
+---
 
 ## 20 · On GitHub
 
