@@ -2,6 +2,8 @@ import { MACHINE_BY_CODE } from '@zamindara/catalog';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { AreaDisplay, Button, Card } from './components';
 import { t } from './i18n';
+import { CaptainJobCard, EmptyJobs, FarmerJobCard } from './JobList';
+import { isLive, sortForCaptain, type Job } from './jobs';
 import { isCaptain, isFarmer, type Profile } from './profile';
 import type { SavedField } from './storage';
 import { colors, radius, space, TOUCH_MIN, type } from './theme';
@@ -9,7 +11,11 @@ import { colors, radius, space, TOUCH_MIN, type } from './theme';
 interface Props {
   profile: Profile;
   fields: SavedField[];
+  jobs: Job[];
   onAddField: () => void;
+  onBookWork: () => void;
+  onAcceptJob: (job: Job) => void;
+  onAdvanceJob: (job: Job) => void;
   onEditProfile: () => void;
   onToggleOnline: () => void;
   onOpenFieldTest: () => void;
@@ -18,15 +24,19 @@ interface Props {
 /**
  * Home, shaped by who you are.
  *
- * A captain opens to his availability toggle and his machines — the two
- * things that decide whether work reaches him today. A farmer opens to his
- * fields. Someone who is both sees both, in that order, because the supply
- * side is the one with a decision to make each morning.
+ * A captain opens to his availability toggle and any work waiting for him —
+ * the two things that decide whether today earns. A farmer opens to his jobs
+ * and his fields. Someone who is both sees both, supply first, because that
+ * is the side with a decision to make each morning.
  */
 export function HomeScreen({
   profile,
   fields,
+  jobs,
   onAddField,
+  onBookWork,
+  onAcceptJob,
+  onAdvanceJob,
   onEditProfile,
   onToggleOnline,
   onOpenFieldTest,
@@ -34,6 +44,16 @@ export function HomeScreen({
   const locale = profile.language;
   const captain = isCaptain(profile);
   const farmer = isFarmer(profile);
+
+  // What a captain can pick up, versus what he already holds.
+  const captainQueue = sortForCaptain(
+    jobs.filter((j) => j.captainName === profile.fullName && isLive(j)),
+  );
+  const incoming = profile.isOnline
+    ? jobs.filter((j) => j.status === 'searching')
+    : [];
+
+  const myJobs = jobs.filter((j) => j.captainName !== profile.fullName || !captain);
 
   return (
     <View style={s.screen}>
@@ -55,14 +75,13 @@ export function HomeScreen({
       <ScrollView contentContainerStyle={s.list}>
         {captain && (
           <>
-            {/* The one decision a captain makes each morning. Big, obvious,
-                and the first thing on the screen. */}
+            {/* The one decision a captain makes each morning. */}
             <View style={[s.onlineCard, profile.isOnline && s.onlineCardOn]}>
               <View style={s.onlineText}>
                 <Text style={[s.onlineLabel, profile.isOnline && s.onlineLabelOn]}>
                   {profile.isOnline ? t('online', locale) : t('offline', locale)}
                 </Text>
-                {profile.isOnline && (
+                {profile.isOnline && incoming.length === 0 && (
                   <Text style={s.onlineHint}>{t('waitingForWork', locale)}</Text>
                 )}
               </View>
@@ -73,6 +92,36 @@ export function HomeScreen({
                 thumbColor={profile.isOnline ? colors.surface : colors.textMuted}
               />
             </View>
+
+            {incoming.length > 0 && (
+              <>
+                <Text style={s.sectionTitle}>{t('workNearby', locale)}</Text>
+                {incoming.map((job) => (
+                  <CaptainJobCard
+                    key={job.id}
+                    job={job}
+                    locale={locale}
+                    onAccept={onAcceptJob}
+                    onAdvance={onAdvanceJob}
+                  />
+                ))}
+              </>
+            )}
+
+            {captainQueue.length > 0 && (
+              <>
+                <Text style={s.sectionTitle}>{t('captainHome', locale)}</Text>
+                {captainQueue.map((job) => (
+                  <CaptainJobCard
+                    key={job.id}
+                    job={job}
+                    locale={locale}
+                    onAccept={onAcceptJob}
+                    onAdvance={onAdvanceJob}
+                  />
+                ))}
+              </>
+            )}
 
             <Text style={s.sectionTitle}>{t('yourMachines', locale)}</Text>
             {profile.machines.length === 0 ? (
@@ -103,6 +152,15 @@ export function HomeScreen({
 
         {farmer && (
           <>
+            <Text style={s.sectionTitle}>{t('myJobs', locale)}</Text>
+            {myJobs.length === 0 ? (
+              <EmptyJobs locale={locale} captain={false} />
+            ) : (
+              myJobs.map((job) => (
+                <FarmerJobCard key={job.id} job={job} locale={locale} />
+              ))
+            )}
+
             <Text style={s.sectionTitle}>{t('myFields', locale)}</Text>
             {fields.length === 0 ? (
               <Card>
@@ -122,9 +180,18 @@ export function HomeScreen({
       </ScrollView>
 
       <View style={s.footer}>
-        {farmer && <Button label={t('addField', locale)} onPress={onAddField} />}
+        {farmer && (
+          <>
+            <Button label={t('bookWork', locale)} onPress={onBookWork} />
+            <Button label={t('addField', locale)} onPress={onAddField} variant="secondary" />
+          </>
+        )}
         {!farmer && (
-          <Button label={t('yourMachines', locale)} onPress={onEditProfile} variant="secondary" />
+          <Button
+            label={t('yourMachines', locale)}
+            onPress={onEditProfile}
+            variant="secondary"
+          />
         )}
         {/* Founder's tool. Removed once Phase 1 clears. */}
         <Pressable onPress={onOpenFieldTest} hitSlop={12} style={s.testLink}>
@@ -169,7 +236,12 @@ const s = StyleSheet.create({
   onlineText: { flex: 1, gap: space.xs },
   onlineLabel: { ...type.title, color: colors.textMuted },
   onlineLabelOn: { color: colors.textInverse },
-  onlineHint: { ...type.label, fontWeight: '400', color: 'rgba(255,255,255,0.85)', lineHeight: 20 },
+  onlineHint: {
+    ...type.label,
+    fontWeight: '400',
+    color: 'rgba(255,255,255,0.85)',
+    lineHeight: 20,
+  },
 
   sectionTitle: { ...type.label, color: colors.textMuted },
   empty: { ...type.body, color: colors.textMuted, lineHeight: 25 },

@@ -12,8 +12,8 @@ Newest first, so the most recent work is always at the top. Each entry says what
 
 | | |
 |---|---|
-| **Phase** | Phase 3 started — captain onboarding. Phase 1 field test still the accuracy gate. |
-| **Tests** | 100 passing — units 41, geo 24, mobile 17, catalog 18 |
+| **Phase** | Phases 3 and 4 built locally — onboarding, jobs, dispatch. Phase 1 field test still the accuracy gate. |
+| **Tests** | 120 passing — units 41, geo 24, mobile 17, catalog 18, pricing 20 |
 | **App** | **Installable release APK built** — 70 MB, `com.zamindara.app`, targetSdk 36 |
 | **Not yet done** | Never run on a physical device |
 | **Blocking next step** | A Google Maps key and a 50 m measuring tape |
@@ -47,6 +47,34 @@ The most useful part of this log. Each of these was believed, written down, then
 ---
 
 # Entries
+
+## 18 · Phase 4 — jobs and dispatch
+
+**Asked:** build the next phase.
+
+**Built in three steps, money first.**
+
+**4.1 — `packages/pricing`, 20 tests.** The price math, written and tested before any screen touched it. Duplicated from `quote_job` in SQL on purpose: the database prices authoritatively, but the app has to show a farmer a figure *before* he commits, and showing one number then billing another ends a business in a village. The tests assert both halves round identically, including the worked example from `PRICING.md` — so the docs cannot quietly drift from the code.
+
+**4.2 — job posting.** Field → work → when → review. Field first, and it is the shortest step because his fields are already measured; every booking after the first is two taps. The service grid reorders by month, so April opens on harvesting and November on sowing.
+
+**4.3 — the captain side.** An incoming request is the loudest thing on his screen: what work, how big, where, when, and nothing else. Accept, then on-my-way → start → complete.
+
+**Decisions:**
+- **Rate guidance is a range from jobs actually completed nearby, or nothing at all.** With no history the app says "the captain will quote you" rather than inventing a typical rate. Below three data points, a "typical rate" is one man's opinion dressed up as data.
+- The word **approximate** is on every estimate, always. Over-promising a price is how trust dies.
+- Time-priced work (levelling, earthwork) returns **no total**, because it cannot be known before the job is done. Inventing one would be worse than admitting we do not have it.
+- **The field boundary is not shown to a captain before he accepts** — matching the RLS policy in the backend. It is the farmer's land record.
+- `acceptJob` keeps the same shape as the SQL function: the status check is the guard. On one device the race is not real, but the swap to the server stays a swap.
+- Job area is snapshotted at booking, as in the schema.
+
+**Verified:** 120 tests green, typecheck clean across five packages, Metro bundles at 707 modules.
+
+**What this unlocks:** the whole loop now runs on one phone with no server — measure a field, post a job, accept it as a captain, work it to completion. That is a demo you can put in front of a captain in his yard months before there is a backend.
+
+**Still simulated:** dispatch is local, so there is no ranking, no radius filter and no push notification. Those need the server.
+
+---
 
 ## 17 · Phase 3 — captain onboarding and the machine registry
 

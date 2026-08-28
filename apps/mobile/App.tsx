@@ -2,7 +2,7 @@ import type { LatLng, WalkResult } from '@zamindara/geo';
 import type { Locale } from '@zamindara/units';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { ChooseMethodScreen } from './src/ChooseMethodScreen';
 import { ConfirmScreen } from './src/ConfirmScreen';
@@ -11,7 +11,17 @@ import { FieldTestScreen } from './src/fieldTest/FieldTestScreen';
 import { PlotDetailScreen } from './src/fieldTest/PlotDetailScreen';
 import * as testStore from './src/fieldTest/storage';
 import type { CaptureMethod, TestMeasurement, TestPlot } from './src/fieldTest/types';
+import { t } from './src/i18n';
 import { HomeScreen } from './src/HomeScreen';
+import { JobPostFlow } from './src/JobPostFlow';
+import {
+  acceptJob,
+  addJob,
+  loadJobs,
+  updateJob,
+  type Job,
+  type JobStatus,
+} from './src/jobs';
 import { OnboardingFlow } from './src/onboarding/OnboardingFlow';
 import { loadProfile, saveProfile, type Profile } from './src/profile';
 import {
@@ -39,6 +49,7 @@ type Screen =
   | { name: 'draw'; intent: Intent }
   | { name: 'walk'; intent: Intent }
   | { name: 'confirm'; intent: Intent; result: WalkResult }
+  | { name: 'book' }
   | { name: 'test' }
   | { name: 'testPlot'; plotId: string };
 
@@ -47,6 +58,7 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>({ name: 'home' });
   const [profile, setProfile] = useState<Profile | null>(null);
   const [fields, setFields] = useState<SavedField[]>([]);
+  const [jobs, setJobs] = useState<Job[]>([]);
   const [plots, setPlots] = useState<TestPlot[]>([]);
   const [measurements, setMeasurements] = useState<TestMeasurement[]>([]);
 
@@ -54,6 +66,7 @@ export default function App() {
     void (async () => {
       setProfile(await loadProfile());
       setFields(await loadFields());
+      setJobs(await loadJobs());
       setPlots(await testStore.loadPlots());
       setMeasurements(await testStore.loadMeasurements());
       setReady(true);
@@ -122,6 +135,42 @@ export default function App() {
     setScreen({ name: 'home' });
   };
 
+  /**
+   * Advance a job one step: accepted -> en route -> working -> done.
+   *
+   * Mirrors the status ladder in public.jobs. Completion records the amount
+   * and how it was paid, but the money itself moves between the two of them —
+   * v1 takes no commission, so there is nothing for the app to hold.
+   */
+  const advanceJob = async (job: Job) => {
+    const nextStatus: Partial<Record<JobStatus, JobStatus>> = {
+      accepted: 'en_route',
+      en_route: 'in_progress',
+      in_progress: 'completed',
+    };
+    const next = nextStatus[job.status];
+    if (next === undefined) return;
+
+    setJobs(
+      await updateJob({
+        ...job,
+        status: next,
+        startedAt: next === 'in_progress' ? Date.now() : job.startedAt,
+        completedAt: next === 'completed' ? Date.now() : job.completedAt,
+      }),
+    );
+  };
+
+  const claimJob = async (job: Job) => {
+    if (profile === null) return;
+    const { jobs: updated, accepted } = await acceptJob(job.id, profile.fullName);
+    setJobs(updated);
+    if (accepted === null) {
+      // Someone else got there first. Not an error he caused.
+      Alert.alert(t('alreadyTaken', locale));
+    }
+  };
+
   const openPlot = (plotId: string) => setScreen({ name: 'testPlot', plotId });
 
   const addPlot = async () => {
@@ -167,7 +216,11 @@ export default function App() {
               <HomeScreen
                 profile={profile}
                 fields={fields}
+                jobs={jobs}
                 onAddField={() => setScreen({ name: 'choose', intent: { kind: 'field' } })}
+                onBookWork={() => setScreen({ name: 'book' })}
+                onAcceptJob={(job) => void claimJob(job)}
+                onAdvanceJob={(job) => void advanceJob(job)}
                 onEditProfile={() => setScreen({ name: 'onboarding' })}
                 onToggleOnline={() =>
                   void persistProfile({ ...profile, isOnline: !profile.isOnline })
@@ -233,6 +286,20 @@ export default function App() {
                   )
                 }
                 onWalkAgain={() => setScreen({ name: 'walk', intent: screen.intent })}
+              />
+            )}
+
+            {screen.name === 'book' && profile !== null && (
+              <JobPostFlow
+                locale={locale}
+                fields={fields}
+                history={jobs}
+                village={profile.village}
+                onPost={(job) => {
+                  void addJob(job).then(setJobs);
+                  setScreen({ name: 'home' });
+                }}
+                onCancel={() => setScreen({ name: 'home' })}
               />
             )}
 
