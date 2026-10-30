@@ -29,7 +29,11 @@ jobs:
           node-version: 22
           cache: npm
 
-      - run: npm ci
+      # ponytail: install, not ci. The lockfile is generated on Windows and
+      # npm omits the other platforms' optional binaries (npm/cli#4828), so
+      # `npm ci` on Linux leaves vitest without a rollup engine. Switch back
+      # to `npm ci` if the lockfile is ever produced on Linux.
+      - run: npm install --no-audit --no-fund
 
       - name: Unit tests
         run: npm test
@@ -55,7 +59,11 @@ jobs:
           node-version: 22
           cache: npm
 
-      - run: npm ci
+      # ponytail: install, not ci. The lockfile is generated on Windows and
+      # npm omits the other platforms' optional binaries (npm/cli#4828), so
+      # `npm ci` on Linux leaves vitest without a rollup engine. Switch back
+      # to `npm ci` if the lockfile is ever produced on Linux.
+      - run: npm install --no-audit --no-fund
 
       - name: Export Android bundle
         working-directory: frontend
