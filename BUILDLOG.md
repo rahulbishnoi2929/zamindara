@@ -12,11 +12,11 @@ Newest first, so the most recent work is always at the top. Each entry says what
 
 | | |
 |---|---|
-| **Phase** | Phases 2.4 auth **and 2.5 sync done.** Two signed-in phones see the same fields and jobs. Phase 1 field test still the accuracy gate. |
+| **Phase** | Code done through 5. **Phase 1 field test never run — the gate was walked past.** See the revision at the top of BUILD_PLAN. |
 | **Tests** | 167 unit (122 packages + 45 app) + **68 database assertions**, all green in CI |
 | **App** | **Installable release APK built** — 70 MB, `com.zamindara.app`, targetSdk 36 |
 | **Not yet done** | Never run on a physical device; sync never run against a hosted Supabase project |
-| **Blocking next step** | A hosted Supabase project (for two phones), a Google Maps key, and a 50 m measuring tape |
+| **Blocking next step** | Setup: Maps key, hosted Supabase project, `expo prebuild` + APK, a phone, a 50 m tape |
 | **Repo** | [rahulbishnoi2929/zamindara](https://github.com/rahulbishnoi2929/zamindara) — private, CI green |
 | **Backend** | ✅ **Schema verified.** 12 migrations apply; all three guarantees hold. |
 
@@ -51,6 +51,39 @@ The most useful part of this log. Each of these was believed, written down, then
 ---
 
 # Entries
+
+## 27 · Full audit, and the plan re-dated
+
+**Asked:** go through the plan again, check every line, re-test everything from the start, then re-analyse.
+
+**Everything ran. All of it green.**
+
+| Check | Result |
+|---|---|
+| Unit tests | **167** — units 41, frontend 45, geo 24, pricing 20, scheduling 19, catalog 18 |
+| Database assertions | **68** — schema 31, guarantees 19, dispatch 18 |
+| Typecheck | 0 errors across 6 packages |
+| Metro bundle | 827 modules from the new `frontend/` path |
+| CI | all three jobs green |
+| Code | frontend 7,692 lines · packages 3,759 · backend 2,113 |
+
+**The audit finding that matters is not in the code.**
+
+Today is 31 October. The plan was written on 15 August for an April harvest. **The code is ahead of plan — and the field work is zero.** No commits between 28 August and 30 October.
+
+Phase 1 was written as a gate: nothing else gets built until a measured boundary matches a tape. Phases 3, 4 and 5 were built anyway. Defensible at the time — the schema does not change based on whether GPS reads 2% or 3% — but the debt is due now, and it is due before a captain ever sees the app.
+
+**Prerequisites, all still missing:** Google Maps key is the placeholder, so the primary capture method does not work at all. No hosted Supabase project, so sync has never run against anything. No `android/` directory — my restructure removed it. No device. No tape.
+
+**The sowing window is open right now** and roughly three weeks remain of it. It is one of only two chances to rehearse on a main crop before April.
+
+**Plan revised in place**, original kept as the record. November's target cut from 50 captains and 40 jobs to **10–15 captains and 5–10 real jobs** — fifty captains in three weeks from a standing start, by one person who has not yet put the app on a phone, is a wish rather than a plan. The kinnow season becomes the real soft launch. April does not move.
+
+**One real test gap found:** `frontend/src/sync/sync.ts` is 507 lines with no test. The pure mapping beneath it has 28, and `mergeById` is tested and documented as remote-wins — but the orchestration around it is not covered, and it decides when a farmer's local field or job is overwritten. Its profile merge also compares `updatedAt` against the server, which trusts the phone's clock.
+
+Screens being untested is fine and deliberate. `packages/geo/src/rectangle.ts` looked untested to a naive scan but is exercised through `processWalk`.
+
+---
 
 ## 26 · Backend and frontend, separated by folder
 

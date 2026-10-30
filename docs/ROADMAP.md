@@ -2,7 +2,9 @@
 
 Planned against the **crop calendar**, not calendar quarters. In this business the deadline is set by when the wheat ripens, and it does not move.
 
-**Today: August 2026.** The next wheat harvest in Fazilka is **April 2027**. That is the target, and there are roughly eight months to it.
+> **Revised 31 October 2026.** Five months to the harvest, not eight. The code is ahead of this plan; the field work has not started. See the revision block at the top of [BUILD_PLAN.md](BUILD_PLAN.md) for the compressed schedule.
+
+**Written August 2026.** The next wheat harvest in Fazilka is **April 2027**. That is the target.
 
 ---
 

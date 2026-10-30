@@ -4,7 +4,35 @@
 
 [ROADMAP.md](ROADMAP.md) is the business view — seasons, captains, targets. This is the engineering view: the order of work, the gate at the end of each phase, and the test that proves the gate was passed.
 
-**Today: 15 August 2026. The wheat harvest in Fazilka is April 2027.** Roughly eight months, one person.
+> ## ⚠️ Revised 31 October 2026
+>
+> **Five months to the harvest, not eight.** The original plan below was written on 15 August and is kept intact as the record. What actually happened:
+>
+> | | |
+> |---|---|
+> | **Code** | Ahead of plan. Phases 0, 2, 3, 4 and 5 are built, tested and CI-green. |
+> | **Field work** | **Zero.** Phase 1 — the gate everything else was supposed to wait behind — has never been run. |
+> | **Gap** | No commits between 28 August and 30 October. Two months. |
+>
+> **Phase 1 was a gate and it was walked past.** Phases 3–5 were built on an unproven measurement. That was the right call at the time — the schema does not change based on whether GPS reads 2% or 3% — but the debt is now due, and it is due *before* a captain sees the app.
+>
+> **The sowing window is open right now and closing.** Wheat sowing in Fazilka runs late October through November. It is one of only two chances to rehearse on a main crop before April, and roughly three weeks of it are left.
+>
+> ### Revised targets
+>
+> | When | What | Changed from |
+> |---|---|---|
+> | **Now → ~10 Nov** | Setup, then Phase 1 on 20 plots | was late August |
+> | **Mid → end Nov** | Catch the tail of sowing: **10–15 captains, 5–10 real jobs** | was 50 captains, 40 jobs |
+> | **Dec → Feb** | Kinnow season becomes the real soft launch | was hardening only |
+> | **Mar** | Harvest readiness + recruit in Sri Ganganagar | unchanged |
+> | **Apr 2027** | The season | unchanged |
+>
+> The November target is cut deliberately. Fifty captains in three weeks, from a standing start, by one person who has not yet put the app on a phone, is not a plan — it is a wish. Ten captains and five real jobs in November is worth more than fifty signatures and no transactions, because it is the first thing that tests whether the product works rather than whether the pitch works.
+>
+> **April does not move.** Everything above is the schedule bending to protect it.
+
+**Original plan, 15 August 2026. The wheat harvest in Fazilka is April 2027.**
 
 ---
 
