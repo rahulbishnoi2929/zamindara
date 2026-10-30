@@ -73,6 +73,8 @@ Dropped `frontend/android/` and the app's `node_modules` before moving: both reg
 
 **Verified:** 167 unit tests, typecheck clean, 827 modules bundling from the new path, seed regenerating into `backend/`, and all three CI jobs green including the SQL.
 
+**One self-inflicted break on the way, worth recording.** Deleting the lockfile to clear the old package name regenerated it on Windows, and rollup ships one native binary per platform as an optional dependency — so the Linux one vanished and `npm ci` left vitest with no engine on CI. `npm install` did not help either: it honours the lockfile including the *absence*. Fixed by declaring both binaries explicitly, each carrying its own `os` constraint, so `npm ci` and its determinism stay.
+
 **Standing instruction recorded:** written and verified are different states, and only CI running the SQL counts as verified for the backend.
 
 ---
