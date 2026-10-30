@@ -13,7 +13,7 @@ Newest first, so the most recent work is always at the top. Each entry says what
 | | |
 |---|---|
 | **Phase** | Phases 2.4 auth **and 2.5 sync done.** Two signed-in phones see the same fields and jobs. Phase 1 field test still the accuracy gate. |
-| **Tests** | 167 unit (122 packages + 45 app) + **67 database assertions**, all green in CI |
+| **Tests** | 167 unit (122 packages + 45 app) + **68 database assertions**, all green in CI |
 | **App** | **Installable release APK built** — 70 MB, `com.zamindara.app`, targetSdk 36 |
 | **Not yet done** | Never run on a physical device; sync never run against a hosted Supabase project |
 | **Blocking next step** | A hosted Supabase project (for two phones), a Google Maps key, and a 50 m measuring tape |
@@ -42,6 +42,7 @@ The most useful part of this log. Each of these was believed, written down, then
 | 3 | The field test grades the app against the **jamabandi** | Ground truth is a **50 m measuring tape** | The record describes the legal parcel, not the cultivated field, and is often decades stale. Prompted by the user asking "why would we need jamabandi". |
 | 4 | **Walking** the boundary is the primary capture method | **Drawing on satellite** is, and walking is the fallback | Georeferencing offset shifts a polygon without changing its area — and the farmer can *see* whether a traced field is right. Prompted by the user asking for map drawing. |
 | 5 | A minimum **bounding** rectangle would clean up a noisy walk | It inflates area by **+22%** | It must enclose every point, so it latches onto the worst noise excursion on each side. Replaced with median edge fitting: +1.3%. |
+| 8 | RLS on every table is simply good security | **It silently broke two triggers** | Enabling RLS without an insert policy made the audit trigger throw on every job status change, and the ratings trigger on every rating. System-written rows need `security definer`, not a user policy — a policy would let users forge history. |
 | 7 | The backend SQL was carefully reviewed and probably sound | **Two bugs, both fatal to dispatch** | Reading SQL is not running it. Three sessions of review missed an enum cast that killed every accept, and a guard that told the losing captain he was never asked. CI found both in twenty minutes. |
 | 6 | Reject GPS fixes moving faster than walking pace | That rejected **150 of 196 honest fixes** | Two fixes 1 s apart, each ±5 m, can sit 10 m apart while the walker barely moved. Now subtracts the admitted error budget first. |
 
@@ -50,6 +51,26 @@ The most useful part of this log. Each of these was believed, written down, then
 ---
 
 # Entries
+
+## 25 · Three bugs the sync work was hiding
+
+**Asked:** continue.
+
+Found ~2,100 lines of uncommitted sync work in the tree, locally green. Committed it and let CI run the SQL, which had never executed. **Three real bugs, all of them production bugs rather than test nits.**
+
+**1. The audit trigger could never write.** `job_events` had RLS with a read policy and no insert policy, so `log_job_status_change` threw on every single job status change. Phases 4 and 5 built the entire job lifecycle on a trigger that always failed.
+
+**2. The ratings trigger had the same shape, latent.** A farmer rating a captain updates the captain's row, which `captains_update_own` forbids. Nothing had left a rating yet, so nothing noticed. Both are now `security definer` — which is right on its own merits: an audit trail is written by the system, and an insert policy on it would let a user forge job history.
+
+**3. A captain was punished for a ping he had not answered yet.** `accept_rate` divided accepted offers by *all* offers, so a pending dispatch counted as a refusal. Offer a captain work and his acceptance rate drops instantly — meaning in harvest week the busiest, most responsive captains would rank below strangers with no history at all. Exactly backwards.
+
+The dispatch test caught it as a symptom: the nearer owned combine lost rank 1 to a borrowed machine twice as far out, purely because it had one unanswered ping from a job dispatched seconds earlier. Now divides by resolved offers only.
+
+**Noted while there:** distance is normalised over 50 km, so two captains a few hundred metres apart score almost identically and the softer terms decide. Fine while one district is the whole market; marked with a `ponytail:` comment rather than redesigned.
+
+**Verified:** all three CI jobs green. 167 unit tests, 68 database assertions.
+
+---
 
 ## 24 · Phase 2.5 — sync, and the marketplace is real
 
