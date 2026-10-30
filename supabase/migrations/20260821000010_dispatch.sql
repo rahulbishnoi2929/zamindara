@@ -63,8 +63,14 @@ as $fn$
           and j.status in ('accepted', 'en_route', 'in_progress')
       ) as queue_load,
       (
+        -- Resolved offers only. Counting a still-pending ping as a refusal
+        -- punishes a captain for being mid-decision: offer him work and his
+        -- rate drops instantly, so in harvest week the busiest, most
+        -- responsive captains sink below strangers with no history at all.
         select count(*) filter (where d.response = 'accepted')::numeric
-             / nullif(count(*), 0)
+             / nullif(count(*) filter (
+                 where d.response in ('accepted', 'declined', 'timed_out')
+               ), 0)
         from public.job_dispatch d
         where d.captain_id = c.profile_id
       ) as accept_rate
@@ -97,6 +103,9 @@ as $fn$
     km,
     rating_avg,
     queue_load,
+    -- ponytail: normalised over 50 km, so two captains a few hundred metres
+    -- apart score almost identically and the other terms decide. Fine while
+    -- one district is the whole market; revisit if ranking looks arbitrary.
     -- Distance dominates on purpose. A tractor moving 15 km burns diesel and
     -- an hour of daylight, so a nearer captain is genuinely better for
     -- everyone, including the farmer waiting for him.

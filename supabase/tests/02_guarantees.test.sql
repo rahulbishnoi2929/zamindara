@@ -297,6 +297,12 @@ select ok(
 
 -- Rating a captain must actually move his average. The trigger that does it
 -- updates a row the rater has no policy for.
+--
+-- Ratings are only allowed on finished work, which is right, so finish it.
+select tests.act_as_admin();
+update public.jobs set status = 'completed', completed_at = now()
+where id = '99999999-9999-9999-9999-999999999999';
+
 select tests.act_as('11111111-1111-1111-1111-111111111111');
 insert into public.ratings (job_id, rater_id, ratee_id, stars)
 values (
