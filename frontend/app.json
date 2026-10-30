@@ -25,12 +25,7 @@
         "ACCESS_COARSE_LOCATION",
         "FOREGROUND_SERVICE",
         "FOREGROUND_SERVICE_LOCATION"
-      ],
-      "config": {
-        "googleMaps": {
-          "apiKey": "REPLACE_WITH_YOUR_GOOGLE_MAPS_ANDROID_API_KEY"
-        }
-      }
+      ]
     },
     "plugins": [
       [
@@ -45,10 +40,6 @@
     ],
     "assetBundlePatterns": [
       "**/*"
-    ],
-    "extra": {
-      "supabaseUrl": "",
-      "supabaseAnonKey": ""
-    }
+    ]
   }
 }

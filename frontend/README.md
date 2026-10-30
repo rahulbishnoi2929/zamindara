@@ -2,21 +2,48 @@
 
 Android app. Currently the **field measurement prototype**: draw or walk a field boundary, check it, save it.
 
-That is deliberately the whole scope. [BUILD_PLAN.md](../../docs/BUILD_PLAN.md) says nothing else gets built until a walked boundary is proven against a measuring tape in a real field, and this is the app that answers that.
+That is deliberately the whole scope. [BUILD_PLAN.md](../docs/BUILD_PLAN.md) says nothing else gets built until a walked boundary is proven against a measuring tape in a real field, and this is the app that answers that.
 
 ## Getting it onto a phone
 
-### 1. The Google Maps key — do this first
+### 1. Fill in `.env`
 
-Both map screens are dead without it. In [app.json](app.json), replace:
+Secrets come from the environment, never from a tracked file. `.env` is
+gitignored; `app.config.ts` reads it at build time.
 
+```bash
+cd frontend && cp .env.example .env
 ```
-"apiKey": "REPLACE_WITH_YOUR_GOOGLE_MAPS_ANDROID_API_KEY"
+
+| Variable | Where it comes from | If left empty |
+|---|---|---|
+| `GOOGLE_MAPS_API_KEY` | Google Cloud console → enable **Maps SDK for Android** → create a key | The draw screen explains itself on screen instead of showing a blank map. Walking still works. Drawing does not. |
+| `SUPABASE_URL` | supabase.com → your project → Settings → API | The app runs offline-only. Measuring and the on-device job loop work; two phones cannot see each other. |
+| `SUPABASE_ANON_KEY` | same page | as above |
+
+Both empty states are supported and reported in the UI, not crashes. But
+drawing is the primary capture method, so the Maps key is not optional in
+practice.
+
+Never put a real key in `app.json`. It is tracked, and a committed key is a
+leaked key.
+
+### 1b. Point the hosted project at this schema
+
+```bash
+cd backend && npx supabase link --project-ref YOUR_PROJECT_REF
 ```
 
-Get one from the Google Cloud console with **Maps SDK for Android** enabled. It sits inside the free monthly credit at this volume.
+```bash
+cd backend && npx supabase db push
+```
 
-If you skip it, the app now *tells* you rather than showing a blank grey rectangle — but you still cannot draw a field.
+`db push` applies the same 12 migrations CI verifies on every commit. The
+seed is separate — run it once against the hosted project:
+
+```bash
+cd backend && npx supabase db execute --file supabase/seed.sql
+```
 
 ### 2. Build the APK
 
@@ -88,11 +115,11 @@ No confirmation step afterwards: he traced it on the imagery and watched the are
 
 A georeferencing offset shifts the traced outline without changing its **area** — so error comes only from how precisely he taps four visible corners, not from two hundred noisy GPS fixes. And he can *see* whether it is right, which a walked track never lets him do.
 
-That is reasoning, not measurement. [Phase 1](../../docs/BUILD_PLAN.md#phase-1--prove-the-measurement-) settles it by testing both methods against a tape on the same plots.
+That is reasoning, not measurement. [Phase 1](../docs/BUILD_PLAN.md#phase-1--prove-the-measurement-) settles it by testing both methods against a tape on the same plots.
 
 ## Field test recorder
 
-Reached from a small **Field test** link at the bottom of the home screen. Deliberately English, dense, and out of the way — it is the founder's tool, not the farmer's, and it comes out once [Phase 1](../../docs/BUILD_PLAN.md#phase-1--prove-the-measurement-) clears.
+Reached from a small **Field test** link at the bottom of the home screen. Deliberately English, dense, and out of the way — it is the founder's tool, not the farmer's, and it comes out once [Phase 1](../docs/BUILD_PLAN.md#phase-1--prove-the-measurement-) clears.
 
 **Per plot:** tape reading (two sides, in m / ft / karam), jamabandi typed the way it reads on the paper — *"4 killa 2 kanal"* — and any number of measurements by either method.
 
@@ -118,7 +145,7 @@ The recorder drives the **same capture screens the app ships**, not a copy — a
 | [`theme.ts`](src/theme.ts) | Sunlight contrast, 56 px minimum touch targets |
 | [`fieldTest/`](src/fieldTest) | Phase 1 recorder — tape reference, stats, gate, CSV export |
 
-**No geometry lives here.** Every decision about filtering, smoothing, area and rectangle fitting comes from [`@zamindara/geo`](../../packages/geo), which is tested against fields of known size. This app owns the device — permissions, the location stream, persistence, and the screens.
+**No geometry lives here.** Every decision about filtering, smoothing, area and rectangle fitting comes from [`@zamindara/geo`](../packages/geo), which is tested against fields of known size. This app owns the device — permissions, the location stream, persistence, and the screens.
 
 ## Offline
 

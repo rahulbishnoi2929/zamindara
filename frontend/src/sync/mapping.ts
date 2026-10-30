@@ -489,3 +489,55 @@ export function mergeById<T extends { id: string }>(
   for (const item of remote) byId.set(item.id, item);
   return [...byId.values()];
 }
+
+// ---------------------------------------------------------------------------
+// Who wins
+//
+// Both of these decide whether a farmer's local row survives a sync. They
+// live here, pure and tested, because the failure mode is silent: a wrong
+// answer does not throw, it quietly discards work he did in a field.
+// ---------------------------------------------------------------------------
+
+/**
+ * Should the local profile overwrite the server's?
+ *
+ * Last-write-wins on the phone's clock. A server row with a missing or
+ * unparseable timestamp loses, because the alternative is discarding edits
+ * the farmer definitely made in favour of a row we cannot date.
+ *
+ * Equal timestamps go to the server, which stops two phones ping-ponging a
+ * write at each other forever.
+ *
+ * ponytail: trusts the device clock. A phone set years ahead would win every
+ * merge for as long as it stayed wrong. Acceptable while a profile holds a
+ * name, a village and a rate card; move to a server-assigned version if it
+ * ever holds anything a farmer would miss.
+ */
+export function localProfileIsNewer(
+  localUpdatedAt: number,
+  serverUpdatedAtIso: string | null | undefined,
+): boolean {
+  if (serverUpdatedAtIso === null || serverUpdatedAtIso === undefined) return true;
+  const serverAt = Date.parse(serverUpdatedAtIso);
+  if (Number.isNaN(serverAt)) return true;
+  return localUpdatedAt > serverAt;
+}
+
+/**
+ * Keep rows we just pushed, over the snapshot pulled before pushing them.
+ *
+ * The pull happens first, so its view predates this pass's writes. Without
+ * this, a job the captain just accepted would flip back to searching on his
+ * screen until the next sync — which looks exactly like the app losing his
+ * work.
+ */
+export function keepJustPushed<T extends { id: string }>(
+  merged: readonly T[],
+  local: readonly T[],
+  pushedIds: ReadonlySet<string>,
+): T[] {
+  const byId = new Map(local.map((item) => [item.id, item]));
+  return merged.map((item) =>
+    pushedIds.has(item.id) ? byId.get(item.id) ?? item : item,
+  );
+}

@@ -12,6 +12,8 @@ import {
   jobEditsToWire,
   jobFromWire,
   jobToWire,
+  keepJustPushed,
+  localProfileIsNewer,
   mergeById,
   pointToGeoJson,
   profileFromWire,
@@ -130,8 +132,7 @@ export async function syncProfile(profile: Profile): Promise<Profile | null> {
     merged = profileFromWire(inserted.data as never, profile);
   } else {
     const serverRow = existing.data as { updated_at: string };
-    const serverAt = Date.parse(serverRow.updated_at);
-    if (Number.isNaN(serverAt) || profile.updatedAt > serverAt) {
+    if (localProfileIsNewer(profile.updatedAt, serverRow.updated_at)) {
       const pushed = await supabase.from('profiles').update(wire).eq('id', uid);
       if (pushed.error !== null) return null;
       merged = profile;
@@ -479,11 +480,9 @@ export async function syncJobs(
     if (local !== null) remote.push(local);
   }
 
-  let merged = mergeById(jobs, remote);
-  // What we just pushed is newer than the snapshot we pulled before
-  // pushing; keep it until the next pass confirms it.
-  merged = merged.map((j) => (pushed.has(j.id) ? jobs.find((l) => l.id === j.id) ?? j : j));
-  return merged;
+  // The pull predates this pass's writes, so anything just pushed must win
+  // until the next pass confirms it.
+  return keepJustPushed(mergeById(jobs, remote), jobs, pushed);
 }
 
 // ---------------------------------------------------------------------------

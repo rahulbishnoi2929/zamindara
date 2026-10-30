@@ -10,9 +10,11 @@ import {
   fromIso,
   geoJsonToPolygon,
   isUuid,
+  jobEditsToWire,
   jobFromWire,
   jobToWire,
-  jobEditsToWire,
+  keepJustPushed,
+  localProfileIsNewer,
   mergeById,
   pointToGeoJson,
   polygonToGeoJson,
@@ -392,5 +394,91 @@ describe('pointToGeoJson', () => {
       type: 'Point',
       coordinates: [74.02, 30.4],
     });
+  });
+});
+
+describe('who wins a profile merge', () => {
+  const t = (iso: string) => Date.parse(iso);
+
+  it('keeps the local edit when it is newer', () => {
+    expect(
+      localProfileIsNewer(t('2026-10-31T10:00:00Z'), '2026-10-31T09:00:00Z'),
+    ).toBe(true);
+  });
+
+  it('takes the server row when it is newer', () => {
+    expect(
+      localProfileIsNewer(t('2026-10-31T09:00:00Z'), '2026-10-31T10:00:00Z'),
+    ).toBe(false);
+  });
+
+  it('gives a tie to the server', () => {
+    // Otherwise two phones push the same row at each other forever.
+    const same = '2026-10-31T10:00:00Z';
+    expect(localProfileIsNewer(t(same), same)).toBe(false);
+  });
+
+  it('keeps the local edit when the server row has no usable timestamp', () => {
+    // Discarding edits the farmer definitely made, in favour of a row we
+    // cannot date, is the worse of the two mistakes.
+    for (const bad of [null, undefined, '', 'not a date']) {
+      expect(localProfileIsNewer(t('2026-10-31T10:00:00Z'), bad)).toBe(true);
+    }
+  });
+
+  it('lets a wrong device clock win, which is the known ceiling', () => {
+    // Documented rather than fixed: a phone set a year ahead wins every
+    // merge until it is corrected. Fine for a name and a rate card.
+    expect(
+      localProfileIsNewer(t('2027-10-31T00:00:00Z'), '2026-10-31T00:00:00Z'),
+    ).toBe(true);
+  });
+});
+
+describe('keeping what was just pushed', () => {
+  const local = [
+    { id: 'a', status: 'accepted' },
+    { id: 'b', status: 'searching' },
+  ];
+
+  it('keeps the local row for an id we just pushed', () => {
+    // The pull ran before the push, so the remote copy is stale. Without
+    // this the captain watches his accepted job flip back to searching.
+    const merged = [
+      { id: 'a', status: 'searching' },
+      { id: 'b', status: 'searching' },
+    ];
+    const out = keepJustPushed(merged, local, new Set(['a']));
+    expect(out.find((j) => j.id === 'a')?.status).toBe('accepted');
+  });
+
+  it('takes the remote row for anything not pushed', () => {
+    const merged = [
+      { id: 'a', status: 'accepted' },
+      { id: 'b', status: 'completed' },
+    ];
+    const out = keepJustPushed(merged, local, new Set(['a']));
+    expect(out.find((j) => j.id === 'b')?.status).toBe('completed');
+  });
+
+  it('leaves a pushed id alone when there is no local copy of it', () => {
+    const merged = [{ id: 'z', status: 'searching' }];
+    expect(keepJustPushed(merged, local, new Set(['z']))).toEqual(merged);
+  });
+
+  it('changes nothing when nothing was pushed', () => {
+    const merged = [{ id: 'a', status: 'searching' }];
+    expect(keepJustPushed(merged, local, new Set())).toEqual(merged);
+  });
+
+  it('never drops or duplicates a row', () => {
+    const merged = [
+      { id: 'a', status: 'x' },
+      { id: 'b', status: 'y' },
+      { id: 'c', status: 'z' },
+    ];
+    const out = keepJustPushed(merged, local, new Set(['a', 'b']));
+    expect(out).toHaveLength(3);
+    expect(out.map((j) => j.id)).toEqual(['a', 'b', 'c']);
   });
 });
