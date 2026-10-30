@@ -52,6 +52,31 @@ The most useful part of this log. Each of these was believed, written down, then
 
 # Entries
 
+## 26 · Backend and frontend, separated by folder
+
+**Asked:** keep backend in a backend folder and frontend in a frontend folder, so the layout is readable. Also: cross-check and test everything before claiming it works.
+
+**Moved:**
+
+```
+backend/supabase/   migrations, pgTAP tests, config — CLI runs from backend/
+frontend/           the Expo Android app  (@zamindara/frontend)
+packages/           logic shared or mirrored between them
+docs/
+```
+
+`supabase/` sits under `backend/` rather than being renamed, because the Supabase CLI discovers that folder by name — the database CI job just runs from `backend/` now, with no flags.
+
+**What a rename actually touches**, all of it verified rather than assumed: npm workspaces, Metro's `workspaceRoot` (one level up, not two), the seed generator's output path, the CI app job's working directory, the CI database job's defaults, three source comments, five docs, and the package name — which was still `@zamindara/mobile` while the folder said `frontend`, exactly the confusion the move was meant to remove. Lockfile regenerated so no stale name survived in it.
+
+Dropped `frontend/android/` and the app's `node_modules` before moving: both regenerate in one command, and the CMake cache holds absolute paths that a rename would leave pointing at a directory that no longer exists.
+
+**Verified:** 167 unit tests, typecheck clean, 827 modules bundling from the new path, seed regenerating into `backend/`, and all three CI jobs green including the SQL.
+
+**Standing instruction recorded:** written and verified are different states, and only CI running the SQL counts as verified for the backend.
+
+---
+
 ## 25 · Three bugs the sync work was hiding
 
 **Asked:** continue.

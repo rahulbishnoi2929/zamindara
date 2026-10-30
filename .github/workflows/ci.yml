@@ -58,7 +58,7 @@ jobs:
       - run: npm ci
 
       - name: Export Android bundle
-        working-directory: apps/mobile
+        working-directory: frontend
         run: npx expo export --platform android --output-dir /tmp/export
 
   # ---------------------------------------------------------------------------
@@ -76,12 +76,17 @@ jobs:
   database:
     name: Schema and guarantees
     runs-on: ubuntu-latest
+    # The Supabase CLI finds supabase/ relative to the working directory.
+    defaults:
+      run:
+        working-directory: backend
     steps:
       - uses: actions/checkout@v4
 
       - uses: supabase/setup-cli@v1
         with:
           version: latest
+
 
       - name: Start Postgres and apply migrations
         run: supabase start -x realtime,storage-api,imgproxy,studio,edge-runtime,logflare,vector,supavisor,mailpit

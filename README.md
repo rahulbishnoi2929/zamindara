@@ -31,13 +31,13 @@ Launching in **Fazilka district, Punjab**.
 Frontend, shared logic, backend — the full tour is in [Architecture](docs/ARCHITECTURE.md).
 
 ```
-apps/mobile         Android app — measurement, onboarding, jobs, sync       45 tests
+frontend/           Android app — measurement, onboarding, jobs, sync       45 tests
 packages/units      area conversion + compound display (killa/kanal/marla)   41 tests
 packages/geo        boundary-walk geometry pipeline                          24 tests
 packages/catalog    21 machines + 14 services; generates the SQL seed        18 tests
 packages/pricing    the farmer-facing price math, kept equal to the SQL      20 tests
 packages/scheduling the captain's queue and ETAs                             19 tests
-supabase/           the backend — 12 migrations, RLS, dispatch functions, guarantee tests
+backend/supabase/   12 migrations, RLS, dispatch functions, 68 guarantee assertions
 ```
 
 ```bash
@@ -45,10 +45,10 @@ npm install && npm test
 ```
 
 ```bash
-npm run android --workspace @zamindara/mobile
+npm run android --workspace @zamindara/frontend
 ```
 
-See [apps/mobile/README.md](apps/mobile/README.md) — the satellite map needs a Google Maps key before the confirmation screen will render.
+See [frontend/README.md](frontend/README.md) — the satellite map needs a Google Maps key before the confirmation screen will render.
 
 `packages/units` is the most safety-critical code here — a bug in it overbills a farmer — so it was built and tested before any UI existed.
 

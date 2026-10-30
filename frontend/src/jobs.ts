@@ -4,7 +4,7 @@ import type { PricingUnit } from '@zamindara/catalog';
 /**
  * Jobs, stored locally.
  *
- * The shape mirrors public.jobs in supabase/migrations so that wiring this to
+ * The shape mirrors public.jobs in backend/supabase/migrations so that wiring this to
  * Postgres is a change of storage rather than a change of model.
  *
  * Until the backend is live, dispatch is simulated on-device: a posted job

@@ -21,16 +21,16 @@ If you skip it, the app now *tells* you rather than showing a blank grey rectang
 ### 2. Build the APK
 
 ```bash
-cd apps/mobile && npx expo prebuild --platform android --clean
+cd frontend && npx expo prebuild --platform android --clean
 ```
 
 Then **build release, not debug**:
 
 ```bash
-cd apps/mobile/android && ./gradlew assembleRelease
+cd frontend/android && ./gradlew assembleRelease
 ```
 
-The APK lands at `apps/mobile/android/app/build/outputs/apk/release/app-release.apk`.
+The APK lands at `frontend/android/app/build/outputs/apk/release/app-release.apk`.
 
 > ⚠️ **Do not take a debug APK into a field.** `assembleDebug` does not embed the
 > JavaScript bundle — it expects Metro running on your laptop, and shows an error
@@ -49,7 +49,7 @@ prebuild`. Never edit it by hand; the next prebuild throws the edits away.
 With the phone plugged in and USB debugging on:
 
 ```bash
-adb install -r apps/mobile/android/app/build/outputs/apk/release/app-release.apk
+adb install -r frontend/android/app/build/outputs/apk/release/app-release.apk
 ```
 
 Or copy the APK to the phone and tap it — Android will ask permission to install from unknown sources.
@@ -59,11 +59,11 @@ Or copy the APK to the phone and tap it — Android will ask permission to insta
 For coding at a desk, a debug build plus Metro gives live reload:
 
 ```bash
-cd apps/mobile/android && ./gradlew assembleDebug
+cd frontend/android && ./gradlew assembleDebug
 ```
 
 ```bash
-cd apps/mobile && npx expo start --dev-client
+cd frontend && npx expo start --dev-client
 ```
 
 Rebuild natively only when a native dependency or `app.json` changes. Rebuild

@@ -13,7 +13,7 @@ Everything in this repository is one of three things:
 
 | Land | Folder | What it is | Runs where |
 |---|---|---|---|
-| **Frontend** | `apps/mobile/` | The Android app. Every screen the farmer and the captain touch. | On the phone |
+| **Frontend** | `frontend/` | The Android app. Every screen the farmer and the captain touch. | On the phone |
 | **Shared logic** | `packages/` | Pure TypeScript: units, geometry, pricing, queueing, the catalogue. No screens, no React Native. | On the phone **and** in CI |
 | **Backend** | `supabase/` | The Postgres + PostGIS database: tables, security rules, business functions. | On the server |
 
@@ -26,7 +26,7 @@ server-side TypeScript) joins later, in `supabase/functions/`, which already
 exists empty and waiting.
 
 ```
-   apps/mobile  (frontend)
+   frontend  (frontend)
    ┌─────────────────────────────┐
    │  screens · GPS · storage    │
    │  notifications · sign-in    │
@@ -75,7 +75,7 @@ without anything being published. The admin console (Phase 7) will arrive as
 
 ---
 
-## The frontend — `apps/mobile/`
+## The frontend — `frontend/`
 
 One binary, two roles. A farmer and a captain open the same app; a captain's
 home screen opens to his availability toggle and machines, a farmer's to his
@@ -131,7 +131,7 @@ Two rules the app enforces on itself:
   enough to demo the whole loop to a captain in his yard.
 
 `android/` (when it exists) is **generated** by `expo prebuild` and gitignored —
-never edit it by hand. See [apps/mobile/README.md](../apps/mobile/README.md)
+never edit it by hand. See [frontend/README.md](../frontend/README.md)
 for building the APK.
 
 ---
@@ -146,7 +146,7 @@ console and edge functions, unchanged.
 |---|---|---|---|
 | `@zamindara/units` | 41 | Killa / kanal / bigha / marla: conversion, compound display, Gurmukhi and Devanagari parsing. | **The most safety-critical code in the repo** — a bug here overbills a farmer. Whole-number marla arithmetic; never show a decimal. |
 | `@zamindara/geo` | 24 | The boundary-walk pipeline: filter → smooth → simplify → rectangle fit, plus a walk simulator. | Every design choice is backed by a simulated measurement, not an opinion. Three reversals came out of this suite. |
-| `@zamindara/catalog` | 18 | The 21 machine types and 14 services, named in three languages. | **One source of truth.** `supabase/seed.sql` is *generated* from it (`npm run gen:seed --workspace @zamindara/catalog`), so the database and the app cannot disagree about what a Happy Seeder is. |
+| `@zamindara/catalog` | 18 | The 21 machine types and 14 services, named in three languages. | **One source of truth.** `backend/supabase/seed.sql` is *generated* from it (`npm run gen:seed --workspace @zamindara/catalog`), so the database and the app cannot disagree about what a Happy Seeder is. |
 | `@zamindara/pricing` | 20 | The price math the farmer sees before he commits. | Duplicated from the SQL function `quote_job` **on purpose** — the database prices authoritatively, and the tests assert both halves round identically so the docs, SQL and TypeScript can never drift apart. |
 | `@zamindara/scheduling` | 19 | The captain's queue: order, ETA, knocking-off time. | Never promise tonight what rolls to tomorrow morning. Time-priced work books a half day. |
 
@@ -234,11 +234,11 @@ The lookup table for "I'm adding X":
 
 | You're adding | It goes in | And also |
 |---|---|---|
-| A screen | `apps/mobile/src/` + a case in `App.tsx`'s screen union | strings in `i18n.ts`, **all three languages** |
-| A machine type or service | `packages/catalog/src/` | regenerate `supabase/seed.sql` |
+| A screen | `frontend/src/` + a case in `App.tsx`'s screen union | strings in `i18n.ts`, **all three languages** |
+| A machine type or service | `packages/catalog/src/` | regenerate `backend/supabase/seed.sql` |
 | A pricing rule | `packages/pricing/src/` **and** the SQL function in a new migration | tests asserting SQL and TS agree |
 | A unit or conversion rule | `packages/units/src/` | tests first — money code |
-| A table or column | a new numbered file in `supabase/migrations/` + RLS policy | a guarantee test in `supabase/tests/` |
+| A table or column | a new numbered file in `backend/supabase/migrations/` + RLS policy | a guarantee test in `backend/supabase/tests/` |
 | The admin console (Phase 7) | `apps/admin/` (new workspace) | — |
 | Server-side dispatch | `supabase/functions/` | — |
 
@@ -254,9 +254,9 @@ npm run typecheck                             # TypeScript across all workspaces
 
 npm run gen:seed --workspace @zamindara/catalog   # after changing the catalogue
 
-cd apps/mobile && npx expo export --platform android   # does it still bundle?
-cd apps/mobile && npx expo prebuild --platform android --clean   # regenerate android/
-cd apps/mobile/android && ./gradlew assembleRelease    # the installable APK
+cd frontend && npx expo export --platform android   # does it still bundle?
+cd frontend && npx expo prebuild --platform android --clean   # regenerate android/
+cd frontend/android && ./gradlew assembleRelease    # the installable APK
 ```
 
 CI (`.github/workflows/ci.yml`) runs the tests, the typecheck, the bundle

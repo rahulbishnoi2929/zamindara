@@ -1,5 +1,5 @@
 {
-  "name": "@zamindara/mobile",
+  "name": "@zamindara/frontend",
   "version": "0.1.0",
   "private": true,
   "main": "index.ts",

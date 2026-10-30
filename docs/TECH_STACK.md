@@ -80,7 +80,7 @@ Strict mode is on, plus `noUncheckedIndexedAccess` and `exactOptionalPropertyTyp
 
 ### Expo + React Native
 
-**Where:** `apps/mobile`. Android only.
+**Where:** `frontend`. Android only.
 
 **Why:**
 - Managed builds — no Android Studio, no Gradle debugging
@@ -233,7 +233,7 @@ That investment already paid for itself three times — the speed filter destroy
 
 ### i18n — hand-rolled
 
-**Where:** `apps/mobile/src/i18n.ts`. Punjabi (Gurmukhi), Hindi (Devanagari), English.
+**Where:** `frontend/src/i18n.ts`. Punjabi (Gurmukhi), Hindi (Devanagari), English.
 
 **Why:** three languages and one flow do not need a library, and every kilobyte counts on a cheap phone.
 

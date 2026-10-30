@@ -7,7 +7,7 @@ import type { Locale } from '@zamindara/units';
  * Who the user is, and what he has.
  *
  * Local-only for now. The shape deliberately mirrors the Postgres schema in
- * supabase/migrations, so wiring this to Supabase is a change of storage
+ * backend/supabase/migrations, so wiring this to Supabase is a change of storage
  * rather than a change of model.
  */
 

@@ -15,7 +15,7 @@ export function MapKeyWarning() {
         <Text style={s.title}>Map cannot load</Text>
         <Text style={s.body}>
           No Google Maps API key. Put one in{' '}
-          <Text style={s.code}>apps/mobile/app.json</Text> under{' '}
+          <Text style={s.code}>frontend/app.json</Text> under{' '}
           <Text style={s.code}>android.config.googleMaps.apiKey</Text>, then
           rebuild.
         </Text>

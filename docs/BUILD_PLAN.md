@@ -53,7 +53,7 @@ Different phases need different proof. Reaching for the wrong kind wastes time a
 
 - `packages/units` — killa/kanal/bigha/marla, compound display, Gurmukhi and Devanagari parsing · **41 tests**
 - `packages/geo` — filter → smooth → simplify → rectangle fit · **24 tests**
-- `apps/mobile` — Expo SDK 57, walk + satellite confirmation · bundles clean
+- `frontend` — Expo SDK 57, walk + satellite confirmation · bundles clean
 - Ten product documents
 
 **What it already taught us**
@@ -95,7 +95,7 @@ A 50 m fibreglass tape costs about ₹500–1,000 and is accurate to roughly 0.2
 
 - [ ] Development build on a real Android phone (`npx expo run:android`)
 - [ ] Google Maps API key wired into `app.json`
-- [x] ~~**Field-test recorder**~~ — built. `apps/mobile/src/fieldTest`, 17 tests. Tape reference in m/ft/karam, jamabandi typed as it reads on the paper, automatic capture of GPS accuracy, walk duration, fixes accepted/rejected, pipeline path, and whether corners were dragged. Live gate card and CSV export.
+- [x] ~~**Field-test recorder**~~ — built. `frontend/src/fieldTest`, 17 tests. Tape reference in m/ft/karam, jamabandi typed as it reads on the paper, automatic capture of GPS accuracy, walk duration, fixes accepted/rejected, pipeline path, and whether corners were dragged. Live gate card and CSV export.
 
 **Test**
 

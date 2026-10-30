@@ -15,7 +15,7 @@ import { MACHINE_TYPES } from '../src/machines.ts';
 import { SERVICES } from '../src/services.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const outPath = join(here, '..', '..', '..', 'supabase', 'seed.sql');
+const outPath = join(here, '..', '..', '..', 'backend', 'supabase', 'seed.sql');
 
 /** Single-quote a SQL string literal. */
 const q = (value: string): string => `'${value.replace(/'/g, "''")}'`;
