@@ -12,20 +12,20 @@ Newest first, so the most recent work is always at the top. Each entry says what
 
 | | |
 |---|---|
-| **Phase** | Phases 3–5 built; 2.4 auth done. Sync (2.5) is next. Phase 1 field test still the accuracy gate. |
-| **Tests** | 139 unit + **49 database assertions**, all green in CI |
+| **Phase** | Phases 2.4 auth **and 2.5 sync done.** Two signed-in phones see the same fields and jobs. Phase 1 field test still the accuracy gate. |
+| **Tests** | 167 unit (122 packages + 45 app) + **67 database assertions**, all green in CI |
 | **App** | **Installable release APK built** — 70 MB, `com.zamindara.app`, targetSdk 36 |
-| **Not yet done** | Never run on a physical device |
-| **Blocking next step** | A Google Maps key and a 50 m measuring tape |
+| **Not yet done** | Never run on a physical device; sync never run against a hosted Supabase project |
+| **Blocking next step** | A hosted Supabase project (for two phones), a Google Maps key, and a 50 m measuring tape |
 | **Repo** | [rahulbishnoi2929/zamindara](https://github.com/rahulbishnoi2929/zamindara) — private, CI green |
-| **Backend** | ✅ **Schema verified.** 11 migrations apply; all three guarantees hold. |
+| **Backend** | ✅ **Schema verified.** 12 migrations apply; all three guarantees hold. |
 
 ```
 C:\Zamidara\
-├── docs\              11 product and engineering documents
-├── packages\units\    killa/kanal/bigha/marla — 41 tests
-├── packages\geo\      GPS boundary geometry — 24 tests
-├── apps\mobile\       Expo SDK 57 Android app — 17 tests
+├── docs\              12 product and engineering documents
+├── apps\mobile\       Expo SDK 57 Android app — 45 tests
+├── packages\          units · geo · catalog · pricing · scheduling — 122 tests
+├── supabase\          12 migrations, RLS, dispatch functions — 67 assertions
 └── assets\            logo
 ```
 
@@ -50,6 +50,56 @@ The most useful part of this log. Each of these was believed, written down, then
 ---
 
 # Entries
+
+## 24 · Phase 2.5 — sync, and the marketplace is real
+
+**Asked:** build the next phase.
+
+**Why this one.** Sync was the stated last step before a working marketplace: the local models (`profile.ts`, `storage.ts`, `jobs.ts`) were built mirror-image to the database tables in Phase 2 precisely so this phase would be a change of storage, not a change of model. That promise mostly held — and where it did not, the mapping layer is where the difference lives, tested.
+
+**Built:** profiles, fields and jobs cross between the phone and Postgres.
+
+- **Mobile `src/sync/`** — two files, one rule each. `mapping.ts` is the pure wire format (corners ↔ GeoJSON, epoch ms ↔ ISO, enums both ways, uuid minting) with 28 tests, because every line there touches area or money. `sync.ts` is the orchestration: push before pull, catalogue codes resolved to server ids, typed outcomes, nothing throws.
+- **Migration 12, `dispatch_job`** — the farmer's phone calls it after posting; it runs `eligible_captains` and writes the `job_dispatch` rows server-side. This closes the gap the RLS left on purpose: there is no client insert policy on `job_dispatch`, because who gets offered work is not the farmer's phone's decision.
+- **pgTAP suite 03** — 18 assertions walking the exact path two phones will take: post, offer, accept. The eligibility rules are the assertions — the unverified captain is never offered, the borrowed combine is offered only when the job is far enough ahead to clear its lead time, nobody is pinged twice, only the posting farmer can dispatch, anon cannot dispatch at all, and the accept path still produces exactly one winner.
+- **App wiring** — ids minted as UUIDs at creation; a sync pass on start and on every app activation (the same moment token refresh already ran); posted/claimed/advanced jobs push immediately; going online takes a one-shot GPS fix.
+
+**Decisions:**
+
+- **The offer is a SQL function, not the edge function.** The edge function's job is the *push broadcast* — waking phones — which needs the server outside Postgres. The *offer* is only rows in `job_dispatch`, and Postgres already has the eligibility logic and the transaction. Shipping the offer as SQL means dispatch works end-to-end today and the edge function, when it comes, adds wake-ups rather than intelligence.
+- **Ids are minted on the phone, as UUIDs.** A field measured with no signal must become the same row on the server it already is on the phone — not a twin with a new id. Old `Date.now()` ids are detected and pushed *without* an id, so the server assigns one and the phone adopts it on the merge.
+- **The server wins every conflict — except a status cannot move backwards.** Pull happens before push is judged, and a job's status only crosses the wire when it *advances* past what the server has (searching < accepted < en_route < in_progress < done). Without the rank guard, a farmer reopening his phone an hour after the captain finished would push his stale "accepted" over the recorded "completed". The record of what happened must not be destroyable by a refresh.
+- **A field insert carries no acreage.** This is guarantee 1 cashed in: the phone sends the boundary only, the trigger derives area and centroid, and the phone adopts the server's number as its own on the merge. The area a job snapshots is therefore the server's area, on both phones.
+- **A captain the phone cannot place is not on the market.** `captains.base_location` is NOT NULL, so his row cannot exist until GPS has produced a point — going online takes a one-shot fix (8 s budget, best effort, no error screen). Honest state, corrected by the next toggle.
+- **Catalogue drift cannot delete a captain's registry.** Machines and rates push as a replace-set; if even one local code has no server id (an app and a database out of step), the whole replace is abandoned rather than silently dropping the row it could not name.
+- **Offline is still the first-class case.** Every stage of sync returns its input unchanged when there is no session or no signal; the ⟳ on a field card is the honest state of "saved here, not yet there", and the next activation retries. The on-device dispatch simulation remains for the not-signed-in yard demo.
+
+**Four bugs of mine, caught by reading before CI had to:** a 60 km-tall test polygon (dropped zero: 0.5442° for 0.0005442°), a planned assertion count that did not match the written one, four fixture users with no phone number, and the PostgREST embed key (`field:fields(name)` returns as `field`, not `fields` — wrong key, silently empty field names).
+
+**Verified:** 167 unit tests (45 of them new) and the workspace typecheck green locally; the Android bundle still exports. The 12 migrations and all 67 database assertions run in CI on push, where Docker exists — same as every schema change before this one.
+
+**Not done:** sync has never run against a *hosted* Supabase project — there is no project yet, only a schema. Wiring `app.json`'s `extra` to a real project and trying two phones is the next physical step, and it needs the thing that has been missing all along: the app on real hardware. Push notifications still wait on the edge function.
+
+---
+
+## 23 · The map of the code
+
+**Asked:** work phase by phase, but first make the architecture understandable — which folder is the backend, which is the frontend — so the founder can read the repository too.
+
+**Built:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — the folder-by-folder tour. Three lands (phone app, shared packages, database), every file in `apps/mobile/src` in one table, all five packages with the rule each one carries, the eleven migrations in order, a today-vs-April table of what talks to what, a **"where new code goes" lookup table**, and the commands.
+
+**Decisions:**
+- **Written for the founder, not for a reviewer.** Every folder is justified by what it protects, not by convention.
+- Says the confusing part out loud, in bold: **today the backend is a database, not a server we wrote.** There is no `server/` folder, business rules live in SQL functions, and `supabase/functions/` sits empty waiting for dispatch. Someone opening this repo cold would look for the API code for an hour.
+- The mobile models' mirror-image relationship to the tables (`profile.ts` ↔ `profiles`, `jobs.ts` ↔ `jobs`, `SavedField.synced` already waiting) is stated explicitly, because it is the contract Phase 2.5 will cash in.
+- The layout section in TECH_ARCHITECTURE was a *plan* — it listed `apps/admin`, `packages/types`, `packages/shared`, none of which exist. Replaced with the real tree, planned pieces marked as planned, and pointed at the new doc.
+- README's code section still said three packages and no backend; it now lists all five plus `supabase/`, and ARCHITECTURE joined the document index.
+
+**Verified:** docs-only change, no code touched. The 139 unit tests were green before it.
+
+**Not done:** no entry for `apps/admin` exists yet, deliberately — the doc describes what is, and marks what is planned.
+
+---
 
 ## 22 · Phase 2.4 — sign in with a phone number
 

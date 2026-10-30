@@ -302,6 +302,11 @@ const strings = {
     en: 'Zamindara needs location access to measure your field.',
   },
   grantPermission: { pa: 'ਇਜਾਜ਼ਤ ਦਿਓ', hi: 'अनुमति दें', en: 'Allow' },
+  acceptFailed: {
+    pa: 'ਕੰਮ ਨਹੀਂ ਲਿਆ ਜਾ ਸਕਿਆ। ਸਿਗਨਲ ਵੇਖੋ ਤੇ ਮੁੜ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
+    hi: 'काम नहीं लिया जा सका। सिग्नल देखें और फिर कोशिश करें।',
+    en: 'Could not take the job. Check your signal and try again.',
+  },
   recovered: {
     pa: 'ਪਿਛਲਾ ਅਧੂਰਾ ਨਾਪ ਮਿਲਿਆ',
     hi: 'पिछला अधूरा नाप मिला',

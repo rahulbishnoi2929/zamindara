@@ -1,7 +1,7 @@
 import type { LatLng, WalkResult } from '@zamindara/geo';
 import type { Locale } from '@zamindara/units';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { ChooseMethodScreen } from './src/ChooseMethodScreen';
@@ -34,9 +34,17 @@ import {
 import { OnboardingFlow } from './src/onboarding/OnboardingFlow';
 import { SignInScreen } from './src/SignInScreen';
 import { currentSession } from './src/auth';
-import { normalisePhone, startAutoRefresh, stopAutoRefresh } from './src/supabase';
+import { startAutoRefresh, stopAutoRefresh } from './src/supabase';
 import { AppState } from 'react-native';
 import { loadProfile, saveProfile, type Profile } from './src/profile';
+import { currentLatLng } from './src/location';
+import {
+  acceptJobRemote,
+  syncFields,
+  syncJobs,
+  syncProfile,
+} from './src/sync/sync';
+import { uuid } from './src/sync/mapping';
 import {
   clearActiveWalk,
   loadFields,
@@ -82,25 +90,74 @@ export default function App() {
 
   useEffect(() => {
     void (async () => {
-      setProfile(await loadProfile());
-      setFields(await loadFields());
-      setJobs(await loadJobs());
+      const stored = await loadProfile();
+      const storedFields = await loadFields();
+      const storedJobs = await loadJobs();
+      setProfile(stored);
+      setFields(storedFields);
+      setJobs(storedJobs);
       setPlots(await testStore.loadPlots());
       setMeasurements(await testStore.loadMeasurements());
       const session = await currentSession();
       setSignedIn(session !== null);
       setReady(true);
+
+      // The first sync pass runs once everything local is loaded, so a
+      // field measured offline yesterday is on its way before he has
+      // finished reading the home screen.
+      if (session !== null && stored !== null) {
+        void (async () => {
+          const merged = (await syncProfile(stored)) ?? stored;
+          const fields = await syncFields(storedFields);
+          const jobs = await syncJobs(storedJobs, merged);
+          if (merged !== stored) {
+            setProfile(await saveProfile(merged));
+          }
+          if (fields !== storedFields) setFields(fields);
+          if (jobs !== storedJobs) setJobs(jobs);
+        })();
+      }
     })();
   }, []);
 
-  // Refresh tokens only while the app is in front of him. The default timer
-  // keeps the phone awake, which costs battery across a ten-hour day in a
-  // pocket and buys nothing.
+  /**
+   * One sync pass, from the top: profile, then fields, then jobs.
+   *
+   * Order matters — a job cannot exist server-side until its field does,
+   * and a captain cannot be dispatched to until his profile row does. Each
+   * stage leaves the state it found when it cannot reach the server, which
+   * is what makes "sync on every activation" safe to run unconditionally.
+   */
+  const runSync = async () => {
+    if (profile === null || !signedIn) return;
+    const merged = await syncProfile(profile);
+    const current = merged ?? profile;
+    if (merged !== null && merged !== profile) {
+      setProfile(await saveProfile(merged));
+    }
+    const nextFields = await syncFields(fields);
+    if (nextFields !== fields) setFields(nextFields);
+    const nextJobs = await syncJobs(jobs, current);
+    if (nextJobs !== jobs) setJobs(nextJobs);
+  };
+
+  // Refresh tokens and sync only while the app is in front of him. The
+  // default timer keeps a phone awake, which costs battery across a
+  // ten-hour day in a pocket and buys nothing; and a sync pass while the
+  // phone is locked would burn the same signal for a screen nobody reads.
+  // The listener registers once and reads runSync through a ref, so it
+  // always sees the latest state without re-subscribing on every render.
+  const runSyncRef = useRef(runSync);
+  runSyncRef.current = runSync;
   useEffect(() => {
     startAutoRefresh();
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') startAutoRefresh();
-      else stopAutoRefresh();
+      if (state === 'active') {
+        startAutoRefresh();
+        void runSyncRef.current();
+      } else {
+        stopAutoRefresh();
+      }
     });
     return () => {
       sub.remove();
@@ -119,9 +176,32 @@ export default function App() {
 
   const locale: Locale = profile?.language ?? 'pa';
 
-  const persistProfile = async (next: Profile) => {
-    setProfile(await saveProfile(next));
+  const persistProfile = async (raw: Profile) => {
+    // A profile written before sign-in carries a local id and no phone. The
+    // moment there is a session, its identity is the auth user id and the
+    // signed-in number — onboarding usually runs after signing in, so this
+    // is the normal path, not the exception. Without this stamp the row the
+    // database knows him by never gets created.
+    let next = raw;
+    if (signedIn) {
+      const session = await currentSession();
+      const id = session?.user.id;
+      const phone = session?.user.phone?.replace(/^\+/, '') ?? null;
+      if (id !== undefined && (next.id !== id || next.phone !== phone)) {
+        next = { ...next, id, phone };
+      }
+    }
+
+    const saved = await saveProfile(next);
+    setProfile(saved);
     setScreen({ name: 'home' });
+    // Onboarding edits and the morning availability toggle both land here;
+    // either may be the first thing this profile ever says to the server.
+    void syncProfile(saved).then((merged) => {
+      if (merged !== null && merged !== saved) {
+        void saveProfile(merged).then(setProfile);
+      }
+    });
   };
 
   /** A finished measurement, routed by why it was taken. */
@@ -164,7 +244,9 @@ export default function App() {
     }
 
     const field: SavedField = {
-      id: String(Date.now()),
+      // Minted here, on the phone: the same field is the same row on every
+      // device it ever reaches, even if it was measured with no signal.
+      id: uuid(),
       name: `Field ${fields.length + 1}`,
       polygon,
       areaSqm,
@@ -174,9 +256,16 @@ export default function App() {
       synced: false,
     };
 
-    setFields(await saveField(field));
+    const saved = await saveField(field);
+    setFields(saved);
     await clearActiveWalk();
     setScreen({ name: 'home' });
+    // Saved to disk first, so the upload is an upgrade, not a dependency:
+    // with no signal the field waits with its ⟳ showing, and syncs on the
+    // next pass.
+    void syncFields(saved).then((next) => {
+      if (next !== saved) setFields(next);
+    });
   };
 
   /**
@@ -203,13 +292,17 @@ export default function App() {
       return;
     }
 
-    setJobs(
-      await updateJob({
-        ...job,
-        status: next,
-        startedAt: next === 'in_progress' ? Date.now() : job.startedAt,
-      }),
-    );
+    const updated = await updateJob({
+      ...job,
+      status: next,
+      startedAt: next === 'in_progress' ? Date.now() : job.startedAt,
+    });
+    setJobs(updated);
+    if (signedIn && profile !== null) {
+      void syncJobs(updated, profile).then((pulled) => {
+        if (pulled !== updated) setJobs(pulled);
+      });
+    }
   };
 
   const finishJob = async (amount: number, payment: PaymentMode) => {
@@ -217,26 +310,50 @@ export default function App() {
     const rate =
       profile.rates.find((r) => r.serviceCode === completing.serviceCode)?.rate ?? null;
 
-    setJobs(
-      await updateJob({
-        ...completing,
-        status: 'completed',
-        completedAt: Date.now(),
-        finalAmount: amount,
-        paymentMode: payment,
-        // Recorded so this job can feed rate guidance for the next farmer.
-        quotedRate: completing.quotedRate ?? rate,
-      }),
-    );
+    const updated = await updateJob({
+      ...completing,
+      status: 'completed',
+      completedAt: Date.now(),
+      finalAmount: amount,
+      paymentMode: payment,
+      // Recorded so this job can feed rate guidance for the next farmer.
+      quotedRate: completing.quotedRate ?? rate,
+    });
+    setJobs(updated);
     setCompleting(null);
+    if (signedIn) {
+      void syncJobs(updated, profile).then((pulled) => {
+        if (pulled !== updated) setJobs(pulled);
+      });
+    }
   };
 
   const claimJob = async (job: Job) => {
     if (profile === null) return;
+
+    // Signed in, the race is real and only the database can judge it.
+    if (signedIn) {
+      const outcome = await acceptJobRemote(job.id);
+      if (outcome === 'accepted' || outcome === 'lost-race') {
+        const current = await loadJobs();
+        void syncJobs(current, profile).then(setJobs);
+        if (outcome === 'lost-race') {
+          // Someone else got there first. Not an error he caused.
+          Alert.alert(t('alreadyTaken', locale));
+        }
+        return;
+      }
+      // Signal or server trouble. The job stays as it is; the next sync
+      // pass brings the truth. But silence would read as "the tap did
+      // nothing", so say what happened and what to do about it.
+      Alert.alert(t('acceptFailed', locale));
+      return;
+    }
+
+    // Not signed in: the on-device simulation, for the yard demo.
     const { jobs: updated, accepted } = await acceptJob(job.id, profile.fullName);
     setJobs(updated);
     if (accepted === null) {
-      // Someone else got there first. Not an error he caused.
       Alert.alert(t('alreadyTaken', locale));
     }
   };
@@ -296,10 +413,11 @@ export default function App() {
             locale={locale}
             onSignedIn={(phone) => {
               setSignedIn(true);
-              const e164 = normalisePhone(phone);
-              if (profile !== null && e164 !== null) {
-                void persistProfile({ ...profile, phone: e164 });
-              }
+              // persistProfile stamps the session's user id and phone onto
+              // the profile, which is what creates his row in the database.
+              // A fresh install has no profile yet; onboarding, which runs
+              // next, creates one and goes through the same stamp.
+              if (profile !== null) void persistProfile(profile);
             }}
             // Measuring a field works with no account and no signal. Only
             // booking and taking work needs one.
@@ -322,9 +440,25 @@ export default function App() {
                 onAcceptJob={(job) => void claimJob(job)}
                 onAdvanceJob={(job) => void advanceJob(job)}
                 onEditProfile={() => setScreen({ name: 'onboarding' })}
-                onToggleOnline={() =>
-                  void persistProfile({ ...profile, isOnline: !profile.isOnline })
-                }
+                onToggleOnline={() => {
+                  void (async () => {
+                    const goingOnline = !profile.isOnline;
+                    // Going online is what puts him on the market, so it is
+                    // the moment dispatch needs to know where he stands. A
+                    // missing fix means no captains row yet — honest, and
+                    // corrected by the next toggle with signal.
+                    const fix = goingOnline ? await currentLatLng() : null;
+                    await persistProfile({
+                      ...profile,
+                      isOnline: goingOnline,
+                      baseLocation: profile.baseLocation ?? fix,
+                      currentLocation:
+                        goingOnline && fix !== null
+                          ? fix
+                          : profile.currentLocation,
+                    });
+                  })();
+                }}
                 onOpenFieldTest={() => setScreen({ name: 'test' })}
               />
             )}
@@ -396,10 +530,17 @@ export default function App() {
                 history={jobs}
                 village={profile.village}
                 onPost={(job) => {
-                  void addJob(job).then(setJobs);
-                  // Until there is a server to push from, the ping is local.
-                  // The presentation is the real thing, so what a captain
-                  // sees and feels here is what he sees in April.
+                  void addJob(job).then((added) => {
+                    setJobs(added);
+                    // The pass that follows inserts the job and offers it
+                    // to whoever is eligible, wherever they are.
+                    void syncJobs(added, profile).then((pulled) => {
+                      if (pulled !== added) setJobs(pulled);
+                    });
+                  });
+                  // Until push notifications arrive with the edge function,
+                  // the ping is local — the presentation is the real thing,
+                  // so what a captain sees here is what he sees in April.
                   if (
                     profile.isOnline &&
                     withinWorkingHours(new Date(), 7, 19)

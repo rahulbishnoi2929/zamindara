@@ -14,6 +14,7 @@ Launching in **Fazilka district, Punjab**.
 |---|---|
 | [PRD](docs/PRD.md) | The anchor document. Problem, vision, users, scope, metrics, risks. |
 | **[Build Plan](docs/BUILD_PLAN.md)** | **Phase by phase: what to build, what to test, what to do. Start here to work.** |
+| [Architecture](docs/ARCHITECTURE.md) | The map of the code — folder by folder, frontend / shared logic / backend, and where new code goes. |
 | [MVP Scope](docs/MVP_SCOPE.md) | What ships in v1 and — more importantly — what does not. |
 | [Personas](docs/PERSONAS.md) | The four people in the system, written as real people. |
 | [User Flows](docs/USER_FLOWS.md) | Screen-by-screen walkthroughs of every core journey. |
@@ -27,10 +28,16 @@ Launching in **Fazilka district, Punjab**.
 
 ## Code
 
+Frontend, shared logic, backend — the full tour is in [Architecture](docs/ARCHITECTURE.md).
+
 ```
-packages/units    area conversion + compound display (killa/kanal/marla)   41 tests
-packages/geo      boundary-walk geometry pipeline                          24 tests
-apps/mobile       Android app — field measurement + Phase 1 recorder       17 tests
+apps/mobile         Android app — measurement, onboarding, jobs, sync       45 tests
+packages/units      area conversion + compound display (killa/kanal/marla)   41 tests
+packages/geo        boundary-walk geometry pipeline                          24 tests
+packages/catalog    21 machines + 14 services; generates the SQL seed        18 tests
+packages/pricing    the farmer-facing price math, kept equal to the SQL      20 tests
+packages/scheduling the captain's queue and ETAs                             19 tests
+supabase/           the backend — 12 migrations, RLS, dispatch functions, guarantee tests
 ```
 
 ```bash

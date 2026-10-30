@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { PricingUnit } from '@zamindara/catalog';
+import type { LatLng } from '@zamindara/geo';
 import type { Locale } from '@zamindara/units';
 
 /**
@@ -55,6 +56,14 @@ export interface Profile {
   rates: ServiceRate[];
   serviceRadiusKm: number;
   isOnline: boolean;
+  /**
+   * Where he stands. The database requires a base location before a captain
+   * row can exist at all, and dispatch needs a current one — so both stay
+   * null until GPS has produced a point, and a captain the phone cannot yet
+   * place is simply not on the market.
+   */
+  baseLocation: LatLng | null;
+  currentLocation: LatLng | null;
 
   onboardedAt: number | null;
   updatedAt: number;
@@ -75,6 +84,8 @@ export function emptyProfile(): Profile {
     rates: [],
     serviceRadiusKm: 15,
     isOnline: false,
+    baseLocation: null,
+    currentLocation: null,
     onboardedAt: null,
     updatedAt: Date.now(),
   };

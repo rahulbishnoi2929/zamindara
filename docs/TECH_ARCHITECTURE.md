@@ -178,21 +178,28 @@ The 1.3 factor approximates road winding and is accurate enough for a surcharge 
 
 ## Repository layout
 
+The folder-by-folder tour lives in **[ARCHITECTURE.md](ARCHITECTURE.md)** — what each folder is, file by file, and where new code goes. The shape:
+
 ```
 zamindara/
 ├── apps/
-│   ├── mobile/          # Expo — farmer + captain
-│   └── admin/           # Next.js ops console
-├── packages/
+│   └── mobile/          # Expo — farmer + captain (the frontend)
+├── packages/            # shared logic, all tested — no React Native
 │   ├── units/           # ⭐ area conversion + compound formatting
-│   ├── types/           # generated from Supabase schema
-│   └── shared/          # pricing, validation, constants
-├── supabase/
-│   ├── migrations/
-│   ├── functions/       # dispatch, notify, pricing
-│   └── seed/            # machine types, services, Fazilka villages
+│   ├── geo/             # the boundary-walk pipeline
+│   ├── catalog/         # machines + services; seed.sql is generated from it
+│   ├── pricing/         # the farmer-facing price math, kept equal to quote_job
+│   └── scheduling/      # the captain's queue and ETAs
+├── supabase/            # the backend — today that means the database
+│   ├── migrations/      # 11 files, in order — schema, functions, RLS
+│   ├── tests/           # pgTAP guarantee suite, run by CI
+│   ├── functions/       # empty — the dispatch edge function lands here
+│   └── seed.sql         # generated from packages/catalog
 └── docs/
 ```
+
+The admin console (Phase 7) will arrive as `apps/admin`; generated TypeScript
+types from the schema as `packages/types`. Both are planned, neither exists yet.
 
 `packages/units` is small and is the most safety-critical code in the repository. **It gets full unit test coverage before anything else does** — every conversion, every compound-format edge case, every rounding boundary. A bug there overbills a farmer.
 

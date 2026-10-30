@@ -6,6 +6,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AreaDisplay, Button, Card } from './components';
 import { t } from './i18n';
 import { completedRates, type Job, type JobWindow } from './jobs';
+import { uuid } from './sync/mapping';
 import type { SavedField } from './storage';
 import { colors, radius, space, type } from './theme';
 
@@ -88,7 +89,10 @@ export function JobPostFlow({
     if (timing === 'tomorrow') scheduled.setDate(scheduled.getDate() + 1);
 
     onPost({
-      id: String(Date.now()),
+      // Minted on the phone so the job is the same row on the farmer's
+      // device, the captain's device, and the database — even if it was
+      // posted in a yard with one bar of signal and syncs an hour later.
+      id: uuid(),
       fieldId: field.id,
       fieldName: field.name,
       village,
