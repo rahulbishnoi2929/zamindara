@@ -11,7 +11,7 @@
 -- one, if wrong, either costs someone money or leaks their land.
 
 begin;
-select plan(18);
+select plan(19);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures
@@ -293,6 +293,25 @@ select ok(
   (select count(*) from public.job_events
    where job_id = '99999999-9999-9999-9999-999999999999') >= 2,
   'the job status history was recorded'
+);
+
+-- Rating a captain must actually move his average. The trigger that does it
+-- updates a row the rater has no policy for.
+select tests.act_as('11111111-1111-1111-1111-111111111111');
+insert into public.ratings (job_id, rater_id, ratee_id, stars)
+values (
+  '99999999-9999-9999-9999-999999999999',
+  '11111111-1111-1111-1111-111111111111',
+  '33333333-3333-3333-3333-333333333333',
+  5
+);
+
+select tests.act_as_admin();
+select is(
+  (select rating_count from public.captains
+   where profile_id = '33333333-3333-3333-3333-333333333333'),
+  1,
+  'rating a captain updates his aggregate'
 );
 
 select * from finish();

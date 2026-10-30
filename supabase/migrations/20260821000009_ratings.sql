@@ -24,6 +24,11 @@ create index ratings_ratee_idx on public.ratings (ratee_id, created_at desc);
 create or replace function public.refresh_captain_rating()
 returns trigger
 language plpgsql
+-- A farmer rating a captain updates the captain's row, and captains_update_own
+-- only lets a captain touch his own. Same bug as the audit trigger, latent
+-- until someone left a rating.
+security definer
+set search_path = public
 as $fn$
 begin
   update public.captains c

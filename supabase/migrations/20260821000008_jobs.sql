@@ -133,6 +133,12 @@ create index job_events_job_idx on public.job_events (job_id, created_at);
 create or replace function public.log_job_status_change()
 returns trigger
 language plpgsql
+-- job_events has RLS with a read policy and no insert policy, so an invoker
+-- trigger cannot write the audit row and every status change fails. Definer
+-- is also the right answer on its own merits: history is written by the
+-- system. An insert policy would let a user forge it.
+security definer
+set search_path = public
 as $fn$
 begin
   if tg_op = 'INSERT' or new.status is distinct from old.status then
