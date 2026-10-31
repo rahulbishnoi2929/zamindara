@@ -13,7 +13,7 @@ Everything here needs your accounts, your phone, or your legs. I cannot do any o
 | **0** | **Start DLT registration with TRAI** | paperwork | Real captains signing in. Longest lead time in the plan — start today and forget it. |
 | **1** | Get a reference — marked field, Google Earth, or a tape | **₹0 possible** | The gate |
 | **2** | Put the app on a phone | ₹0 | The gate |
-| **3** | **Field test — 3 plots, then 20** | ₹0 | 🚦 **Everything.** |
+| **3** | **Walk one known-area field** | ₹0, one hour | 🚦 Showing the app to any captain |
 | **4** | Create a Supabase project | ₹0, no card | Two phones seeing each other |
 | **5** | Add your phone to `admins` — one SQL row | ₹0 | **Any captain ever getting work** |
 | **6** | `eas init` + deploy the push function | ₹0 | A captain hearing about work without opening the app |
@@ -131,11 +131,17 @@ The walk path touches **no map at all** — pure GPS. The area readout and Confi
 
 Only **drawing on satellite** needs the Maps key. Skip it for now.
 
-### Start with 3 plots, not 20
+### One field is the gate. Twenty is for later.
 
-Three plots catch a catastrophic error. If the app reads 8% high, one carefully taped plot shows it. **Send me those three numbers before doing the other seventeen** — if something is badly wrong you will have spent an afternoon instead of three days.
+**What this test actually buys is knowing the number is not grossly wrong before a captain sees it.** Not 2%, not a distribution — just, is it off by 20%?
 
-Twenty is what characterises the error: how it varies with size, and whether it repeats.
+That matters because of where the failure lands. The first farmer who says *"this is wrong"* in front of a captain you spent a week recruiting is not a bug report, he is a reputation in a village where everyone talks.
+
+**So: walk one marked field. Within about 5% and you can proceed.** An hour, no tape, no farmer.
+
+The 2% bar and the twenty plots came from the pricing story, where area × rate is an invoice. **v1 bills nobody** — the final amount is agreed in the field, and the app's area is an input to a conversation. The study is deferred to when you start taking a commission and the number becomes money.
+
+And the measure that matters more than either: **how often a farmer disputes the area.** Free, in production, and the thing your business turns on. Near zero and the measurement is good enough whatever a tape says.
 
 ### What to take
 

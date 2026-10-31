@@ -102,6 +102,35 @@ Three design assumptions died here, before any of them could cost a season:
 
 Nothing else gets built until this passes. If a walked boundary does not match physical reality, every downstream feature is built on sand.
 
+### The gate, re-argued — 1 November 2026
+
+The founder pushed on why this test is needed at all, three times. He was partly right and the gate below is now split.
+
+**The 2% bar came from the pricing story**, where area × rate is an invoice. **v1 bills nobody** — it is free, and the final amount is agreed between farmer and captain in the field. The app's area is an input to a conversation. So 2% was inherited from a later version of the product.
+
+Worse, **accuracy and acceptance can diverge.** If the jamabandi says 4 killa and the ground is 3.6, being accurate gets you rejected. This is a trust product, not a survey instrument.
+
+And **the farmer is a free validator** — he has farmed that field for twenty years and will say so immediately.
+
+**What the test genuinely buys:** knowing the number is not *grossly* wrong before a captain sees it. The first farmer who says "this is wrong" in front of a captain you spent a week recruiting is not a bug report, he is a reputation in a village where everyone talks, and that cannot be iterated back.
+
+A gross error is a live possibility, not paranoia: simulation gave 2% on a killa but **3.16% on half a killa, worst cases over 5%**, and real GPS error is correlated in ways the simulator does not model.
+
+#### So the gate is now two things
+
+| | What | Blocks | Cost |
+|---|---|---|---|
+| **Smoke** | **One known-area field** — a regulation hockey pitch is 91.4 × 55 m = 5,027 m². Within ~5%. | 🚦 Showing the app to any captain | ₹0, one hour |
+| **Study** | 20 plots against a tape, 2% / 4% | Taking a commission, when the area becomes an invoice | a tape, 2–3 days |
+
+**The smoke test is the gate.** The study is deferred to when the number starts being money.
+
+#### And the metric that actually matters in November
+
+**Dispute rate** — how often a farmer says the area is wrong. Free, measured in production, and the thing the business turns on. If it is near zero the measurement is good enough regardless of what a tape says. If it is high, a tape will tell you whether the app or the paperwork is wrong.
+
+That belongs in the Phase 6 targets, not here.
+
 ### Ground truth is a measuring tape, not the jamabandi
 
 An earlier draft of this plan graded the app against land records. That was wrong, and the distinction matters enough to state plainly:
@@ -320,7 +349,7 @@ A 50 m fibreglass tape costs about ₹500–1,000 and is accurate to roughly 0.2
 **Test — in production, on real people**
 
 - [ ] 40 jobs completed end to end
-- [ ] Zero area disputes
+- [ ] **Dispute rate** — how often a farmer says the area is wrong. This is the real acceptance measure and it is free. Near zero means the measurement is good enough whatever a tape says; high means a tape will tell you whether the app or the paperwork is at fault.
 - [ ] Track: how many requests reach ≥3 captains; acceptance rate; time to accept; cancel-after-accept
 
 **Gate**
