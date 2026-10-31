@@ -52,6 +52,23 @@ The most useful part of this log. Each of these was believed, written down, then
 
 # Entries
 
+## 28 · Setup, and the handover list
+
+**Asked:** set up, then give me the full instructions for what is pending on my side.
+
+**Done here:**
+
+- **Secrets moved out of tracked files.** The Maps key sat inline in `app.json`, which is committed — a live key pasted there is a leaked key. `app.config.ts` now reads all three from a gitignored `.env`, `.env.example` names them, and `app.json` carries none of them.
+- **Closed the sync test gap** from the audit. `sync.ts` had 507 lines with no coverage, and its two merge decisions are where a sync silently discards work done in a field. Both extracted, tested, and *used by `sync.ts` itself* rather than copied: `localProfileIsNewer` (tie goes to the server to stop two phones ping-ponging; an undateable server row loses, because discarding confirmed edits is the worse mistake; marked that it trusts the device clock) and `keepJustPushed` (the pull predates this pass's writes, so a job just accepted must not flip back to searching on the captain's screen).
+- **Release APK rebuilt** — 72 MB, standalone, JS bundled, all four CPU types.
+- **[SETUP.md](SETUP.md)** — the founder's pending work, ordered, with the commands verified rather than guessed. The Google SHA-1 is inlined because I read it off the machine rather than asking him to.
+
+**Verified:** 177 unit tests, 68 database assertions, typecheck clean, CI green on all three jobs.
+
+**Still his, and unblockable by me:** Google Maps key, a hosted Supabase project, the app on a real phone, a 50 m tape, and the 20-plot field test. Plus DLT registration with TRAI, which is the longest lead time in the plan and blocks every real captain from logging in.
+
+---
+
 ## 27 · Full audit, and the plan re-dated
 
 **Asked:** go through the plan again, check every line, re-test everything from the start, then re-analyse.

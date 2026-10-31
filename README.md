@@ -6,6 +6,8 @@ Launching in **Fazilka district, Punjab**.
 
 ---
 
+**[SETUP.md](SETUP.md)** — the work pending on your side: keys, the hosted project, the phone, and the Phase 1 field test. Start there.
+
 **[BUILDLOG.md](BUILDLOG.md)** — running record of what was built and why, newest first. Includes a table of every decision we reversed and what overturned it.
 
 ## Document set
