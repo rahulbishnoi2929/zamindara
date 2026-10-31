@@ -13,7 +13,7 @@ Newest first, so the most recent work is always at the top. Each entry says what
 | | |
 |---|---|
 | **Phase** | Code done through 5. **Phase 1 field test never run — the gate was walked past.** See the revision at the top of BUILD_PLAN. |
-| **Tests** | 167 unit (122 packages + 45 app) + **68 database assertions**, all green in CI |
+| **Tests** | 167 unit (122 packages + 45 app) + **82 database assertions**, all green in CI |
 | **App** | **Installable release APK built** — 70 MB, `com.zamindara.app`, targetSdk 36 |
 | **Not yet done** | Never run on a physical device; sync never run against a hosted Supabase project |
 | **Blocking next step** | Setup: Maps key, hosted Supabase project, `expo prebuild` + APK, a phone, a 50 m tape |
@@ -51,6 +51,32 @@ The most useful part of this log. Each of these was believed, written down, then
 ---
 
 # Entries
+
+## 29 · No captain could ever have worked
+
+**Asked:** start on the work that is mine; the field test waits for his time.
+
+**Went looking for what actually blocks November rather than picking a feature — and found it.**
+
+**There was no path to `verified` at all.** `captains.verification` defaults to `pending`, every dispatch query requires `verified`, and the RLS policy correctly stops a captain promoting himself. But nothing else could promote him either.
+
+So every captain onboarded in November would have been a ghost: invisible to farmers (`captains_read` only exposes verified), never returned by `eligible_captains`, never offered a single job. **The soft launch could not have worked**, and the failure would have looked like "nobody is getting work" rather than like a bug.
+
+**Built:**
+- `admins` table, phone-keyed, RLS deny-all with no policies by design. A table rather than a JWT claim or an env var, so there is one obvious place to look and no chance of app and database disagreeing about who is staff.
+- `is_admin()`, `pending_captains()`, `set_captain_verification()` — all `security definer`, guard in the database.
+- A one-tap verify screen, staff-only, used in the yard next to the machine. That is where the decision is actually made, and it is better evidence than a document check.
+- **14 pgTAP assertions**: a farmer cannot verify, a captain cannot verify himself through the function either, a captain cannot read the pending queue, the founder can, who decided and when is recorded, and the captain becomes visible to farmers afterwards.
+
+**Two rules that fell out of the design:** verification cannot be set back to `pending`, because that would erase who decided. And a captain with no machine cannot be verified — there is nothing to match him to, so the button stays disabled.
+
+**Stopped hand-counting pgTAP plans.** Third miscount; a wrong number fails a whole file even when every assertion passes. `backend/check-plans.sh` compares each declared plan to the assertions in the file and runs before the containers boot, so it fails in seconds instead of two minutes. It found 04 at 14 rather than 13 and confirmed the other three were right. Git on Windows does not track the exec bit, so CI invokes it through `bash`.
+
+**Verified:** 177 unit tests, **82 database assertions**, typecheck clean, 828 modules bundling, all three CI jobs green.
+
+**Added to SETUP.md:** the one `insert into admins` row that makes him staff. Without it he cannot verify anyone, and nothing in the app would explain why no captain ever gets work.
+
+---
 
 ## 28 · Setup, and the handover list
 
