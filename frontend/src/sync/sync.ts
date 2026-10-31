@@ -467,6 +467,22 @@ export async function syncJobs(
     }
   }
 
+  // Re-offer anything still looking for a captain.
+  //
+  // dispatch_job was originally called once, when a job was first inserted.
+  // A job posted at 6am — before any captain came online — was therefore
+  // offered to nobody and sat in 'searching' forever, with the farmer
+  // watching a screen that said "finding a captain" and meant nothing.
+  //
+  // The function is idempotent (`on conflict do nothing`, asserted in
+  // 03_dispatch) and farmer-only, so calling it every pass is safe and picks
+  // up captains who have come online since.
+  for (const job of jobs) {
+    if (job.status !== 'searching' || !isUuid(job.id)) continue;
+    if (!serverById.has(job.id) && !pushed.has(job.id)) continue;
+    await supabase.rpc('dispatch_job', { p_job_id: job.id });
+  }
+
   const remote: Job[] = [];
   for (const p of pulled) {
     const local = jobFromWire(

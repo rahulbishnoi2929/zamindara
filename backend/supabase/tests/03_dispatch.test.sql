@@ -13,7 +13,7 @@
 --     it is still searching
 
 begin;
-select plan(18);
+select plan(20);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures — same helpers as 02_guarantees.
@@ -207,6 +207,34 @@ select is(
    where job_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
   1,
   'Jaspal is not pinged twice for the same job'
+);
+
+-- ===========================================================================
+-- Re-dispatch picks up a captain who comes online later
+--
+-- The app originally called dispatch_job once, at insert. A job posted at
+-- 6am — before anyone was online — was offered to nobody and sat in
+-- 'searching' forever. Re-dispatching every sync pass is the fix, and this
+-- is the behaviour that makes it worth doing.
+-- ===========================================================================
+select tests.act_as_admin();
+update public.captains set verification = 'verified',
+       verified_by = '11111111-1111-1111-1111-111111111111', verified_at = now()
+where profile_id = '44444444-4444-4444-4444-444444444444';
+
+select tests.act_as('11111111-1111-1111-1111-111111111111');
+
+select is(
+  public.dispatch_job('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
+  1,
+  'a captain who became available since is offered the job on the next pass'
+);
+
+select is(
+  (select count(*)::int from public.job_dispatch
+   where job_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
+  2,
+  'and the captain already offered it is not offered it twice'
 );
 
 -- ===========================================================================
