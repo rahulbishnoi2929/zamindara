@@ -13,7 +13,7 @@ Newest first, so the most recent work is always at the top. Each entry says what
 | | |
 |---|---|
 | **Phase** | Code done through 5. **Phase 1 field test never run — the gate was walked past.** See the revision at the top of BUILD_PLAN. |
-| **Tests** | 167 unit (122 packages + 45 app) + **84 database assertions**, all green in CI |
+| **Tests** | 167 unit (122 packages + 45 app) + **93 database assertions**, all green in CI |
 | **App** | **Installable release APK built** — 70 MB, `com.zamindara.app`, targetSdk 36 |
 | **Not yet done** | Never run on a physical device; sync never run against a hosted Supabase project |
 | **Blocking next step** | Setup: Maps key, hosted Supabase project, `expo prebuild` + APK, a phone, a 50 m tape |
@@ -52,6 +52,28 @@ The most useful part of this log. Each of these was believed, written down, then
 
 # Entries
 
+## 31 · Push that reaches a captain who is not looking at his phone
+
+**Asked:** do the push notification one.
+
+The ping was local only — a captain on a second phone found out about work by **opening the app**, which is the opposite of behaving like an incoming call.
+
+**`push_tokens`, keyed on the token rather than the profile.** A device token is globally unique, so when a phone changes hands the row follows the device instead of leaving a stale one pointed at the wrong person — which would send a captain's work to a stranger. One person may hold several devices and all of them ring.
+
+**9 assertions, mostly about who *cannot* read them.** A push token is a delivery address; a leaked set is a spam channel aimed at every captain in the district. So: another user reads nothing, cannot register a token against someone else, a moved device leaves the old owner, and a malformed token is refused at the door rather than failing silently at send time.
+
+**`notify-dispatch` edge function.** Verifies from the caller's JWT that he is the farmer who posted the job, then reads tokens with the service role so they never reach a client. Message in Punjabi with the area in killa, and it sets the **same channel id the app creates** — a mismatch there makes Android downgrade it to a quiet notification and loses the entire point.
+
+**Two deliberate restraints:**
+- Rings only when someone *new* was offered the job. Re-dispatch returns 0 for captains already holding the offer, and ringing them every sync pass would teach them to ignore the sound.
+- Push failures are swallowed. A push that does not arrive is a captain who sees the job when he opens the app; a push that blocks the farmer's sync is a farmer staring at a spinner.
+
+**Verified:** 177 unit tests, **93 database assertions**, typecheck clean, 828 modules, all three CI jobs green.
+
+**Not verified, and not verifiable here:** the edge function and actual delivery need a deploy and two real phones. The token table and its policies are proven; everything from the function to the handset is not. SETUP.md carries the two commands — a free `eas init` for the project id, and one `functions deploy`.
+
+---
+
 ## 30 · The 6am job that nobody would ever see
 
 **Asked:** keep working on what is mine.
@@ -66,7 +88,7 @@ Now re-offered on every sync pass. The function is idempotent (`on conflict do n
 
 A test that mutates shared fixture state mid-file does not just fail — it invalidates everything downstream of it, and the failures point at innocent assertions.
 
-**Verified:** 177 unit tests, **84 database assertions**, typecheck clean, 828 modules, all three CI jobs green.
+**Verified:** 177 unit tests, **93 database assertions**, typecheck clean, 828 modules, all three CI jobs green.
 
 **Known and left:** the farmer is not told *how many* captains were offered his job, so "finding a captain" is still silent about whether anyone was asked. And the job ping is still local — a captain on a second phone learns about work only by opening the app, because remote push needs a token table and an edge function. Neither is a dead end now; both are worth doing before captains are relying on it.
 
@@ -92,7 +114,7 @@ So every captain onboarded in November would have been a ghost: invisible to far
 
 **Stopped hand-counting pgTAP plans.** Third miscount; a wrong number fails a whole file even when every assertion passes. `backend/check-plans.sh` compares each declared plan to the assertions in the file and runs before the containers boot, so it fails in seconds instead of two minutes. It found 04 at 14 rather than 13 and confirmed the other three were right. Git on Windows does not track the exec bit, so CI invokes it through `bash`.
 
-**Verified:** 177 unit tests, **84 database assertions**, typecheck clean, 828 modules bundling, all three CI jobs green.
+**Verified:** 177 unit tests, **93 database assertions**, typecheck clean, 828 modules bundling, all three CI jobs green.
 
 **Added to SETUP.md:** the one `insert into admins` row that makes him staff. Without it he cannot verify anyone, and nothing in the app would explain why no captain ever gets work.
 
