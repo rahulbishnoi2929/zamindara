@@ -13,7 +13,7 @@ Newest first, so the most recent work is always at the top. Each entry says what
 | | |
 |---|---|
 | **Phase** | Code done through 5. **Phase 1 field test never run — the gate was walked past.** See the revision at the top of BUILD_PLAN. |
-| **Tests** | 167 unit (122 packages + 45 app) + **82 database assertions**, all green in CI |
+| **Tests** | 167 unit (122 packages + 45 app) + **84 database assertions**, all green in CI |
 | **App** | **Installable release APK built** — 70 MB, `com.zamindara.app`, targetSdk 36 |
 | **Not yet done** | Never run on a physical device; sync never run against a hosted Supabase project |
 | **Blocking next step** | Setup: Maps key, hosted Supabase project, `expo prebuild` + APK, a phone, a 50 m tape |
@@ -52,6 +52,26 @@ The most useful part of this log. Each of these was believed, written down, then
 
 # Entries
 
+## 30 · The 6am job that nobody would ever see
+
+**Asked:** keep working on what is mine.
+
+Traced the whole November flow looking for more silent dead ends of the same kind as the verification gap. Most of it held up — `dispatch_job` *is* called, online state and location *do* reach the server, machines and rates *are* pushed. One thing did not.
+
+**`dispatch_job` was called only when a job was first inserted.** So a job posted at 6am, before any captain came online, was offered to nobody and sat in `searching` **forever** — the farmer watching a screen that said "finding a captain" and meant nothing. Like the verification gap, it would have read as *no demand* rather than as a bug.
+
+Now re-offered on every sync pass. The function is idempotent (`on conflict do nothing`) and farmer-only, both already asserted, so repeating it is safe and picks up anyone who has come online since.
+
+**And a mistake worth recording.** My first test for this verified a captain halfway through `03_dispatch` to prove re-dispatch finds newly available supply. The fixture is shared, and five later assertions depended on that captain being *unverified* — including the one checking an unverified captain is not offered work. Rewritten as the actual regression, on its own job, after everything else: take the only captain offline, post a job, assert it reaches nobody, bring him online, assert the same job is then offered.
+
+A test that mutates shared fixture state mid-file does not just fail — it invalidates everything downstream of it, and the failures point at innocent assertions.
+
+**Verified:** 177 unit tests, **84 database assertions**, typecheck clean, 828 modules, all three CI jobs green.
+
+**Known and left:** the farmer is not told *how many* captains were offered his job, so "finding a captain" is still silent about whether anyone was asked. And the job ping is still local — a captain on a second phone learns about work only by opening the app, because remote push needs a token table and an edge function. Neither is a dead end now; both are worth doing before captains are relying on it.
+
+---
+
 ## 29 · No captain could ever have worked
 
 **Asked:** start on the work that is mine; the field test waits for his time.
@@ -72,7 +92,7 @@ So every captain onboarded in November would have been a ghost: invisible to far
 
 **Stopped hand-counting pgTAP plans.** Third miscount; a wrong number fails a whole file even when every assertion passes. `backend/check-plans.sh` compares each declared plan to the assertions in the file and runs before the containers boot, so it fails in seconds instead of two minutes. It found 04 at 14 rather than 13 and confirmed the other three were right. Git on Windows does not track the exec bit, so CI invokes it through `bash`.
 
-**Verified:** 177 unit tests, **82 database assertions**, typecheck clean, 828 modules bundling, all three CI jobs green.
+**Verified:** 177 unit tests, **84 database assertions**, typecheck clean, 828 modules bundling, all three CI jobs green.
 
 **Added to SETUP.md:** the one `insert into admins` row that makes him staff. Without it he cannot verify anyone, and nothing in the app would explain why no captain ever gets work.
 
