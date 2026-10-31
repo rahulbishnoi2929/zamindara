@@ -102,7 +102,7 @@ jobs:
       # it has been miscounted by hand three times. Cheap to check, and it
       # fails in two seconds instead of after the containers boot.
       - name: Plan counts match the assertions
-        run: ./check-plans.sh
+        run: bash ./check-plans.sh
 
       - name: Run guarantee tests
         run: supabase test db
