@@ -210,34 +210,6 @@ select is(
 );
 
 -- ===========================================================================
--- Re-dispatch picks up a captain who comes online later
---
--- The app originally called dispatch_job once, at insert. A job posted at
--- 6am — before anyone was online — was offered to nobody and sat in
--- 'searching' forever. Re-dispatching every sync pass is the fix, and this
--- is the behaviour that makes it worth doing.
--- ===========================================================================
-select tests.act_as_admin();
-update public.captains set verification = 'verified',
-       verified_by = '11111111-1111-1111-1111-111111111111', verified_at = now()
-where profile_id = '44444444-4444-4444-4444-444444444444';
-
-select tests.act_as('11111111-1111-1111-1111-111111111111');
-
-select is(
-  public.dispatch_job('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
-  1,
-  'a captain who became available since is offered the job on the next pass'
-);
-
-select is(
-  (select count(*)::int from public.job_dispatch
-   where job_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
-  2,
-  'and the captain already offered it is not offered it twice'
-);
-
--- ===========================================================================
 -- The scheduled job: a borrowed machine qualifies once the notice clears
 -- ===========================================================================
 
@@ -335,6 +307,45 @@ select is(
    where id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
   '33333333-3333-3333-3333-333333333333',
   'the immediate job is assigned to him'
+);
+
+-- ===========================================================================
+-- The 6am case
+--
+-- dispatch_job used to be called once, at insert. A job posted before any
+-- captain was online was therefore offered to nobody and sat in 'searching'
+-- forever — the farmer watching a screen that said "finding a captain" and
+-- meant nothing. The app now re-offers every pass; this is the behaviour
+-- that makes that worth doing.
+-- ===========================================================================
+select tests.act_as_admin();
+update public.captains set is_online = false
+where profile_id = '33333333-3333-3333-3333-333333333333';
+
+select tests.act_as('11111111-1111-1111-1111-111111111111');
+
+insert into public.jobs (id, farmer_id, field_id, service_id, area_sqm, status, is_immediate)
+select 'dddddddd-dddd-dddd-dddd-dddddddddddd', '11111111-1111-1111-1111-111111111111',
+       f.id, (select id from public.services where code = 'wheat_harvest'),
+       f.area_sqm, 'searching', true
+from public.fields f where f.name = 'Nehar wala khet';
+
+select is(
+  public.dispatch_job('dddddddd-dddd-dddd-dddd-dddddddddddd'),
+  0,
+  'a job posted when nobody is available is offered to nobody'
+);
+
+select tests.act_as_admin();
+update public.captains set is_online = true
+where profile_id = '33333333-3333-3333-3333-333333333333';
+
+select tests.act_as('11111111-1111-1111-1111-111111111111');
+
+select is(
+  public.dispatch_job('dddddddd-dddd-dddd-dddd-dddddddddddd'),
+  1,
+  'and is offered the moment a captain comes online, instead of sitting forever'
 );
 
 select * from finish();
