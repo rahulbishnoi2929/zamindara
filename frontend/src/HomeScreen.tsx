@@ -21,6 +21,8 @@ interface Props {
   onEditProfile: () => void;
   onToggleOnline: () => void;
   onOpenFieldTest: () => void;
+  /** Undefined for everyone who is not staff. */
+  onVerifyCaptains?: (() => void) | undefined;
 }
 
 /**
@@ -42,6 +44,7 @@ export function HomeScreen({
   onEditProfile,
   onToggleOnline,
   onOpenFieldTest,
+  onVerifyCaptains,
 }: Props) {
   const locale = profile.language;
   const captain = isCaptain(profile);
@@ -238,6 +241,11 @@ export function HomeScreen({
           />
         )}
         {/* Founder's tool. Removed once Phase 1 clears. */}
+        {onVerifyCaptains !== undefined && (
+          <Pressable onPress={onVerifyCaptains} hitSlop={12} style={s.testLink}>
+            <Text style={s.testLinkText}>Verify captains</Text>
+          </Pressable>
+        )}
         <Pressable onPress={onOpenFieldTest} hitSlop={12} style={s.testLink}>
           <Text style={s.testLinkText}>Field test</Text>
         </Pressable>

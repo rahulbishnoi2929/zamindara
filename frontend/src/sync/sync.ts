@@ -504,3 +504,56 @@ export async function acceptJobRemote(jobId: string): Promise<AcceptOutcome> {
   if (error.code === '55006') return 'lost-race';
   return 'failed';
 }
+
+// ---------------------------------------------------------------------------
+// Verifying captains
+//
+// Without this nothing can move a captain off 'pending', which means every
+// captain onboarded is invisible to farmers and never offered a job. The
+// founder verifies in person in season one — he is in the yard looking at
+// the machine, which is better evidence than any document.
+// ---------------------------------------------------------------------------
+
+export interface PendingCaptain {
+  captainId: string;
+  fullName: string;
+  phone: string;
+  village: string;
+  machineCount: number;
+}
+
+/** Empty for everyone who is not staff — the guard is in the database. */
+export async function fetchPendingCaptains(): Promise<PendingCaptain[]> {
+  if (!isBackendConfigured()) return [];
+
+  const { data, error } = await supabase.rpc('pending_captains');
+  if (error !== null || data === null) return [];
+
+  return (data as Array<Record<string, unknown>>).map((r) => ({
+    captainId: String(r['captain_id']),
+    fullName: String(r['full_name'] ?? ''),
+    phone: String(r['phone'] ?? ''),
+    village: String(r['village'] ?? ''),
+    machineCount: Number(r['machine_count'] ?? 0),
+  }));
+}
+
+export async function setCaptainVerification(
+  captainId: string,
+  status: 'verified' | 'rejected',
+): Promise<boolean> {
+  if (!isBackendConfigured()) return false;
+
+  const { error } = await supabase.rpc('set_captain_verification', {
+    p_captain_id: captainId,
+    p_status: status,
+  });
+  return error === null;
+}
+
+/** Is this user staff? Decides whether the verify queue is offered at all. */
+export async function amIAdmin(): Promise<boolean> {
+  if (!isBackendConfigured()) return false;
+  const { data, error } = await supabase.rpc('is_admin');
+  return error === null && data === true;
+}

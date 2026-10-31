@@ -125,6 +125,27 @@ SUPABASE_ANON_KEY=eyJ...
 
 **Done when:** the Supabase dashboard → Table Editor shows `machine_types` with 21 rows and Gurmukhi names.
 
+### Make yourself staff — one row, or no captain can ever work
+
+Until your phone number is in the `admins` table, nothing can verify a
+captain. A captain who is not verified is **invisible to farmers and will
+never be offered a job** — he defaults to `pending`, every dispatch query
+requires `verified`, and he is correctly forbidden from promoting himself.
+
+In the Supabase dashboard → **SQL Editor**, once:
+
+```sql
+insert into public.admins (phone, note)
+values ('9876543210', 'founder');   -- your 10-digit number, no +91
+```
+
+Then sign in on the app. A **Verify captains** link appears at the bottom of
+the home screen — visible only to staff, and the real guard is in the
+database, not the UI. Tap Verify while you are standing next to his machine.
+
+A captain with **no machine registered** cannot be verified: there is nothing
+to match him to, so the button stays disabled until he adds one.
+
 ### One thing to check afterwards
 
 Phone sign-in needs real SMS, which India gates behind **DLT registration with TRAI**. That takes weeks.

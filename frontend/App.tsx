@@ -33,6 +33,7 @@ import {
 } from './src/jobs';
 import { OnboardingFlow } from './src/onboarding/OnboardingFlow';
 import { SignInScreen } from './src/SignInScreen';
+import { VerifyCaptainsScreen } from './src/VerifyCaptainsScreen';
 import { currentSession } from './src/auth';
 import { startAutoRefresh, stopAutoRefresh } from './src/supabase';
 import { AppState } from 'react-native';
@@ -40,6 +41,7 @@ import { loadProfile, saveProfile, type Profile } from './src/profile';
 import { currentLatLng } from './src/location';
 import {
   acceptJobRemote,
+  amIAdmin,
   syncFields,
   syncJobs,
   syncProfile,
@@ -71,6 +73,7 @@ type Screen =
   | { name: 'walk'; intent: Intent }
   | { name: 'confirm'; intent: Intent; result: WalkResult }
   | { name: 'book' }
+  | { name: 'verify' }
   | { name: 'test' }
   | { name: 'testPlot'; plotId: string };
 
@@ -85,6 +88,9 @@ export default function App() {
   // He chose to carry on without an account. Field measurement works fully
   // offline, so this is a legitimate way to use the app, not an escape hatch.
   const [skippedAuth, setSkippedAuth] = useState(false);
+  // Staff only. The verify queue is hidden entirely for everyone else; the
+  // real guard is in the database, this just avoids offering a dead end.
+  const [isStaff, setIsStaff] = useState(false);
   const [plots, setPlots] = useState<TestPlot[]>([]);
   const [measurements, setMeasurements] = useState<TestMeasurement[]>([]);
 
@@ -100,6 +106,7 @@ export default function App() {
       setMeasurements(await testStore.loadMeasurements());
       const session = await currentSession();
       setSignedIn(session !== null);
+      if (session !== null) setIsStaff(await amIAdmin());
       setReady(true);
 
       // The first sync pass runs once everything local is loaded, so a
@@ -460,6 +467,7 @@ export default function App() {
                   })();
                 }}
                 onOpenFieldTest={() => setScreen({ name: 'test' })}
+                onVerifyCaptains={isStaff ? () => setScreen({ name: 'verify' }) : undefined}
               />
             )}
 
@@ -550,6 +558,13 @@ export default function App() {
                   setScreen({ name: 'home' });
                 }}
                 onCancel={() => setScreen({ name: 'home' })}
+              />
+            )}
+
+            {screen.name === 'verify' && (
+              <VerifyCaptainsScreen
+                locale={locale}
+                onBack={() => setScreen({ name: 'home' })}
               />
             )}
 
