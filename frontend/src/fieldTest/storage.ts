@@ -15,7 +15,19 @@ async function readArray<T>(key: string): Promise<T[]> {
   }
 }
 
-export const loadPlots = (): Promise<TestPlot[]> => readArray<TestPlot>(KEY_PLOTS);
+/**
+ * Plots saved by an earlier build predate referenceAreaSqm and
+ * referenceSource. Defaulted on load so an upgrade does not lose a
+ * founder's taped plots.
+ */
+export async function loadPlots(): Promise<TestPlot[]> {
+  const stored = await readArray<TestPlot>(KEY_PLOTS);
+  return stored.map((p) => ({
+    ...p,
+    referenceAreaSqm: p.referenceAreaSqm ?? null,
+    referenceSource: p.referenceSource ?? 'tape',
+  }));
+}
 
 export async function upsertPlot(plot: TestPlot): Promise<TestPlot[]> {
   const plots = await loadPlots();

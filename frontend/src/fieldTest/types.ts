@@ -12,6 +12,18 @@ import type { LatLng } from '@zamindara/geo';
  * The gap between paper and ground is its own finding.
  */
 
+/**
+ * Where the reference area came from.
+ *
+ * It matters for reading the result. A tape is ~0.2% and can referee a 2%
+ * question. A satellite trace is a few percent and shares a source with the
+ * app's own draw method, so it can check walking but cannot settle
+ * walking-versus-drawing. A marked sports field is exact *if* the markings
+ * are regulation, and open flat ground is kinder to GPS than a field with a
+ * tree line — so a pass there proves the algorithm, not the conditions.
+ */
+export type ReferenceSource = 'tape' | 'marked-field' | 'satellite-trace' | 'other';
+
 /** Units the tape reading can be entered in. */
 export type TapeUnit = 'm' | 'ft' | 'karam';
 
@@ -31,6 +43,14 @@ export interface TestPlot {
   sideA: number | null;
   sideB: number | null;
   tapeUnit: TapeUnit;
+
+  /**
+   * A reference area known directly, in square metres — a regulation sports
+   * field, or a polygon traced in Google Earth. Takes precedence over the
+   * sides, because if you know the area you did not need to derive it.
+   */
+  referenceAreaSqm: number | null;
+  referenceSource: ReferenceSource;
 
   /** The farmer's papers, in square metres. Recorded, never used as truth. */
   jamabandiSqm: number | null;
@@ -64,20 +84,29 @@ export interface TestMeasurement {
   imageryUsable: boolean | null;
 }
 
-/** Tape reading in square metres, or null if not measured yet. */
-export function tapeAreaSqm(plot: TestPlot): number | null {
+/**
+ * The area we are treating as true, in square metres. Null until one exists.
+ *
+ * A directly known area wins over two sides: if you already know it, there is
+ * nothing to derive and no multiplication to get wrong.
+ */
+export function referenceAreaSqm(plot: TestPlot): number | null {
+  const direct = plot.referenceAreaSqm;
+  if (direct !== null && direct !== undefined && Number.isFinite(direct) && direct > 0) {
+    return direct;
+  }
   if (plot.sideA === null || plot.sideB === null) return null;
   const scale = TAPE_UNIT_M[plot.tapeUnit];
   const area = plot.sideA * scale * (plot.sideB * scale);
   return Number.isFinite(area) && area > 0 ? area : null;
 }
 
-/** Signed error against the tape, as a fraction. Positive = app read high. */
-export function errorVsTape(
+/** Signed error against the reference. Positive means the app read high. */
+export function errorVsReference(
   measurement: TestMeasurement,
   plot: TestPlot,
 ): number | null {
-  const truth = tapeAreaSqm(plot);
+  const truth = referenceAreaSqm(plot);
   if (truth === null) return null;
   return measurement.areaSqm / truth - 1;
 }

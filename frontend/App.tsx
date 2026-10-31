@@ -396,6 +396,8 @@ export default function App() {
       sideA: null,
       sideB: null,
       tapeUnit: 'm',
+      referenceAreaSqm: null,
+      referenceSource: 'tape',
       jamabandiSqm: null,
       notes: '',
       createdAt: Date.now(),

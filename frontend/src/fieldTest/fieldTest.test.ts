@@ -2,7 +2,7 @@ import { SQM } from '@zamindara/units';
 import { describe, expect, it } from 'vitest';
 import { buildCsv } from './csvBuilder';
 import { summarise } from './stats';
-import { errorVsTape, tapeAreaSqm, type TestMeasurement, type TestPlot } from './types';
+import { errorVsReference, referenceAreaSqm, type TestMeasurement, type TestPlot } from './types';
 
 /**
  * The field-test recorder decides whether Phase 1 passes, which decides
@@ -22,6 +22,8 @@ function plot(overrides: Partial<TestPlot> = {}): TestPlot {
     sideA: 60.35,
     sideB: 67.06,
     tapeUnit: 'm',
+    referenceAreaSqm: null,
+    referenceSource: 'tape',
     jamabandiSqm: null,
     notes: '',
     createdAt: 0,
@@ -54,37 +56,37 @@ function measurement(
 
 describe('tape reading', () => {
   it('computes area from two sides', () => {
-    expect(tapeAreaSqm(plot())).toBeCloseTo(60.35 * 67.06, 2);
+    expect(referenceAreaSqm(plot())).toBeCloseTo(60.35 * 67.06, 2);
   });
 
   it('converts feet', () => {
     // The canal-grid killa: 198 ft x 220 ft is exactly one acre.
     const p = plot({ sideA: 198, sideB: 220, tapeUnit: 'ft' });
-    expect(tapeAreaSqm(p)).toBeCloseTo(SQM.killa, 0);
+    expect(referenceAreaSqm(p)).toBeCloseTo(SQM.killa, 0);
   });
 
   it('converts karam', () => {
     // The same plot as the surveyor laid it out: 36 x 40 karam.
     const p = plot({ sideA: 36, sideB: 40, tapeUnit: 'karam' });
-    expect(tapeAreaSqm(p)).toBeCloseTo(SQM.killa, 0);
+    expect(referenceAreaSqm(p)).toBeCloseTo(SQM.killa, 0);
   });
 
   it('is null until both sides are entered', () => {
-    expect(tapeAreaSqm(plot({ sideA: null }))).toBeNull();
-    expect(tapeAreaSqm(plot({ sideB: null }))).toBeNull();
+    expect(referenceAreaSqm(plot({ sideA: null }))).toBeNull();
+    expect(referenceAreaSqm(plot({ sideB: null }))).toBeNull();
   });
 });
 
 describe('error against the tape', () => {
   it('is signed, positive when the app reads high', () => {
     const p = plot({ sideA: 100, sideB: 100 }); // 10,000 m²
-    expect(errorVsTape(measurement(p.id, 10_200), p)).toBeCloseTo(0.02, 6);
-    expect(errorVsTape(measurement(p.id, 9_800), p)).toBeCloseTo(-0.02, 6);
+    expect(errorVsReference(measurement(p.id, 10_200), p)).toBeCloseTo(0.02, 6);
+    expect(errorVsReference(measurement(p.id, 9_800), p)).toBeCloseTo(-0.02, 6);
   });
 
   it('is null without a tape reading', () => {
     const p = plot({ sideA: null });
-    expect(errorVsTape(measurement(p.id, 4000), p)).toBeNull();
+    expect(errorVsReference(measurement(p.id, 4000), p)).toBeNull();
   });
 });
 
@@ -245,5 +247,62 @@ describe('CSV export', () => {
 
     expect(csv).toContain('"Gurmeet, big field"');
     expect(csv).toContain('"said ""too small"""');
+  });
+});
+
+describe('references other than a tape', () => {
+  it('takes a known area directly', () => {
+    // A regulation hockey field: 91.4 x 55 m. No tape needed, and free.
+    const p = plot({
+      sideA: null,
+      sideB: null,
+      referenceAreaSqm: 5027,
+      referenceSource: 'marked-field',
+    });
+    expect(referenceAreaSqm(p)).toBe(5027);
+  });
+
+  it('prefers a known area over two sides', () => {
+    // If you already know it, there is nothing to derive and no
+    // multiplication to get wrong.
+    const p = plot({ sideA: 10, sideB: 10, referenceAreaSqm: 5027 });
+    expect(referenceAreaSqm(p)).toBe(5027);
+  });
+
+  it('falls back to the sides when no area is given', () => {
+    const p = plot({ sideA: 100, sideB: 50, referenceAreaSqm: null });
+    expect(referenceAreaSqm(p)).toBeCloseTo(5000, 6);
+  });
+
+  it('ignores a nonsense area and uses the sides', () => {
+    for (const bad of [0, -1, NaN]) {
+      const p = plot({ sideA: 100, sideB: 50, referenceAreaSqm: bad });
+      expect(referenceAreaSqm(p)).toBeCloseTo(5000, 6);
+    }
+  });
+
+  it('computes error against a known area the same way', () => {
+    const p = plot({ sideA: null, sideB: null, referenceAreaSqm: 10_000 });
+    expect(errorVsReference(measurement(p.id, 10_200), p)).toBeCloseTo(0.02, 6);
+  });
+
+  it('warns the gate when the reference is not a tape', () => {
+    // A satellite trace is a few percent and shares a source with the draw
+    // method. It can catch a large error; it cannot settle 2%, and the gate
+    // must not pretend otherwise.
+    const p = plot({
+      sideA: null,
+      sideB: null,
+      referenceAreaSqm: 10_000,
+      referenceSource: 'satellite-trace',
+    });
+    const summary = summarise([p], [measurement(p.id, 10_050)]);
+    expect(summary.gateNotes.join(' ')).toContain('not a tape');
+  });
+
+  it('says nothing about references when every plot used a tape', () => {
+    const p = plot({ referenceSource: 'tape' });
+    const summary = summarise([p], [measurement(p.id, 4000)]);
+    expect(summary.gateNotes.join(' ')).not.toContain('not a tape');
   });
 });

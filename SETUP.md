@@ -11,7 +11,7 @@ Everything here needs your accounts, your phone, or your legs. I cannot do any o
 | # | Do | Cost | Blocks |
 |---|---|---|---|
 | **0** | **Start DLT registration with TRAI** | paperwork | Real captains signing in. Longest lead time in the plan — start today and forget it. |
-| **1** | Borrow or buy a 50 m tape | ₹0–1,000 | The gate |
+| **1** | Get a reference — marked field, Google Earth, or a tape | **₹0 possible** | The gate |
 | **2** | Put the app on a phone | ₹0 | The gate |
 | **3** | **Field test — 3 plots, then 20** | ₹0 | 🚦 **Everything.** |
 | **4** | Create a Supabase project | ₹0, no card | Two phones seeing each other |
@@ -34,17 +34,60 @@ You do not need it for the field test — step 4 sets up a fixed test code for y
 
 ---
 
-## 1 · A 50 m fibreglass tape — ₹500–1,000
+## 1 · A reference you trust — ₹0 is possible
 
-**Fibreglass, not steel.** Steel kinks, and a kinked tape reads short.
+You need something to check the app against that is clearly better than the
+2% you are testing. A tape is the best of these, but it is not the only one.
 
-Not a surveyor's wheel: a wheel drifts to about 1%, too close to the 2% you are trying to measure to settle any argument. A tape is 0.2%.
+| Reference | Cost | Accuracy | Catch |
+|---|---|---|---|
+| **50 m fibreglass tape** | ₹500–1,000, or borrowed | ~0.2% | The only one that can settle a 2% question |
+| **A marked sports field** | ₹0 | exact, *if* regulation | Flat, open sky — kinder to GPS than a real field |
+| **Google Earth Pro** | ₹0, no card | a few percent | Shares a source with the app's own draw method |
+| Pacing, or a guessed rope | ₹0 | worse than what you are testing | Proves nothing |
 
-**Borrow one.** Masons and tubewell fitters have 30 m tapes; so do many farmers. A 30 m tape measured twice along a 60 m side is fine — note it in the plot notes.
+### The free first test: walk a marked field
 
-**Do not** substitute pacing or a rope of guessed length. The point is a reference better than the thing being tested. A guessed reference proves nothing, and you will have spent the days for no answer.
+A **regulation hockey pitch is 91.4 × 55 m = 5,027 m²** — about 1.24 killa.
+A **400 m running track**, a marked football pitch, a school ground: all
+known sizes, all free, and you can do it today without leaving town.
 
----
+Walk the perimeter with the app. If it reads 1.24 killa, the algorithm is
+sound. If it reads 1.4, you have found a serious problem in an afternoon
+without troubling a single farmer.
+
+**The honest limit:** a sports field is flat with clear sky. A real field has
+a tree line, a tubewell shed, and a bund you walk crooked. A pass there
+proves the **algorithm**, not the **conditions**. So it is the first test, not
+the last one.
+
+### Free area check from your laptop: Google Earth Pro
+
+Free, no card, no API key. Trace a field's outline, read the area off the
+measure tool, and compare it to what the app says. Works from home, on any
+field, for as many as you like.
+
+**Its limit:** it is satellite-derived, same as the app's draw method. So it
+can check **walking**, but it cannot referee walking against drawing.
+
+### Borrow a tape once, keep the reference forever
+
+Borrow a 30 m tape for an hour — masons and tubewell fitters have them, so do
+many farmers — and mark a steel wire or chain at exactly 20 m. Rope stretches,
+which is the whole reason fibreglass tapes exist; wire does not. You now have
+a permanent reference for nothing.
+
+### Enter whichever you used
+
+The field test tool takes all of them: *Field test → Add plot →* pick where
+the reference came from. A tape gives two sides; everything else takes the
+area directly in square metres. The CSV records which, and the gate card
+**says so** when a reference is not a tape — because a result measured against
+Google Earth cannot honestly claim 2%.
+
+**Do not** substitute pacing or a rope of unknown length. A reference worse
+than the thing being tested proves nothing, and you will have spent the days
+for no answer.
 
 ## 2 · The app on a phone — 10 minutes, ₹0
 
@@ -102,7 +145,7 @@ Twenty is what characterises the error: how it varies with size, and whether it 
 
 ### Per plot
 
-1. **Tape two sides.** Canal-colony plots are rectangles, so length × width is the whole job. Enter both: *Field test → Add plot → Side A, Side B*.
+1. **Record the reference.** A tape gives two sides — canal-colony plots are rectangles, so length × width is the whole job. A marked field or a Google Earth trace gives the area directly. Pick the source in the app so the result can be read honestly later.
 2. **Measure it by walking.** No map, no key, no money.
 3. *(Drawing comes later, once you have a Maps key. Deferred, not lost.)*
 

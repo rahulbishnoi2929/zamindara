@@ -5,7 +5,7 @@ import { Button, Card } from '../components';
 import { colors, radius, space, type } from '../theme';
 import { exportCsv } from './csv';
 import { summarise, type TestSummary } from './stats';
-import { tapeAreaSqm, type TestMeasurement, type TestPlot } from './types';
+import { referenceAreaSqm, type TestMeasurement, type TestPlot } from './types';
 
 interface Props {
   plots: TestPlot[];
@@ -206,7 +206,7 @@ function PlotRow({
   measurements: TestMeasurement[];
   onPress: () => void;
 }) {
-  const tape = tapeAreaSqm(plot);
+  const tape = referenceAreaSqm(plot);
   const drawn = measurements.filter((m) => m.method === 'drawn').length;
   const walked = measurements.filter((m) => m.method === 'walked').length;
 

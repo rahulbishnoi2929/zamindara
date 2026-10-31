@@ -1,4 +1,4 @@
-import { errorVsTape, tapeAreaSqm, type TestMeasurement, type TestPlot } from './types';
+import { errorVsReference, referenceAreaSqm, type TestMeasurement, type TestPlot } from './types';
 
 /** Quote a CSV field only when it needs it. */
 function cell(value: string | number | null | undefined): string {
@@ -13,7 +13,8 @@ export const CSV_HEADER = [
   'tape_side_a',
   'tape_side_b',
   'tape_unit',
-  'tape_area_sqm',
+  'reference_source',
+  'reference_area_sqm',
   'jamabandi_sqm',
   'method',
   'measured_area_sqm',
@@ -47,8 +48,8 @@ export function buildCsv(plots: TestPlot[], measurements: TestMeasurement[]): st
     const plot = plotsById.get(m.plotId);
     if (plot === undefined) return [];
 
-    const tape = tapeAreaSqm(plot);
-    const error = errorVsTape(m, plot);
+    const tape = referenceAreaSqm(plot);
+    const error = errorVsReference(m, plot);
     const gap =
       plot.jamabandiSqm !== null && plot.jamabandiSqm > 0
         ? m.areaSqm / plot.jamabandiSqm - 1
@@ -87,14 +88,15 @@ export function buildCsv(plots: TestPlot[], measurements: TestMeasurement[]): st
   const unmeasured = plots
     .filter((p) => !measurements.some((m) => m.plotId === p.id))
     .map((p) => {
-      const tape = tapeAreaSqm(p);
+      const tape = referenceAreaSqm(p);
       const row = new Array<string>(CSV_HEADER.length).fill('');
       row[0] = cell(p.label);
       row[1] = cell(p.village);
       row[2] = cell(p.sideA);
       row[3] = cell(p.sideB);
       row[4] = cell(p.tapeUnit);
-      row[5] = tape === null ? '' : tape.toFixed(2);
+      row[5] = cell(p.referenceSource);
+      row[6] = tape === null ? '' : tape.toFixed(2);
       row[6] = p.jamabandiSqm === null ? '' : p.jamabandiSqm.toFixed(2);
       row[19] = cell(p.notes);
       return row.join(',');

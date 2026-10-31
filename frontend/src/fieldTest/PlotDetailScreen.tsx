@@ -12,9 +12,10 @@ import {
 import { Button, Card } from '../components';
 import { colors, radius, space, type } from '../theme';
 import {
-  errorVsTape,
-  tapeAreaSqm,
+  errorVsReference,
+  referenceAreaSqm,
   TAPE_UNIT_M,
+  type ReferenceSource,
   type TapeUnit,
   type TestMeasurement,
   type TestPlot,
@@ -34,6 +35,25 @@ interface Props {
 
 const UNITS: TapeUnit[] = ['m', 'ft', 'karam'];
 
+/**
+ * What each reference is worth, said plainly on the screen where it is
+ * chosen. The difference matters: one of these can settle a 2% question and
+ * the others cannot, and that has to be visible at the moment of choosing
+ * rather than buried in a document.
+ */
+function referenceNote(source: ReferenceSource): string {
+  switch (source) {
+    case 'tape':
+      return 'Two sides of a rectangle. A 50 m tape is about 0.2% — the margin a reference needs to settle a 2% question.';
+    case 'marked-field':
+      return 'A regulation hockey field is 91.4 x 55 m = 5,027 m². Exact if the markings are regulation. But flat open sky is kinder to GPS than a field with a tree line, so a pass here proves the algorithm, not the conditions.';
+    case 'satellite-trace':
+      return 'Google Earth Pro is free and measures any polygon. A few percent accurate, and it shares a source with the draw method in this app — so it can check walking, not walking against drawing.';
+    default:
+      return 'Write in the notes where this number came from, or it cannot be interpreted later.';
+  }
+}
+
 export function PlotDetailScreen({
   plot,
   measurements,
@@ -51,7 +71,7 @@ export function PlotDetailScreen({
     plot.jamabandiSqm === null ? '' : formatArea(plot.jamabandiSqm, { locale: 'en' }),
   );
 
-  const tape = tapeAreaSqm(plot);
+  const tape = referenceAreaSqm(plot);
   const patch = (fields: Partial<TestPlot>) => onChange({ ...plot, ...fields });
 
   const parseNumber = (text: string): number | null => {
@@ -96,42 +116,83 @@ export function PlotDetailScreen({
         </Card>
 
         <Card>
-          <Text style={s.cardTitle}>Tape reading — ground truth</Text>
-          <View style={s.row}>
-            <View style={s.flex}>
-              <Field
-                label="Side A"
-                value={plot.sideA === null ? '' : String(plot.sideA)}
-                onChangeText={(v) => patch({ sideA: parseNumber(v) })}
-                keyboardType="decimal-pad"
-                placeholder="60.4"
-              />
-            </View>
-            <View style={s.flex}>
-              <Field
-                label="Side B"
-                value={plot.sideB === null ? '' : String(plot.sideB)}
-                onChangeText={(v) => patch({ sideB: parseNumber(v) })}
-                keyboardType="decimal-pad"
-                placeholder="67.1"
-              />
-            </View>
-          </View>
+          <Text style={s.cardTitle}>Reference — what we treat as true</Text>
 
-          <Text style={s.fieldLabel}>Unit</Text>
+          <Text style={s.fieldLabel}>Where it came from</Text>
           <View style={s.chips}>
-            {UNITS.map((unit) => (
+            {(
+              [
+                ['tape', 'Tape'],
+                ['marked-field', 'Marked field'],
+                ['satellite-trace', 'Google Earth'],
+                ['other', 'Other'],
+              ] as Array<[ReferenceSource, string]>
+            ).map(([value, label]) => (
               <Pressable
-                key={unit}
-                onPress={() => patch({ tapeUnit: unit })}
-                style={[s.chip, plot.tapeUnit === unit && s.chipOn]}
+                key={value}
+                onPress={() => patch({ referenceSource: value })}
+                style={[s.chip, plot.referenceSource === value && s.chipOn]}
               >
-                <Text style={[s.chipText, plot.tapeUnit === unit && s.chipTextOn]}>
-                  {unit}
+                <Text
+                  style={[s.chipText, plot.referenceSource === value && s.chipTextOn]}
+                >
+                  {label}
                 </Text>
               </Pressable>
             ))}
           </View>
+
+          {plot.referenceSource === 'tape' ? (
+            <>
+              <View style={s.row}>
+                <View style={s.flex}>
+                  <Field
+                    label="Side A"
+                    value={plot.sideA === null ? '' : String(plot.sideA)}
+                    onChangeText={(v) => patch({ sideA: parseNumber(v) })}
+                    keyboardType="decimal-pad"
+                    placeholder="60.4"
+                  />
+                </View>
+                <View style={s.flex}>
+                  <Field
+                    label="Side B"
+                    value={plot.sideB === null ? '' : String(plot.sideB)}
+                    onChangeText={(v) => patch({ sideB: parseNumber(v) })}
+                    keyboardType="decimal-pad"
+                    placeholder="67.1"
+                  />
+                </View>
+              </View>
+
+              <Text style={s.fieldLabel}>Unit</Text>
+              <View style={s.chips}>
+                {UNITS.map((unit) => (
+                  <Pressable
+                    key={unit}
+                    onPress={() => patch({ tapeUnit: unit })}
+                    style={[s.chip, plot.tapeUnit === unit && s.chipOn]}
+                  >
+                    <Text
+                      style={[s.chipText, plot.tapeUnit === unit && s.chipTextOn]}
+                    >
+                      {unit}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </>
+          ) : (
+            <Field
+              label="Known area, square metres"
+              value={
+                plot.referenceAreaSqm === null ? '' : String(plot.referenceAreaSqm)
+              }
+              onChangeText={(v) => patch({ referenceAreaSqm: parseNumber(v) })}
+              keyboardType="decimal-pad"
+              placeholder="5027"
+            />
+          )}
 
           {tape !== null && (
             <View style={s.tapeResult}>
@@ -141,10 +202,10 @@ export function PlotDetailScreen({
           )}
 
           <Text style={s.footnote}>
-            Two sides of a rectangle. A 50 m tape is accurate to about 0.2% — the
-            margin a reference needs when validating a 2% target.
-            {plot.tapeUnit === 'karam' &&
-              ` One karam = ${TAPE_UNIT_M.karam.toFixed(4)} m. A standard killa is 36 × 40 karam.`}
+            {referenceNote(plot.referenceSource)}
+            {plot.referenceSource === 'tape' && plot.tapeUnit === 'karam'
+              ? ` One karam = ${TAPE_UNIT_M.karam.toFixed(4)} m. A standard killa is 36 x 40 karam.`
+              : ''}
           </Text>
         </Card>
 
@@ -178,7 +239,7 @@ export function PlotDetailScreen({
           )}
 
           {measurements.map((m) => {
-            const error = errorVsTape(m, plot);
+            const error = errorVsReference(m, plot);
             return (
               <View key={m.id} style={s.measurement}>
                 <View style={s.measurementHead}>

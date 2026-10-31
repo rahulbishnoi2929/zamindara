@@ -1,7 +1,7 @@
 import { SQM } from '@zamindara/units';
 import {
-  errorVsTape,
-  tapeAreaSqm,
+  errorVsReference,
+  referenceAreaSqm,
   type CaptureMethod,
   type TestMeasurement,
   type TestPlot,
@@ -90,7 +90,7 @@ function statsFor(
     if (m.method !== method) continue;
     const plot = plotsById.get(m.plotId);
     if (plot === undefined) continue;
-    const error = errorVsTape(m, plot);
+    const error = errorVsReference(m, plot);
     if (error !== null) errors.push(error);
   }
 
@@ -111,7 +111,7 @@ export function summarise(
   measurements: TestMeasurement[],
 ): TestSummary {
   const plotsById = new Map(plots.map((p) => [p.id, p]));
-  const withTape = plots.filter((p) => tapeAreaSqm(p) !== null);
+  const withTape = plots.filter((p) => referenceAreaSqm(p) !== null);
 
   const byMethod = (['drawn', 'walked'] as const)
     .map((m) => statsFor(m, measurements, plotsById))
@@ -131,9 +131,9 @@ export function summarise(
     for (const m of measurements) {
       const plot = plotsById.get(m.plotId);
       if (plot === undefined) continue;
-      const truth = tapeAreaSqm(plot);
+      const truth = referenceAreaSqm(plot);
       if (truth === null || truth < bucket.min || truth >= bucket.max) continue;
-      const error = errorVsTape(m, plot);
+      const error = errorVsReference(m, plot);
       if (error !== null) abs.push(Math.abs(error));
     }
 
@@ -197,6 +197,19 @@ export function summarise(
   // — the gate
   const notes: string[] = [];
   const measured = bySize.filter((b) => b.n > 0);
+
+  // A satellite trace is a few percent and shares a source with the app's own
+  // draw method; a sports field is flat open sky, which is kinder to GPS than
+  // a field with a tree line. Either can catch a catastrophic error, neither
+  // can settle a 2% question, and the gate must not pretend otherwise.
+  const weakReferences = plots.filter(
+    (p) => referenceAreaSqm(p) !== null && p.referenceSource !== 'tape',
+  ).length;
+  if (weakReferences > 0) {
+    notes.push(
+      `${weakReferences} plot(s) use a reference that is not a tape — good enough to catch a large error, not to settle 2%.`,
+    );
+  }
 
   if (withTape.length < 20) {
     notes.push(`Only ${withTape.length} of 20 plots have a tape reading.`);
