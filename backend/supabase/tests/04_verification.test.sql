@@ -6,7 +6,7 @@
 -- cannot silently close again.
 
 begin;
-select plan(13);
+select plan(14);
 
 create schema if not exists tests;
 

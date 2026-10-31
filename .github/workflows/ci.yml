@@ -98,6 +98,12 @@ jobs:
           psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" \
             -c 'create extension if not exists pgtap with schema extensions;'
 
+      # A wrong plan fails a whole file even when every assertion passes, and
+      # it has been miscounted by hand three times. Cheap to check, and it
+      # fails in two seconds instead of after the containers boot.
+      - name: Plan counts match the assertions
+        run: ./check-plans.sh
+
       - name: Run guarantee tests
         run: supabase test db
 
