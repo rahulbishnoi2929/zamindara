@@ -110,6 +110,7 @@ export function JobPostFlow({
       quotedTotal: null,
       captainName: null,
       distanceKm: null,
+      offeredCount: null,
       finalAmount: null,
       paymentMode: null,
       notes: '',

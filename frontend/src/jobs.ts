@@ -52,6 +52,12 @@ export interface Job {
   captainName: string | null;
   distanceKm: number | null;
 
+  /**
+   * How many captains have been offered this job. Null when unknown — the
+   * app has not synced yet, or there is no backend.
+   */
+  offeredCount: number | null;
+
   finalAmount: number | null;
   paymentMode: PaymentMode | null;
   notes: string;
@@ -146,4 +152,31 @@ export function sortForCaptain(jobs: readonly Job[]): Job[] {
   return [...jobs].sort(
     (a, b) => rank[a.status] - rank[b.status] || a.createdAt - b.createdAt,
   );
+}
+
+// ---------------------------------------------------------------------------
+// What to tell the farmer while he waits
+// ---------------------------------------------------------------------------
+
+export type SearchState =
+  /** Offered to captains; waiting on one of them. */
+  | { kind: 'offered'; count: number }
+  /** Nobody eligible was online. Re-offered every sync pass. */
+  | { kind: 'nobody-yet' }
+  /** Not synced yet, so we genuinely do not know. */
+  | { kind: 'unknown' };
+
+/**
+ * "Finding a captain" on its own is a lie of omission: it reads the same
+ * whether six captains are deciding or nobody was ever asked. Those are
+ * completely different situations for a farmer whose crop is on the ground —
+ * one means wait, the other means ring someone yourself.
+ *
+ * Returns null for jobs that are not searching; there is nothing to wait for.
+ */
+export function searchState(job: Job): SearchState | null {
+  if (job.status !== 'searching') return null;
+  if (job.offeredCount === null) return { kind: 'unknown' };
+  if (job.offeredCount === 0) return { kind: 'nobody-yet' };
+  return { kind: 'offered', count: job.offeredCount };
 }

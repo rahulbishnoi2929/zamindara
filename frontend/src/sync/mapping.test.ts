@@ -71,6 +71,7 @@ function job(overrides: Partial<Job> = {}): Job {
     quotedTotal: 1251.7,
     captainName: null,
     distanceKm: null,
+    offeredCount: null,
     finalAmount: null,
     paymentMode: null,
     notes: '',
@@ -235,7 +236,9 @@ describe('jobFromWire', () => {
       'Roshan Wala',
       'Jaspal',
       2.5,
+      3,
     )!;
+    expect(j.offeredCount).toBe(3);
     expect(j.status).toBe('accepted');
     expect(j.createdAt).toBe(1729437200000);
     expect(j.acceptedAt).toBe(1729437300000);
@@ -244,12 +247,12 @@ describe('jobFromWire', () => {
   });
 
   it('drops statuses the phone has no honest representation of', () => {
-    expect(jobFromWire({ ...base, status: 'draft' }, 'wheat_harvest', '', '', null, null)).toBeNull();
-    expect(jobFromWire({ ...base, status: 'expired' }, 'wheat_harvest', '', '', null, null)).toBeNull();
+    expect(jobFromWire({ ...base, status: 'draft' }, 'wheat_harvest', '', '', null, null, null)).toBeNull();
+    expect(jobFromWire({ ...base, status: 'expired' }, 'wheat_harvest', '', '', null, null, null)).toBeNull();
   });
 
   it('drops a service this build cannot name', () => {
-    expect(jobFromWire({ ...base, status: 'searching' }, null, '', '', null, null)).toBeNull();
+    expect(jobFromWire({ ...base, status: 'searching' }, null, '', '', null, null, null)).toBeNull();
   });
 });
 

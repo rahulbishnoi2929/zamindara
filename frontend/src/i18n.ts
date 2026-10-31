@@ -198,6 +198,14 @@ const strings = {
   payPending: { pa: 'ਬਾਅਦ ਵਿੱਚ', hi: 'बाद में', en: 'Later' },
   callFarmer: { pa: 'ਫ਼ੋਨ ਕਰੋ', hi: 'फ़ोन करें', en: 'Call' },
   awayKm: { pa: 'ਕਿ.ਮੀ. ਦੂਰ', hi: 'कि.मी. दूर', en: 'km away' },
+  // What "finding a captain" is actually doing. Without this the farmer
+  // cannot tell a slow answer from nobody having been asked at all.
+  searchAsked: { pa: 'ਕੈਪਟਨਾਂ ਨੂੰ ਪੁੱਛਿਆ', hi: 'कैप्टन से पूछा', en: 'captains asked' },
+  searchNobodyYet: {
+    pa: 'ਹਾਲੇ ਕੋਈ ਕੈਪਟਨ ਨੇੜੇ ਨਹੀਂ — ਲੱਭ ਰਹੇ ਹਾਂ',
+    hi: 'अभी कोई कैप्टन नज़दीक नहीं — ढूँढ रहे हैं',
+    en: 'No captain nearby yet — still looking',
+  },
   queuePosition: { pa: 'ਤੁਹਾਡਾ ਨੰਬਰ', hi: 'आपका नंबर', en: 'You are number' },
   around: { pa: 'ਲਗਭਗ', hi: 'लगभग', en: 'around' },
 

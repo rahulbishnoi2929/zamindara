@@ -317,6 +317,7 @@ export function jobFromWire(
   village: string,
   captainName: string | null,
   distanceKm: number | null,
+  offeredCount: number | null,
 ): Job | null {
   if (serviceCode === null) return null;
   if (!LOCAL_STATUSES.has(row.status)) return null;
@@ -338,6 +339,7 @@ export function jobFromWire(
     travelCharge: row.travel_charge ?? 0,
     quotedTotal: row.quoted_total,
     captainName,
+    offeredCount,
     distanceKm,
     finalAmount: row.final_amount,
     paymentMode: row.payment_mode,

@@ -13,7 +13,7 @@ Newest first, so the most recent work is always at the top. Each entry says what
 | | |
 |---|---|
 | **Phase** | Code done through 5. **Phase 1 field test never run — the gate was walked past.** See the revision at the top of BUILD_PLAN. |
-| **Tests** | 167 unit (122 packages + 45 app) + **93 database assertions**, all green in CI |
+| **Tests** | 187 unit (122 packages + 65 app) + **93 database assertions**, all green in CI |
 | **App** | **Installable release APK built** — 70 MB, `com.zamindara.app`, targetSdk 36 |
 | **Not yet done** | Never run on a physical device; sync never run against a hosted Supabase project |
 | **Blocking next step** | Setup: Maps key, hosted Supabase project, `expo prebuild` + APK, a phone, a 50 m tape |
@@ -23,9 +23,9 @@ Newest first, so the most recent work is always at the top. Each entry says what
 ```
 C:\Zamidara\
 ├── docs\              12 product and engineering documents
-├── apps\mobile\       Expo SDK 57 Android app — 45 tests
+├── frontend\          Expo SDK 57 Android app — 65 tests
+├── backend\supabase\  14 migrations, RLS, dispatch functions — 93 assertions
 ├── packages\          units · geo · catalog · pricing · scheduling — 122 tests
-├── supabase\          12 migrations, RLS, dispatch functions — 67 assertions
 └── assets\            logo
 ```
 
@@ -51,6 +51,24 @@ The most useful part of this log. Each of these was believed, written down, then
 ---
 
 # Entries
+
+## 32 · "Finding a captain" now says whether anyone was asked
+
+**Asked:** (message arrived truncated — "leave it and try to solve and") continued with the item I had named as next on my side.
+
+Entry 30 left this written down as known and left: a farmer watching **"ਕੈਪਟਨ ਲੱਭ ਰਹੇ ਹਾਂ"** could not tell a captain thinking it over from nobody having been asked at all. Those are different situations and he acts differently on them — the second one means ring someone himself.
+
+**`searchState(job)` in `frontend/src/jobs.ts`**, a pure function with three answers: `offered` with a count, `nobody-yet`, and `unknown`. Unknown matters as much as the other two — before a sync, or with no backend, the app genuinely does not know, and saying "0 captains" there would be a lie that costs the farmer a phone call.
+
+**The count comes free.** The farmer's own-jobs select already runs; it gained `job_dispatch(count)` in the same round trip. `job_dispatch_read` already lets a farmer see offers on his own job, so **no migration** was needed — checked before writing one.
+
+**A swap found by typing, not by reading.** Adding the parameter exposed that `sync.ts` passed `distanceKm` and `offeredCount` in one order and `mapping.ts` declared them in the other. Both are `number | null`, so TypeScript was happy and the farmer would have been told his captain was *3 km away* when 3 was the number of captains asked. Caught because a test asserted `distanceKm` was still 2.5 and got 3. Signature now matches the caller, and `offeredCount` has its own assertion so the pair cannot silently swap again.
+
+**Verified:** 187 unit tests (3 new), 93 database assertions, typecheck clean across 6 packages, 828 modules bundling.
+
+**Deliberately small:** one muted line under the status, no spinner, no "asked 3, waiting on 3". `readCount` returns `null` rather than guessing when the wire shape is unexpected.
+
+---
 
 ## 31 · Push that reaches a captain who is not looking at his phone
 

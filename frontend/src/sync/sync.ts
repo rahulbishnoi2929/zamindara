@@ -294,6 +294,12 @@ const STATUS_RANK: Record<JobStatus, number> = {
 };
 
 interface PulledJob {
+  /**
+   * How many captains hold an offer on this job. Only populated on the
+   * farmer's own jobs — he is the one waiting, and his RLS policy lets him
+   * see the offers on work he posted.
+   */
+  offeredCount?: number | null;
   row: {
     id: string;
     field_id: string;
@@ -339,7 +345,10 @@ async function pullJobs(
   const farmerView = await supabase
     .from('jobs')
     .select(
-      '*, field:fields(name), captain:profiles!jobs_captain_id_fkey(full_name)',
+      // job_dispatch(count) rides along in the same round trip. On a 2G
+      // connection in a field, a second query to answer "has anyone been
+      // asked yet" is not worth the wait.
+      '*, field:fields(name), captain:profiles!jobs_captain_id_fkey(full_name), job_dispatch(count)',
     )
     .eq('farmer_id', uid);
   if (farmerView.error === null) {
@@ -354,6 +363,7 @@ async function pullJobs(
         village: myVillage,
         captainName: (r.captain?.full_name as string | undefined) ?? null,
         distanceKm: null,
+        offeredCount: readCount(raw),
       });
     }
   }
@@ -501,6 +511,7 @@ export async function syncJobs(
       p.village,
       p.captainName,
       p.distanceKm,
+      p.offeredCount ?? null,
     );
     if (local !== null) remote.push(local);
   }
@@ -621,4 +632,19 @@ export async function notifyDispatch(jobId: string): Promise<void> {
   } catch {
     // Swallowed on purpose — see above.
   }
+}
+
+/**
+ * Read a PostgREST embedded count.
+ *
+ * `job_dispatch(count)` comes back as `[{ count: 3 }]`, or an empty array
+ * when there are none. Anything else means the shape changed, and guessing a
+ * number there would tell a farmer captains had been asked when none had.
+ */
+function readCount(raw: unknown): number | null {
+  const rows = (raw as { job_dispatch?: unknown }).job_dispatch;
+  if (!Array.isArray(rows)) return null;
+  if (rows.length === 0) return 0;
+  const n = (rows[0] as { count?: unknown }).count;
+  return typeof n === 'number' ? n : null;
 }

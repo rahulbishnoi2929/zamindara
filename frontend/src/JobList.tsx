@@ -3,7 +3,7 @@ import { formatAreaShort, type Locale } from '@zamindara/units';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Button, Card } from './components';
 import { t, type StringKey } from './i18n';
-import type { Job, JobStatus } from './jobs';
+import { searchState, type Job, type JobStatus } from './jobs';
 import { colors, radius, space, type } from './theme';
 
 const STATUS_KEY: Record<JobStatus, StringKey> = {
@@ -48,6 +48,7 @@ export function FarmerJobCard({ job, locale, position, etaAt }: FarmerCardProps)
         {`${job.fieldName} · ${formatAreaShort(job.areaSqm, { locale })}`}
       </Text>
       {job.captainName !== null && <Text style={s.captain}>{job.captainName}</Text>}
+      <SearchNote job={job} locale={locale} />
 
       {/* The question a farmer actually asks is never "is a machine coming"
           but "when does it reach me". */}
@@ -60,6 +61,23 @@ export function FarmerJobCard({ job, locale, position, etaAt }: FarmerCardProps)
         <Text style={s.amount}>{`₹${Math.round(job.finalAmount)}`}</Text>
       )}
     </Card>
+  );
+}
+
+/**
+ * While a job is searching, say whether anyone was actually asked. A posted
+ * job with no captain online yet looks identical to one being considered,
+ * and the farmer is standing in a field deciding whether to ring someone.
+ */
+function SearchNote({ job, locale }: { job: Job; locale: Locale }) {
+  const state = searchState(job);
+  if (state === null || state.kind === 'unknown') return null;
+  return (
+    <Text style={s.searchNote}>
+      {state.kind === 'nobody-yet'
+        ? t('searchNobodyYet', locale)
+        : `${state.count} ${t('searchAsked', locale)}`}
+    </Text>
   );
 }
 
@@ -151,6 +169,7 @@ const s = StyleSheet.create({
   metaIncoming: { color: 'rgba(255,255,255,0.85)' },
   captain: { ...type.body, color: colors.primary, marginTop: space.xs },
   queue: { ...type.body, color: colors.text, marginTop: space.xs },
+  searchNote: { ...type.body, color: colors.textMuted, marginTop: space.xs },
   amount: { ...type.body, fontSize: 20, color: colors.good, marginTop: space.xs },
   empty: { ...type.body, color: colors.textMuted, lineHeight: 25 },
 
