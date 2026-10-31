@@ -4,11 +4,59 @@ Everything here needs your accounts, your phone, or your legs. I cannot do any o
 
 Written 31 October 2026. **Five months to the April harvest. The sowing window is open now and has about three weeks left.**
 
+## What actually costs money — and what only looks like it
+
+| Thing | Cost now | Card needed? |
+|---|---|---|
+| **Supabase** | ₹0 | **No.** Free tier: 2 projects, 500 MB. |
+| **GitHub** (private repo + CI) | ₹0 | No |
+| **Expo** (we build locally) | ₹0 | No |
+| **Google Maps** | ₹0 of usage | **Yes — a card, even for the free credit.** The only real paywall. |
+| Play Store | $25, one-time | Not yet — you sideload the APK |
+| SMS for real captains | real money + a company | Not until captains sign in. Phase 6. |
+| 50 m tape | ₹500–1,000 | Borrowable — see below |
+
+**So the only thing standing between you and Phase 1 is a measuring tape.**
+
+### Phase 1 runs on zero rupees
+
+I checked the code rather than assuming. **The walk path touches no map at all** — it is pure GPS. And on the confirmation screen the area readout and the Confirm button sit outside the map area, so they still work when the map cannot load.
+
+That means, today, with no keys and no card:
+
+- measure a field by **walking** it ✅
+- see the area in killa, kanal, marla ✅
+- confirm and save it ✅
+- record it in the field-test tool against your tape ✅
+- **drawing on satellite** ❌ — this is the only thing the Maps key blocks
+
+**And walking-only is arguably the better experiment.** Phase 1 is asking one question: does the algorithm's area match a tape? Dragging corners on satellite is a *correction* step — useful in the product, but it contaminates a measurement of the algorithm. Testing the walk alone gives you a cleaner answer.
+
+What you defer: the draw-versus-walk comparison that decides the default method. That waits until a Maps key exists. It is a real question, not an urgent one.
+
+### If you cannot get a tape
+
+- Borrow one. Masons and tubewell fitters have 30 m tapes; so do many farmers.
+- A 30 m tape measured twice along a 60 m side is fine — note it in the plot notes.
+- **Do not** substitute pacing or a rope of guessed length. The whole point is a reference better than what you are testing; a guessed reference proves nothing.
+
+### On the Google card, when you get there
+
+You are right to hesitate. The free credit is real and your volume is tiny — a farmer maps each field once, forever — but a key left unrestricted can be scraped and burn the credit on someone else's traffic. So when you do add it:
+
+1. Restrict the key to `com.zamindara.app` + the SHA-1 below **before** using it anywhere
+2. Set a budget alert at ₹500 in Cloud Billing
+3. Cap the daily quota on the Maps SDK
+
+Restricted properly, an Android-only key is safe to ship inside an APK — Google designed it for that.
+
+---
+
 Work top to bottom — each step unblocks the next.
 
 ---
 
-## 1 · Google Maps key — 15 minutes
+## 1 · Google Maps key — 15 minutes · ⏸ **defer this if money is tight**
 
 Without this, **drawing a field does not work at all.** Drawing is the primary capture method, so this is not optional.
 
@@ -41,7 +89,7 @@ GOOGLE_MAPS_API_KEY=AIza...
 
 ---
 
-## 2 · Supabase project — 20 minutes
+## 2 · Supabase project — 20 minutes · free, no card
 
 Without this the app runs offline-only: measuring and the on-device job loop work, but **two phones cannot see each other.** No marketplace.
 
@@ -120,7 +168,7 @@ Or copy the APK to the phone and tap it — Android will ask about unknown sourc
 
 ---
 
-## 4 · Buy a 50 m fibreglass measuring tape — ₹500–1,000
+## 4 · A 50 m fibreglass measuring tape — ₹500–1,000 · ⭐ **do this first**
 
 Any hardware shop. **Fibreglass, not steel** — steel kinks and a kinked tape reads short.
 
@@ -144,9 +192,9 @@ Not a surveyor's wheel. A wheel drifts to about 1%, which is too close to the 2%
 ### Per plot
 
 1. **Tape two sides.** Canal-colony plots are rectangles, so length × width is the whole job. Enter both in the app: *Field test → Add plot → Side A, Side B*.
-2. **Measure it by drawing** — trace the corners on satellite.
-3. **Measure it by walking** — pace the boundary.
-4. Both land under the same plot, and the app computes the error against your tape.
+2. **Measure it by walking** — pace the boundary. Needs no map, no key, no money.
+3. **Measure it by drawing** — only if you have a Maps key. Skip it otherwise; it is deferred, not lost.
+4. Each lands under the same plot, and the app computes the error against your tape.
 
 ### The sample — this matters
 
@@ -169,8 +217,8 @@ The app shows a **gate card** — pass or fail, and exactly what is still missin
 
 ### Also note while you are out there
 
-- **Which method won.** Drawing is the default on *reasoning alone*, and reasoning has already been wrong twice in this project. The data decides.
-- **How often satellite imagery was unusable** — too old, too cloudy, field not identifiable. That frequency decides whether walking stays essential.
+- **How often satellite imagery was unusable** — too old, too cloudy, field not identifiable. Note it even without a key, just by looking: it decides how much drawing would actually buy you.
+- **Which method won** — only once a Maps key exists. Drawing is the default on *reasoning alone*, and reasoning has already been wrong twice in this project. Until then the question stays open and that is fine.
 - **The jamabandi gap.** Pull the records where it is easy. Not as truth — as the number the farmer already believes. If walked areas come in consistently below the paper, every farmer meets your number already convinced it is cheating him, and that needs an answer before launch.
 - **Battery** over a 20-minute walk with the screen off.
 - **Airplane mode** through one whole walk. It must survive and recover.
