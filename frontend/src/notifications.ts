@@ -1,8 +1,10 @@
 import { SERVICE_BY_CODE } from '@zamindara/catalog';
 import { formatAreaShort, type Locale } from '@zamindara/units';
+import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { t } from './i18n';
+import { savePushToken } from './sync/sync';
 import type { Job } from './jobs';
 
 /**
@@ -122,4 +124,32 @@ export function withinWorkingHours(
 ): boolean {
   const hour = now.getHours();
   return hour >= startHour && hour < endHour;
+}
+
+/**
+ * Register this device so the server can ring it.
+ *
+ * Without this the ping is local only, and a captain on a second phone
+ * learns about work by opening the app — the opposite of the promise.
+ *
+ * Needs an Expo project id, which comes from a free `eas init`. Returns
+ * false rather than throwing when it is missing: that is a setup gap, not a
+ * runtime error, and the app must keep working without it.
+ */
+export async function registerPushToken(): Promise<boolean> {
+  if (Platform.OS !== 'android') return false;
+  if (!(await requestNotificationPermission())) return false;
+
+  const projectId =
+    Constants.expoConfig?.extra?.eas?.projectId ??
+    Constants.easConfig?.projectId;
+  if (typeof projectId !== 'string' || projectId.length === 0) return false;
+
+  try {
+    const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId });
+    return await savePushToken(token);
+  } catch {
+    // No network, or Expo unreachable. The next sign-in tries again.
+    return false;
+  }
 }

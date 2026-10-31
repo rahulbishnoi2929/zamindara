@@ -146,6 +146,35 @@ database, not the UI. Tap Verify while you are standing next to his machine.
 A captain with **no machine registered** cannot be verified: there is nothing
 to match him to, so the button stays disabled until he adds one.
 
+### Push notifications — one free signup, then one deploy
+
+Without this the job ping is local only: a captain on a second phone finds
+out about work by **opening the app**, which is the opposite of the promise.
+
+**a. An Expo project id** — free, no card:
+
+```bash
+cd frontend && npx eas init
+```
+
+Creates a free Expo account if you have none and writes the project id into
+`app.json`. Nothing else about EAS is used — builds stay local.
+
+**b. Deploy the function:**
+
+```bash
+cd backend && npx supabase functions deploy notify-dispatch
+```
+
+It reads the service key from Supabase's own environment; nothing to
+configure and no secret to store.
+
+**Done when:** post a job on one phone and a second phone rings without
+being opened.
+
+> Until (a) is done the app simply does not register a device and keeps
+> working — a setup gap, not an error. Until (b) is deployed no push is sent.
+
 ### One thing to check afterwards
 
 Phone sign-in needs real SMS, which India gates behind **DLT registration with TRAI**. That takes weeks.

@@ -18,6 +18,7 @@ import { JobPostFlow } from './src/JobPostFlow';
 import {
   pingForJob,
   requestNotificationPermission,
+  registerPushToken,
   setupNotifications,
   withinWorkingHours,
 } from './src/notifications';
@@ -178,6 +179,10 @@ export default function App() {
     void (async () => {
       await setupNotifications();
       await requestNotificationPermission();
+      // Registers the device so the server can ring it. Returns false and
+      // changes nothing when there is no Expo project id yet — a setup gap,
+      // not a runtime error.
+      await registerPushToken();
     })();
   }, []);
 

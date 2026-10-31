@@ -447,7 +447,10 @@ export async function syncJobs(
       if (wire === null) continue;
       const inserted = await supabase.from('jobs').insert(wire);
       if (inserted.error === null) {
-        await supabase.rpc('dispatch_job', { p_job_id: job.id });
+        const { data: offered } = await supabase.rpc('dispatch_job', {
+          p_job_id: job.id,
+        });
+        if (typeof offered === 'number' && offered > 0) await notifyDispatch(job.id);
         pushed.add(job.id);
       }
       continue;
@@ -480,7 +483,13 @@ export async function syncJobs(
   for (const job of jobs) {
     if (job.status !== 'searching' || !isUuid(job.id)) continue;
     if (!serverById.has(job.id) && !pushed.has(job.id)) continue;
-    await supabase.rpc('dispatch_job', { p_job_id: job.id });
+    const { data: offered } = await supabase.rpc('dispatch_job', {
+      p_job_id: job.id,
+    });
+    // Only ring when someone new was actually offered it. Re-dispatch
+    // returns 0 for captains already holding the offer, and ringing them
+    // again every sync pass would teach them to ignore the sound.
+    if (typeof offered === 'number' && offered > 0) await notifyDispatch(job.id);
   }
 
   const remote: Job[] = [];
@@ -572,4 +581,44 @@ export async function amIAdmin(): Promise<boolean> {
   if (!isBackendConfigured()) return false;
   const { data, error } = await supabase.rpc('is_admin');
   return error === null && data === true;
+}
+
+// ---------------------------------------------------------------------------
+// Push
+// ---------------------------------------------------------------------------
+
+/**
+ * Store this device's push token.
+ *
+ * Keyed on the token, so a reinstall or a phone changing hands moves the row
+ * rather than leaving a stale one pointed at the wrong person — which would
+ * send a captain's work to a stranger.
+ */
+export async function savePushToken(token: string): Promise<boolean> {
+  if (!isBackendConfigured()) return false;
+
+  const { data } = await supabase.auth.getUser();
+  const uid = data.user?.id;
+  if (uid === undefined) return false;
+
+  const { error } = await supabase
+    .from('push_tokens')
+    .upsert({ token, profile_id: uid, platform: 'android' }, { onConflict: 'token' });
+  return error === null;
+}
+
+/**
+ * Ring the captains who were just offered this job.
+ *
+ * Best effort by design. A push that does not arrive is a captain who sees
+ * the job when he next opens the app; a push that blocks the farmer's sync
+ * is a farmer staring at a spinner. So failures are swallowed.
+ */
+export async function notifyDispatch(jobId: string): Promise<void> {
+  if (!isBackendConfigured()) return;
+  try {
+    await supabase.functions.invoke('notify-dispatch', { body: { jobId } });
+  } catch {
+    // Swallowed on purpose — see above.
+  }
 }
