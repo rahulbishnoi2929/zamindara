@@ -181,7 +181,13 @@ as $fn$
     sub.subtotal,
     p.km,
     travel.charge,
-    round(coalesce(sub.subtotal, 0) + travel.charge, 2) as total
+    -- Null, not the travel charge on its own. An hourly job's total is not
+    -- knowable before the work is done, and `coalesce(subtotal, 0) + travel`
+    -- quietly turned "we cannot say yet" into "₹800" — a number made
+    -- entirely of the drive out.
+    case when sub.subtotal is null then null
+         else round(sub.subtotal + travel.charge, 2)
+    end as total
   from priced p
   cross join lateral (
     select case p.rate_unit
@@ -302,6 +308,34 @@ begin
 
     raise exception 'job already taken' using errcode = '55006';
   end if;
+
+  -- The price becomes real here, and this is the only moment it can.
+  --
+  -- The farmer posted against district guidance — a range midpoint, with no
+  -- travel in it, because at posting time there is no captain and so no
+  -- distance. travel_charge was therefore 0 on every job ever created, and
+  -- the distance surcharge this product promised from day one existed in the
+  -- pricing library, in machine_types.travel_rate_per_km and in
+  -- regions.free_travel_km, and was applied to nothing.
+  --
+  -- Now that a captain has taken it, all three unknowns are known: whose
+  -- rate, how far, and which machine. quote_job answers them together.
+  --
+  -- Informative, not binding: v1 moves no money, and the amount actually
+  -- taken is typed in on completion. What this buys is a captain 25 km out
+  -- who can see he is paid for the drive, and a farmer who is not surprised
+  -- by it afterwards.
+  update public.jobs j
+  set quoted_rate     = q.rate,
+      quoted_unit     = q.rate_unit,
+      quoted_subtotal = q.subtotal,
+      travel_charge   = q.travel_charge,
+      quoted_total    = q.total
+  from public.quote_job(claimed.field_id, claimed.service_id, me) q
+  where j.id = claimed.id;
+
+  -- Hand back the priced row, not the one read before pricing.
+  select * into claimed from public.jobs where id = claimed.id;
 
   -- The CASE yields text, and Postgres will not implicitly cast text into an
   -- enum here. Without the explicit cast this raises 42804 on every single

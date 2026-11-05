@@ -49,10 +49,14 @@ export function CompleteJobSheet({
       areaSqm: job.areaSqm,
       rate: captainRate,
       unit: job.quotedUnit,
-      distanceKm: job.distanceKm ?? 0,
+      distanceKm: 0,
       travelRatePerKm: 0,
     });
-    return q.total;
+    // The travel the server priced when he accepted, not a fresh guess: that
+    // is the number both of them have already seen on the job. An hourly job
+    // stays blank — prefilling the drive alone would be a price made entirely
+    // of getting there, which is the same mistake quote_job used to make.
+    return q.total === null ? null : q.total + job.travelCharge;
   }, [job, captainRate]);
 
   const [amount, setAmount] = useState<string>(

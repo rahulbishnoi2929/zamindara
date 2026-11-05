@@ -75,6 +75,17 @@ export function FarmerJobCard({
           {`${t('queuePosition', locale)} ${position} · ${t('around', locale)} ${formatClock(etaAt)}`}
         </Text>
       )}
+      {/* A captain 30 km out is paid for the drive, so the total he accepted
+          at is not the estimate the farmer posted against. Showing the two
+          halves is the difference between a priced job and a price rise. */}
+      {job.travelCharge > 0 && job.quotedSubtotal !== null && (
+        <Text style={s.breakdown}>
+          {`${t('workCharge', locale)} ₹${Math.round(job.quotedSubtotal)}`
+            + `  ·  ${t('travelFrom', locale)} ₹${Math.round(job.travelCharge)}`
+            + (job.quotedTotal === null ? '' : `  =  ₹${Math.round(job.quotedTotal)}`)}
+        </Text>
+      )}
+
       {job.finalAmount !== null && (
         <Text style={s.amount}>{`₹${Math.round(job.finalAmount)}`}</Text>
       )}
@@ -242,6 +253,7 @@ const s = StyleSheet.create({
   // Deliberately not a Button. Ending a job is never the thing he came to
   // do, and a full-width button next to "on my way" is a mis-tap waiting
   // for a bumpy tractor seat.
+  breakdown: { ...type.label, fontWeight: '400', color: colors.textMuted, marginTop: space.xs },
   rateRow: { marginTop: space.sm },
   rateAsk: { ...type.label, color: colors.textMuted },
   starRow: { flexDirection: 'row', marginTop: space.xs },

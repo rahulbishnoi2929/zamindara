@@ -13,7 +13,7 @@ Newest first, so the most recent work is always at the top. Each entry says what
 | | |
 |---|---|
 | **Phase** | Code done through 5. **Phase 1 field test never run — the gate was walked past.** See the revision at the top of BUILD_PLAN. |
-| **Tests** | 199 unit (122 packages + 77 app) + **118 database assertions**, all green in CI |
+| **Tests** | 199 unit (122 packages + 77 app) + **128 database assertions**, all green in CI |
 | **App** | **Installable release APK built** — 70 MB, `com.zamindara.app`, targetSdk 36 |
 | **Not yet done** | Never run on a physical device; sync never run against a hosted Supabase project |
 | **Blocking next step** | Setup: Maps key, hosted Supabase project, `expo prebuild` + APK, a phone, a 50 m tape |
@@ -24,7 +24,7 @@ Newest first, so the most recent work is always at the top. Each entry says what
 C:\Zamidara\
 ├── docs\              12 product and engineering documents
 ├── frontend\          Expo SDK 57 Android app — 65 tests
-├── backend\supabase\  15 migrations, RLS, dispatch functions — 118 assertions
+├── backend\supabase\  15 migrations, RLS, dispatch functions — 128 assertions
 ├── packages\          units · geo · catalog · pricing · scheduling — 122 tests
 └── assets\            logo
 ```
@@ -48,11 +48,39 @@ The most useful part of this log. Each of these was believed, written down, then
 
 | 9 | Rate guidance was finished — the function existed and the screen read it | **It learned from its own guesses, and no farmer could ever see it** | `rate_guidance` ordered by `quoted_rate`, the number the platform invented, so a rate talked down from ₹1200 to ₹900 still fed ₹1200 to the next farmer and the guide could only rise. And nothing in the app called it: the screen read the farmer's *own* history, which for a first-time farmer is empty. Now derived from `final_amount`, and actually called. |
 
+| 10 | The distance surcharge was built — pricing library, schema columns, server function, twenty tests | **It was applied to nothing.** `travel_charge` was 0 on every job ever created | The app priced a job at *posting* time, when there is no captain and so no distance, and nothing ever priced it again. A combine 25 km out earned exactly what one in the next village earned. `accept_job` now prices the job at the one moment all three unknowns — whose rate, how far, which machine — are known. |
+
 **Rule that came out of this:** when a measurement contradicts a plan, the measurement wins. It is written into [BUILD_PLAN](docs/BUILD_PLAN.md#standing-rules).
 
 ---
 
 # Entries
+
+## 36 · "If it's 5 km away, increase some amount of fare"
+
+**Asked:** next step. I ran a caller audit first — every table and every function in the schema, checked against everything the app can reach — to prove the entry-35 family was actually closed rather than assume it. Three tables and twelve functions have no caller; eleven of those are correct (trigger bodies, RLS policy helpers, SQL used inside other functions). Two were not.
+
+**`quote_job` had no caller anywhere** — not in the app, not in SQL. And with it dead, so was everything downstream: `machine_types.travel_rate_per_km` (₹40–60/km, set per machine), `regions.free_travel_km` (5 km), and the whole travel half of the pricing library.
+
+Which means the thing asked for in the second message of this project — *"if its 5 km away than increase some amount of fare"* — **was applied to nothing.** `travel_charge` was literally `0` on every job the app ever created.
+
+The reason is a genuine design trap rather than an oversight: the app priced a job at **posting** time, and at posting time there is no captain, so there is no distance. The comment in `JobPostFlow` even says so — "travel is unknown until a captain accepts". It was right. Nothing ever came back to price it afterwards.
+
+**So `accept_job` prices the job now.** Accepting is the one moment all three unknowns resolve together: whose rate, how far, which machine. It calls `quote_job` — which rescues it from being dead code — and writes `quoted_rate`, `quoted_unit`, `quoted_subtotal`, `travel_charge` and `quoted_total` from the captain who actually took the work.
+
+Note what that changes: the farmer posted against **district guidance**, a range midpoint with no travel in it. Accepting replaces it with **this captain's own rate plus his drive**. Informative, not binding — v1 moves no money and the amount taken is typed in on completion. What it buys is a captain 25 km out who can see he is paid for coming, instead of one who learns to refuse distant work and strands the farmers hardest to reach.
+
+**The card shows both halves** — "work ₹2,668 · travel ₹200 = ₹2,868". Without that the total silently moves after a captain accepts, which reads as the app putting the price up.
+
+**And the duplication had already drifted.** `quote()` in TypeScript and `quote_job` in SQL deliberately duplicate each other so the phone can price with no signal. For an hourly job TS returned a **null** total, correctly — the total is unknowable until the work is done. The SQL returned `coalesce(subtotal, 0) + travel`: **the travel charge on its own**, a price made entirely of the drive out. Nothing had ever compared the two. The SQL now matches the TS, and a new assertion pins the `PRICING.md` worked example on *both* sides — 388 marla at ₹1,100 plus 4 chargeable km at ₹50 = ₹2,867.50 — so the next drift fails CI instead of quoting a farmer the cost of a drive.
+
+**10 new assertions** in a new `06_pricing.test.sql`: the captain in the next village is charged nothing, the combine 30 km out is paid for coming, the charge is exactly the kilometres past the free five at the machine's own rate, the total is the work plus the drive, an hourly job says it cannot say yet, and accepting writes all of it onto the job.
+
+**Verified:** 199 unit tests, **128 database assertions**, typecheck clean across 6 packages, 828 modules bundling, CI green on all three jobs.
+
+**Audit result, for the record.** The remaining uncalled things are uncalled correctly: `job_events` is written by a trigger and read out-of-band when a dispute needs evidence; `admins` is reached only through `is_admin()`; `regions` is read by `quote_job` and by RLS, not by the app. The family entry 35 described is closed.
+
+---
 
 ## 35 · Every captain ranked as the same 3.5
 

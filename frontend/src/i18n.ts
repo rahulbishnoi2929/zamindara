@@ -340,6 +340,11 @@ const strings = {
   // Rating. One question, five taps, no comment box: he is asked once, on
   // the card, right after the work is done.
   howWasWork: { pa: 'ਕੰਮ ਕਿਹੋ ਜਿਹਾ ਰਿਹਾ?', hi: 'काम कैसा रहा?', en: 'How was the work?' },
+  // Why the total moved once a captain took the job. Silence here would
+  // read as the app having quietly put the price up.
+  travelFrom: { pa: 'ਆਉਣ ਦਾ ਖ਼ਰਚ', hi: 'आने का खर्च', en: 'Travel' },
+  workCharge: { pa: 'ਕੰਮ ਦਾ', hi: 'काम का', en: 'Work' },
+
   yourRating: { pa: 'ਤੁਹਾਡੀ ਰੇਟਿੰਗ', hi: 'आपकी रेटिंग', en: 'Your rating' },
 
   exitFailed: {
