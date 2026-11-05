@@ -80,7 +80,7 @@ Correct, and nothing was set up for it. Neither `expo-updates` nor `expo-dev-cli
 
 **Cost checked, not assumed:** EAS Update's free tier is 1,000 monthly active users with no overage charge. Fifteen captains and a hundred and fifty farmers is nowhere near it. And **EAS Build is not needed** — the APK keeps being built locally with gradle, as it is now; only the updates go through Expo.
 
-**Verified:** 199 unit tests, 128 database assertions, typecheck clean, 828 modules bundling, `expo prebuild` now succeeds (the adaptive-icon failure from entry 18 is gone), and the native manifest carries the intended values.
+**Verified:** 199 unit tests, 128 database assertions, typecheck clean, 828 modules bundling, `expo prebuild` now succeeds (the adaptive-icon failure from entry 18 is gone), the native manifest carries the intended values (`expo.modules.updates.ENABLED=false` until `eas init`, `EXPO_UPDATES_LAUNCH_WAIT_MS=0`), and **the development APK builds and really is one** — `DevLauncherActivity` is in the merged debug manifest and there is no embedded JS bundle, which together are what make it load from Metro. 46 minutes clean, 190 MB; both expected for a dev build and both now in SETUP so they do not read as faults.
 
 **Two traps found by actually running it, both now in SETUP.**
 

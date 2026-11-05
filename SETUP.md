@@ -121,7 +121,9 @@ cd frontend/android && ./gradlew assembleDebug
 adb install -r frontend/android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
-That APK is a **development build** — it has `expo-dev-client` in it, which means it can load the app's code from your laptop instead of from inside itself. Then, from now on:
+That APK is a **development build** — it has `expo-dev-client` in it, which means it can load the app's code from your laptop instead of from inside itself.
+
+> **Two numbers so you do not think something is broken.** The first build takes a long time — about **45 minutes** here, because every native module compiles from scratch. Leave it alone; later builds are minutes. And the APK comes out around **190 MB**, much bigger than the 72 MB release one, because nothing is minified and the dev launcher is inside it. Both are fine: you install this once and then never again. Then, from now on:
 
 ```bash
 cd frontend && npx expo start
