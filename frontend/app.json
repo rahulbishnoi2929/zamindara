@@ -40,6 +40,9 @@
     ],
     "assetBundlePatterns": [
       "**/*"
-    ]
+    ],
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    }
   }
 }

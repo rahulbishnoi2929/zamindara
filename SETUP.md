@@ -12,7 +12,7 @@ Everything here needs your accounts, your phone, or your legs. I cannot do any o
 |---|---|---|---|
 | **0** | **Start DLT registration with TRAI** | paperwork | Real captains signing in. Longest lead time in the plan — start today and forget it. |
 | **1** | Get a reference — marked field, Google Earth, or a tape | **₹0 possible** | The gate |
-| **2** | Put the app on a phone | ₹0 | The gate |
+| **2** | Put the app on a phone — **once**; after that changes arrive by themselves | ₹0 | The gate |
 | **3** | **Walk one known-area field** | ₹0, one hour | 🚦 Showing the app to any captain |
 | **4** | Create a Supabase project | ₹0, no card | Two phones seeing each other |
 | **5** | Add your phone to `admins` — one SQL row | ₹0 | **Any captain ever getting work** |
@@ -91,29 +91,92 @@ for no answer.
 
 ## 2 · The app on a phone — 10 minutes, ₹0
 
-An APK is already built and standalone — no laptop needed once installed:
+**You install once. After that you almost never install again.** Reinstalling a 70 MB APK for a one-line change is not a workflow anyone sustains over a season, and the app is now set up so you do not have to.
 
-```
-frontend/android/app/build/outputs/apk/release/app-release.apk
-```
+There are two ways a change reaches a phone, and they are for two different situations.
 
-To rebuild after any change:
+### 2a · While you are working on it — changes appear in about a second
+
+This is the one you will use fifty times a day. Build **once**:
 
 ```bash
 cd frontend && npx expo prebuild --platform android --clean
 ```
 
 ```bash
+cd frontend/android && ./gradlew assembleDebug
+```
+
+```bash
+adb install -r frontend/android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+That APK is a **development build** — it has `expo-dev-client` in it, which means it can load the app's code from your laptop instead of from inside itself. Then, from now on:
+
+```bash
+cd frontend && npx expo start
+```
+
+Scan the QR code with the app once. Save a file, and the change is on the phone before you have looked up. No rebuild, no reinstall, no `adb`.
+
+If the phone is not on your Wi-Fi — out in a field, on mobile data — add a tunnel:
+
+```bash
+cd frontend && npx expo start --tunnel
+```
+
+> **This build is for you, not for a captain.** It needs your laptop running to work. It is also slower and bigger than a real build. Never hand it to anyone.
+
+### 2b · Once other people have it — changes reach them over the air
+
+A captain's phone has a real standalone APK. For *that*, a change reaches him as an **over-the-air update**: he opens the app and he is running the new code. He is not asked anything and nothing downloads a 70 MB file.
+
+One-time setup (free, no card — see step 6, the same signup):
+
+```bash
+cd frontend && npx eas init
+```
+
+That writes a project id into `app.json`. The update URL is derived from it automatically, so there is nothing else to configure and no placeholder to forget. Before you run it, updates are simply switched off and every app runs its own built-in code — which is the correct state today.
+
+Then build the real APK **once** and give it out:
+
+```bash
 cd frontend/android && ./gradlew assembleRelease
 ```
 
-Then, with USB debugging on:
+And from then on, for every JavaScript change:
 
 ```bash
-adb install -r frontend/android/app/build/outputs/apk/release/app-release.apk
+cd frontend && npx eas update --branch production --message "what changed"
 ```
 
-Or copy it to the phone and tap it — Android will ask about unknown sources.
+Every phone on that APK picks it up on its next open.
+
+> **Free tier: 1,000 monthly active users, no overage charges.** Fifteen captains and a hundred and fifty farmers is nowhere near it. Note that **you do not need to pay for EAS Build** to use this — you keep building the APK locally with gradle, as above, and only the updates go through Expo.
+
+### What over-the-air updates cannot do
+
+This matters, because getting it wrong means shipping a crash to a captain mid-harvest.
+
+An update carries **JavaScript and images only.** These still need a new APK, installed by hand:
+
+| Change | OTA is enough? |
+|---|---|
+| Screens, text, Punjabi strings, prices, logic, bug fixes | ✅ yes |
+| Anything in `packages/` | ✅ yes |
+| A new `expo-*` or native library | ❌ new APK |
+| A new Android permission | ❌ new APK |
+| Anything in the `android` block of `app.json` | ❌ new APK |
+| An Expo SDK upgrade | ❌ new APK |
+
+**You do not have to remember this list.** The app uses the `fingerprint` runtime policy: Expo hashes the native project, and an update is only ever delivered to an app whose native side matches. If you change something native and publish an update anyway, the old phones simply do not take it — they keep working on what they have. `eas update` will tell you when that happens.
+
+### Knowing what a phone is running
+
+At the bottom of the home screen there is a small line like `v1.0.0 · a3f9c2e1 · 2026-11-06`, or `built in` if the phone is on its original bundle.
+
+That is not decoration. Once updates are live, two captains holding the same APK can be running different code — so when one rings to say the app did something odd, that line is how you find out whether his phone has the fix yet. Ask him to read it out.
 
 > **Use a cheap phone if you have one.** The app is built for 2 GB RAM and for sunlight. Testing on a good phone tells you nothing about what a captain will see.
 
@@ -250,7 +313,9 @@ Without this the ping is local: a captain on a second phone finds out about work
 cd frontend && npx eas init
 ```
 
-Free, no card. Creates an Expo account if you have none and writes a project id into `app.json`. Nothing else about EAS is used — builds stay local.
+Free, no card. Creates an Expo account if you have none and writes a project id into `app.json`.
+
+**This is the same `eas init` as step 2b** — run it once and you get both push notifications and over-the-air updates. Builds still stay local and still cost nothing.
 
 ```bash
 cd backend && npx supabase functions deploy notify-dispatch

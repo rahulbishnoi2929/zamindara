@@ -4,11 +4,27 @@ import { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { AreaDisplay, Button, Card } from './components';
 import { t } from './i18n';
+import * as Updates from 'expo-updates';
 import { CaptainJobCard, EmptyJobs, FarmerJobCard } from './JobList';
 import { isLive, sortForCaptain, type Job } from './jobs';
 import { isCaptain, isFarmer, type Profile } from './profile';
 import type { SavedField } from './storage';
 import { colors, radius, space, TOUCH_MIN, type } from './theme';
+
+/**
+ * A short, readable identity for the running bundle.
+ *
+ * `updateId` is null when the app is running its embedded bundle — which is
+ * every build before anyone publishes an update, and the honest answer then
+ * is the app version alone.
+ */
+function buildLine(): string {
+  const version = Updates.runtimeVersion ?? '?';
+  if (Updates.updateId === null) return `v${version} · built in`;
+  const at = Updates.createdAt;
+  const when = at === null ? '' : ` · ${at.toISOString().slice(0, 10)}`;
+  return `v${version} · ${Updates.updateId.slice(0, 8)}${when}`;
+}
 
 interface Props {
   profile: Profile;
@@ -237,6 +253,14 @@ export function HomeScreen({
             )}
           </>
         )}
+
+        {/* Which build this phone is on.
+            Not vanity: during the soft launch a captain rings to say the app
+            did something odd, and the first question is whether his phone
+            has the fix yet. Over-the-air updates make that genuinely
+            unknowable otherwise — two captains on the same APK can be
+            running different code. */}
+        <Text style={s.build}>{buildLine()}</Text>
       </ScrollView>
 
       <View style={s.footer}>
@@ -309,6 +333,7 @@ const s = StyleSheet.create({
   },
 
   sectionTitle: { ...type.label, color: colors.textMuted },
+  build: { ...type.label, fontWeight: '400', fontSize: 12, color: colors.textMuted },
   empty: { ...type.body, color: colors.textMuted, lineHeight: 25 },
 
   machineRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },

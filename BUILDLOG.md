@@ -14,7 +14,7 @@ Newest first, so the most recent work is always at the top. Each entry says what
 |---|---|
 | **Phase** | Code done through 5. **Phase 1 field test never run — the gate was walked past.** See the revision at the top of BUILD_PLAN. |
 | **Tests** | 199 unit (122 packages + 77 app) + **128 database assertions**, all green in CI |
-| **App** | **Installable release APK built** — 70 MB, `com.zamindara.app`, targetSdk 36 |
+| **App** | Release APK builds (72 MB, `com.zamindara.app`, targetSdk 36). **Install once:** JS changes reach a phone over the air, or instantly from Metro during development. |
 | **Not yet done** | Never run on a physical device; sync never run against a hosted Supabase project |
 | **Blocking next step** | Setup: Maps key, hosted Supabase project, `expo prebuild` + APK, a phone, a 50 m tape |
 | **Repo** | [rahulbishnoi2929/zamindara](https://github.com/rahulbishnoi2929/zamindara) — private, CI green |
@@ -55,6 +55,36 @@ The most useful part of this log. Each of these was believed, written down, then
 ---
 
 # Entries
+
+## 37 · Install once, not once per change
+
+**Asked:** we shouldn't have to download it again and again — changes should reach the app by themselves, because there will be a lot of changes.
+
+Correct, and nothing was set up for it. Neither `expo-updates` nor `expo-dev-client` was installed, there was no `eas.json`, and the only documented way to see a change was `prebuild` → `assembleRelease` → reinstall a 70 MB APK. Over a season of hourly changes that is not a workflow, it is a tax.
+
+**Two mechanisms, because there are two different situations** and conflating them is how people end up handing a captain a build that needs a laptop.
+
+**While building (fifty times a day):** a **development build** — `expo-dev-client` in a debug APK. Installed once, it loads the app's code from Metro on the laptop, so a saved file is on the phone in about a second. `--tunnel` covers a phone on mobile data out in a field rather than on the office Wi-Fi.
+
+**Once other people have it:** `expo-updates` against EAS Update. A JS change published with `eas update` is running on every captain's phone the next time he opens the app. He is asked nothing and downloads no APK.
+
+**Three decisions worth recording:**
+
+- **`fallbackToCacheTimeout: 0`** — the app *never* waits on the network to start. It opens on the bundle it already has and fetches a new one in the background for next time. Verified in the generated manifest as `EXPO_UPDATES_LAUNCH_WAIT_MS=0`. The alternative is a farmer watching a splash screen on 2G, which is worse than running yesterday's code.
+- **`runtimeVersion: { policy: "fingerprint" }`** rather than `appVersion`. Fingerprint hashes the native project, so an update physically cannot be delivered to an app whose native side does not match. The alternative relies on a solo founder remembering to bump a version string before publishing — and the failure mode of forgetting is a crash on a captain's phone mid-harvest. This removes the whole class.
+- **The update URL is derived, not configured.** `eas init` writes a project id into app.json; `app.config.ts` builds `https://u.expo.dev/<id>` from it. No second thing to set, no placeholder pointing at nothing, and no project id = updates cleanly off, which is the correct state today. Proven both ways with `expo config`: no id → no `updates` block and `expo.modules.updates.ENABLED=false` in the manifest; with an id → the full block resolves.
+
+**A build line on the home screen**, like `v1.0.0 · a3f9c2e1 · 2026-11-06`. Not decoration: once updates are live, two captains holding the *same APK* can be running different code, so when one rings to say the app did something odd, that line is the only way to know whether his phone has the fix. `built in` when he is on the original bundle.
+
+**Written down plainly in SETUP, including what OTA cannot do** — a table of what needs a real APK (new native library, new permission, anything in the `android` block, an SDK bump). The fingerprint policy enforces it, but the founder should know why an update sometimes reaches nobody.
+
+**Cost checked, not assumed:** EAS Update's free tier is 1,000 monthly active users with no overage charge. Fifteen captains and a hundred and fifty farmers is nowhere near it. And **EAS Build is not needed** — the APK keeps being built locally with gradle, as it is now; only the updates go through Expo.
+
+**Verified:** 199 unit tests, 128 database assertions, typecheck clean, 828 modules bundling, `expo prebuild` now succeeds (the adaptive-icon failure from entry 18 is gone), and the native manifest carries the intended values.
+
+**Not verified, and not verifiable here:** that an update actually lands on a handset. That needs `eas init`, a phone, and a published update — three things that are yours. The configuration is proven; the delivery is not.
+
+---
 
 ## 36 · "If it's 5 km away, increase some amount of fare"
 
