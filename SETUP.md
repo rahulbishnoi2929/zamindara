@@ -103,6 +103,16 @@ This is the one you will use fifty times a day. Build **once**:
 cd frontend && npx expo prebuild --platform android --clean
 ```
 
+> **`--clean` deletes `frontend/android/` and rebuilds it from `app.json`.** That is the point of it — but it also deletes two things it does not regenerate: `android/local.properties`, which tells gradle where your Android SDK is, and any APK you had already built. If the next command fails with **"SDK location not found"**, that is this. Recreate it:
+>
+> ```bash
+> echo "sdk.dir=C:/Users/rahul/AppData/Local/Android/Sdk" > frontend/android/local.properties
+> ```
+>
+> **Forward slashes, not backslashes.** It is a Java properties file, so a Windows path written `C:\Users\...` is read as escape characters — \r becomes a carriage return — and gradle then fails with the unhelpful *"The filename, directory name, or volume label syntax is incorrect"*. Forward slashes need no escaping and work fine.
+>
+> You only need `--clean` after changing something native — a library, a permission, the `android` block. For a plain rebuild, leave it off.
+
 ```bash
 cd frontend/android && ./gradlew assembleDebug
 ```

@@ -82,6 +82,14 @@ Correct, and nothing was set up for it. Neither `expo-updates` nor `expo-dev-cli
 
 **Verified:** 199 unit tests, 128 database assertions, typecheck clean, 828 modules bundling, `expo prebuild` now succeeds (the adaptive-icon failure from entry 18 is gone), and the native manifest carries the intended values.
 
+**Two traps found by actually running it, both now in SETUP.**
+
+`prebuild --clean` deletes `frontend/android/` and rebuilds it from `app.json` — which is the point — but it does **not** regenerate `android/local.properties`, the file telling gradle where the Android SDK is. The next build fails with "SDK location not found". It also deletes any APK already built there; the 70 MB release APK from entry 18 went with it.
+
+Recreating that file, I wrote the Windows path with single backslashes. It is a **Java properties file**, so `C:\Users\...` is read as escape sequences — `\r` became a carriage return — and gradle failed with *"The filename, directory name, or volume label syntax is incorrect"*, which says nothing about the real cause. Forward slashes need no escaping. Both the file and the SETUP instructions now use them.
+
+**And a mistake in how I checked.** The first build ran as `./gradlew assembleDebug -q 2>&1 | tail`, so the exit code reported was `tail`'s, not gradle's: the harness said **exit 0** while the log said **BUILD FAILED**. A pipeline hides the failure of everything but its last command. Re-run writing to a log and testing `$?` directly, which is how both traps above were actually found.
+
 **Not verified, and not verifiable here:** that an update actually lands on a handset. That needs `eas init`, a phone, and a published update — three things that are yours. The configuration is proven; the delivery is not.
 
 ---
