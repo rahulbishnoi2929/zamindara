@@ -11,7 +11,7 @@
 -- one, if wrong, either costs someone money or leaks their land.
 
 begin;
-select plan(19);
+select plan(22);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures
@@ -318,6 +318,47 @@ select is(
    where profile_id = '33333333-3333-3333-3333-333333333333'),
   1,
   'rating a captain updates his aggregate'
+);
+
+-- Nothing in the app could write a rating until now, so these two rules had
+-- never been exercised by anything. A star row on a card exercises both.
+select tests.act_as('11111111-1111-1111-1111-111111111111');
+select throws_ok(
+  $$ insert into public.ratings (job_id, rater_id, ratee_id, stars)
+     values ('99999999-9999-9999-9999-999999999999',
+             '11111111-1111-1111-1111-111111111111',
+             '33333333-3333-3333-3333-333333333333', 1) $$,
+  '23505',
+  null,
+  'a farmer cannot rate the same job twice, however many times he taps'
+);
+
+select is(
+  (select rating_avg from public.captains
+   where profile_id = '33333333-3333-3333-3333-333333333333'),
+  5.00::numeric,
+  'so his average is not dragged by a retry'
+);
+
+-- A second job, still searching: rating it would be rating work nobody has
+-- done yet.
+select tests.act_as_admin();
+insert into public.jobs (id, farmer_id, field_id, service_id, area_sqm, status, is_immediate)
+select '77777777-7777-7777-7777-777777777777',
+       '11111111-1111-1111-1111-111111111111',
+       f.id, (select id from public.services where code = 'wheat_harvest'),
+       f.area_sqm, 'searching', true
+from public.fields f where f.name = 'Nehar wala khet';
+
+select tests.act_as('11111111-1111-1111-1111-111111111111');
+select throws_ok(
+  $$ insert into public.ratings (job_id, rater_id, ratee_id, stars)
+     values ('77777777-7777-7777-7777-777777777777',
+             '11111111-1111-1111-1111-111111111111',
+             '33333333-3333-3333-3333-333333333333', 5) $$,
+  '42501',
+  null,
+  'and cannot rate work that has not been done'
 );
 
 select * from finish();

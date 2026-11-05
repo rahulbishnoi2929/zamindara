@@ -3,7 +3,14 @@ import { formatAreaShort, type Locale } from '@zamindara/units';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Button, Card } from './components';
 import { t, type StringKey } from './i18n';
-import { canCancel, canRelease, searchState, type Job, type JobStatus } from './jobs';
+import {
+  canCancel,
+  canRelease,
+  ratingAsk,
+  searchState,
+  type Job,
+  type JobStatus,
+} from './jobs';
 import { colors, radius, space, TOUCH_MIN, type } from './theme';
 
 const STATUS_KEY: Record<JobStatus, StringKey> = {
@@ -33,6 +40,8 @@ interface FarmerCardProps {
   etaAt?: Date | undefined;
   /** Withdraw the job. Absent where there is nothing to withdraw. */
   onCancel?: ((job: Job) => void) | undefined;
+  /** Rate the captain who did it. */
+  onRate?: ((job: Job, stars: number) => void) | undefined;
 }
 
 /** A job as the farmer who booked it sees it. */
@@ -42,6 +51,7 @@ export function FarmerJobCard({
   position,
   etaAt,
   onCancel,
+  onRate,
 }: FarmerCardProps) {
   const service = SERVICE_BY_CODE.get(job.serviceCode);
   return (
@@ -67,6 +77,28 @@ export function FarmerJobCard({
       )}
       {job.finalAmount !== null && (
         <Text style={s.amount}>{`₹${Math.round(job.finalAmount)}`}</Text>
+      )}
+
+      {/* Asked once, on the card, right after the work is done — which is
+          the only moment he actually remembers it. Until something could
+          write one, rating was 30% of a captain's match score and the same
+          constant 3.5 for every captain in the district. */}
+      {job.myRating !== null ? (
+        <Text style={s.rated}>{`${t('yourRating', locale)}  ${stars(job.myRating)}`}</Text>
+      ) : (
+        onRate !== undefined &&
+        ratingAsk(job, false) !== null && (
+          <View style={s.rateRow}>
+            <Text style={s.rateAsk}>{t('howWasWork', locale)}</Text>
+            <View style={s.starRow}>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <Pressable key={n} onPress={() => onRate(job, n)} style={s.star}>
+                  <Text style={s.starGlyph}>☆</Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        )
       )}
 
       {/* Quiet, and last. He is here to watch a job, not to end one — but
@@ -180,6 +212,9 @@ export function CaptainJobCard({
   );
 }
 
+/** Filled stars out of five. A glyph, so there is no icon font to ship. */
+const stars = (n: number): string => '★'.repeat(n) + '☆'.repeat(5 - n);
+
 /** 24-hour clock, which is how a time is read here. */
 function formatClock(date: Date): string {
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
@@ -207,6 +242,20 @@ const s = StyleSheet.create({
   // Deliberately not a Button. Ending a job is never the thing he came to
   // do, and a full-width button next to "on my way" is a mis-tap waiting
   // for a bumpy tractor seat.
+  rateRow: { marginTop: space.sm },
+  rateAsk: { ...type.label, color: colors.textMuted },
+  starRow: { flexDirection: 'row', marginTop: space.xs },
+  // Each star is a full touch target. Five of them in a row is the classic
+  // way to make a farmer in gloves hit the wrong one.
+  star: {
+    minWidth: TOUCH_MIN,
+    minHeight: TOUCH_MIN,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  starGlyph: { fontSize: 32, color: colors.fair },
+  rated: { ...type.label, color: colors.textMuted, marginTop: space.sm },
+
   exit: { alignSelf: 'flex-start', paddingVertical: space.sm, minHeight: TOUCH_MIN },
   exitText: { ...type.label, color: colors.textMuted },
   amount: { ...type.body, fontSize: 20, color: colors.good, marginTop: space.xs },

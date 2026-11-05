@@ -337,6 +337,11 @@ const strings = {
     hi: 'काम नहीं लिया जा सका। सिग्नल देखें और फिर कोशिश करें।',
     en: 'Could not take the job. Check your signal and try again.',
   },
+  // Rating. One question, five taps, no comment box: he is asked once, on
+  // the card, right after the work is done.
+  howWasWork: { pa: 'ਕੰਮ ਕਿਹੋ ਜਿਹਾ ਰਿਹਾ?', hi: 'काम कैसा रहा?', en: 'How was the work?' },
+  yourRating: { pa: 'ਤੁਹਾਡੀ ਰੇਟਿੰਗ', hi: 'आपकी रेटिंग', en: 'Your rating' },
+
   exitFailed: {
     pa: 'ਨਹੀਂ ਹੋ ਸਕਿਆ। ਸਿਗਨਲ ਵੇਖੋ ਤੇ ਮੁੜ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
     hi: 'नहीं हो सका। सिग्नल देखें और फिर कोशिश करें।',

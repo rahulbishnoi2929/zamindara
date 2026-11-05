@@ -301,9 +301,12 @@ interface PulledJob {
    * see the offers on work he posted.
    */
   offeredCount?: number | null;
+  /** Stars this user has already left on this job, from the embed. */
+  myRating?: number | null;
   row: {
     id: string;
     field_id: string;
+    captain_id: string | null;
     service_id: string;
     area_sqm: number;
     status: string;
@@ -330,6 +333,22 @@ interface PulledJob {
 }
 
 /**
+ * Stars this user left on a job, from the embedded ratings.
+ *
+ * Everyone can read everyone's ratings, so the embed carries both parties'.
+ * Null when he has not rated it — which is what makes the app ask once and
+ * then stop. Asking twice reads as the app having lost his answer.
+ */
+function myStars(raw: unknown, uid: string): number | null {
+  const rows = (raw as { ratings?: unknown }).ratings;
+  if (!Array.isArray(rows)) return null;
+  for (const r of rows as Array<{ stars?: unknown; rater_id?: unknown }>) {
+    if (r.rater_id === uid && typeof r.stars === 'number') return r.stars;
+  }
+  return null;
+}
+
+/**
  * What this account can see of the marketplace, from the server's point of
  * view: his own jobs as a farmer, his assigned and offered jobs as a
  * captain. The embeds are what RLS is quietly grading — a field name
@@ -346,10 +365,10 @@ async function pullJobs(
   const farmerView = await supabase
     .from('jobs')
     .select(
-      // job_dispatch(count) rides along in the same round trip. On a 2G
-      // connection in a field, a second query to answer "has anyone been
-      // asked yet" is not worth the wait.
-      '*, field:fields(name), captain:profiles!jobs_captain_id_fkey(full_name), job_dispatch(count)',
+      // job_dispatch(count) and ratings ride along in the same round trip.
+      // On a 2G connection in a field, extra queries to answer "has anyone
+      // been asked yet" and "did I already rate this" are not worth the wait.
+      '*, field:fields(name), captain:profiles!jobs_captain_id_fkey(full_name), job_dispatch(count), ratings(stars, rater_id)',
     )
     .eq('farmer_id', uid);
   if (farmerView.error === null) {
@@ -365,6 +384,7 @@ async function pullJobs(
         captainName: (r.captain?.full_name as string | undefined) ?? null,
         distanceKm: null,
         offeredCount: readCount(raw),
+        myRating: myStars(raw, uid),
       });
     }
   }
@@ -513,6 +533,7 @@ export async function syncJobs(
       p.captainName,
       p.distanceKm,
       p.offeredCount ?? null,
+      p.myRating ?? null,
     );
     if (local !== null) remote.push(local);
   }
@@ -557,6 +578,36 @@ export interface PendingCaptain {
   phone: string;
   village: string;
   machineCount: number;
+}
+
+/**
+ * Leave a rating.
+ *
+ * A plain insert: ratings_insert_party already proves the job is completed,
+ * that he was a party to it, and that the ratee is the other one — so there
+ * is no RPC to add. The trigger moves the captain's average, which is 30% of
+ * his match score and until now was the same constant for everybody.
+ *
+ * Returns false and changes nothing on failure; the next pass retries.
+ */
+export async function pushRating(
+  jobId: string,
+  rateeId: string,
+  stars: number,
+): Promise<boolean> {
+  if (!isBackendConfigured()) return false;
+  const session = await currentSession();
+  if (session === null) return false;
+
+  const { error } = await supabase.from('ratings').insert({
+    job_id: jobId,
+    rater_id: session.user.id,
+    ratee_id: rateeId,
+    stars,
+  });
+  // 23505 is the unique (job_id, rater_id): already rated, which is a
+  // success as far as the phone is concerned.
+  return error === null || error.code === '23505';
 }
 
 /**

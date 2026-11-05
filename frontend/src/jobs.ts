@@ -51,6 +51,8 @@ export interface Job {
   quotedTotal: number | null;
 
   captainName: string | null;
+  /** Needed to rate him. Null until a captain has taken the job. */
+  captainId: string | null;
   distanceKm: number | null;
 
   /**
@@ -62,6 +64,13 @@ export interface Job {
   finalAmount: number | null;
   paymentMode: PaymentMode | null;
   notes: string;
+
+  /**
+   * Stars this user has already given on this job, 1-5. Null means not
+   * rated yet, which is what decides whether to ask — asking twice reads as
+   * the app having lost his answer.
+   */
+  myRating: number | null;
 
   createdAt: number;
   acceptedAt: number | null;
@@ -202,6 +211,29 @@ export async function releaseJob(jobId: string): Promise<Job[]> {
           }
         : j,
     ),
+  );
+}
+
+/**
+ * Who, if anyone, this user should be asked to rate on this job.
+ *
+ * Farmer rates captain only. The captain rating the farmer is two-way
+ * reputation, which is a Phase 7 question and buys dispatch nothing — the
+ * farmer is not ranked by anything. What was actually broken is that
+ * eligible_captains gives rating 30% of the match score and nothing could
+ * ever write one, so every captain ranked as the same constant 3.5.
+ */
+export function ratingAsk(job: Job, meIsCaptain: boolean): string | null {
+  if (meIsCaptain) return null;
+  if (job.status !== 'completed') return null;
+  if (job.myRating !== null) return null;
+  return job.captainId;
+}
+
+export async function rateJob(jobId: string, stars: number): Promise<Job[]> {
+  const jobs = await loadJobs();
+  return writeAll(
+    jobs.map((j) => (j.id === jobId ? { ...j, myRating: stars } : j)),
   );
 }
 

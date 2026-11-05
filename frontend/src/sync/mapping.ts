@@ -239,6 +239,7 @@ export interface WireJobInsert {
 export interface WireJobRow {
   id: string;
   field_id: string;
+  captain_id: string | null;
   service_id: string;
   area_sqm: number;
   status: string;
@@ -318,6 +319,8 @@ export function jobFromWire(
   captainName: string | null,
   distanceKm: number | null,
   offeredCount: number | null,
+  /** Stars this user has already given on this job. */
+  myRating: number | null,
 ): Job | null {
   if (serviceCode === null) return null;
   if (!LOCAL_STATUSES.has(row.status)) return null;
@@ -339,11 +342,13 @@ export function jobFromWire(
     travelCharge: row.travel_charge ?? 0,
     quotedTotal: row.quoted_total,
     captainName,
+    captainId: row.captain_id,
     offeredCount,
     distanceKm,
     finalAmount: row.final_amount,
     paymentMode: row.payment_mode,
     notes: row.notes ?? '',
+    myRating,
     createdAt: fromIso(row.created_at) ?? 0,
     acceptedAt: fromIso(row.accepted_at),
     startedAt: fromIso(row.started_at),

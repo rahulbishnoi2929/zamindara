@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { canCancel, canRelease, completedRates, searchState, type Job } from './jobs';
+import {
+  canCancel,
+  canRelease,
+  completedRates,
+  ratingAsk,
+  searchState,
+  type Job,
+} from './jobs';
 
 const job: Job = {
   id: 'j1',
@@ -20,6 +27,8 @@ const job: Job = {
   captainName: null,
   distanceKm: null,
   offeredCount: null,
+  captainId: null,
+  myRating: null,
   finalAmount: null,
   paymentMode: null,
   notes: '',
@@ -116,5 +125,33 @@ describe('who may get out of a job', () => {
       expect(canCancel(at(status))).toBe(false);
       expect(canRelease(at(status))).toBe(false);
     }
+  });
+});
+
+describe('ratingAsk', () => {
+  const done: Job = {
+    ...job,
+    status: 'completed',
+    captainId: '33333333-3333-3333-3333-333333333333',
+    captainName: 'Jaspal',
+    completedAt: 20,
+  };
+
+  it('asks the farmer about the captain once the work is done', () => {
+    expect(ratingAsk(done, false)).toBe('33333333-3333-3333-3333-333333333333');
+  });
+
+  it('does not ask twice — that reads as the app having lost his answer', () => {
+    expect(ratingAsk({ ...done, myRating: 4 }, false)).toBeNull();
+  });
+
+  it('does not ask before the work is finished', () => {
+    expect(ratingAsk({ ...done, status: 'in_progress' }, false)).toBeNull();
+  });
+
+  it('does not ask the captain to rate the farmer — that is not what was broken', () => {
+    // Two-way reputation is a Phase 7 question and buys dispatch nothing:
+    // the farmer is not ranked by anything.
+    expect(ratingAsk(done, true)).toBeNull();
   });
 });

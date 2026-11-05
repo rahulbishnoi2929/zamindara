@@ -13,7 +13,7 @@ Newest first, so the most recent work is always at the top. Each entry says what
 | | |
 |---|---|
 | **Phase** | Code done through 5. **Phase 1 field test never run — the gate was walked past.** See the revision at the top of BUILD_PLAN. |
-| **Tests** | 195 unit (122 packages + 73 app) + **115 database assertions**, all green in CI |
+| **Tests** | 199 unit (122 packages + 77 app) + **118 database assertions**, all green in CI |
 | **App** | **Installable release APK built** — 70 MB, `com.zamindara.app`, targetSdk 36 |
 | **Not yet done** | Never run on a physical device; sync never run against a hosted Supabase project |
 | **Blocking next step** | Setup: Maps key, hosted Supabase project, `expo prebuild` + APK, a phone, a 50 m tape |
@@ -24,7 +24,7 @@ Newest first, so the most recent work is always at the top. Each entry says what
 C:\Zamidara\
 ├── docs\              12 product and engineering documents
 ├── frontend\          Expo SDK 57 Android app — 65 tests
-├── backend\supabase\  15 migrations, RLS, dispatch functions — 115 assertions
+├── backend\supabase\  15 migrations, RLS, dispatch functions — 118 assertions
 ├── packages\          units · geo · catalog · pricing · scheduling — 122 tests
 └── assets\            logo
 ```
@@ -53,6 +53,28 @@ The most useful part of this log. Each of these was believed, written down, then
 ---
 
 # Entries
+
+## 35 · Every captain ranked as the same 3.5
+
+**Asked:** solve the bugs, then start building. This is the last of the family entry 34 flagged.
+
+`eligible_captains` gives rating **30% of the match score**. The `ratings` table existed, the trigger that moves `captains.rating_avg` existed — and was fixed in entry 28 when RLS broke it — and the RLS insert policy was already exactly right. **Nothing in the app could write one.** So 30% of the decision about who gets offered work was `coalesce(rating_avg, 3.5)`: the same constant for every captain in Fazilka, forever. A captain who did forty good jobs ranked identically to one who had just signed up.
+
+**No RPC needed**, and that is the lazy part worth noting. `ratings_insert_party` already proves the job is completed, that the rater was a party to it, and that the ratee is the other one. A plain insert is enough; adding a function would have duplicated a guard that was already correct.
+
+**Farmer rates captain only.** Two-way reputation is a Phase 7 item and it buys dispatch nothing — the farmer is not ranked by anything, so rating him changes no decision. Building both halves would have doubled the work to fix none of the bug. `ratingAsk` returns null for the captain's side on purpose, with the reason in the code.
+
+**Five taps, no comment box, asked once.** On the card, right after the work is done, which is the only moment he remembers it. Each star is a full touch target because five glyphs in a row is the classic way to make a farmer in gloves hit the wrong one. Stars are `★`/`☆` characters — no icon font to ship. Written locally first so a tap with no signal stays tapped, then pushed; the unique `(job_id, rater_id)` makes the retry idempotent, and `23505` is treated as success because it means the rating already landed.
+
+**Three new assertions**, on rules a star row can now actually hit and nothing had ever exercised: tapping twice is refused and his average is *not* dragged by the retry, and work nobody has done cannot be rated.
+
+Also added `captainId` to the local job — rating someone needs his id, and the row already carried it under `select('*')`; it was simply never mapped. His existing rating rides along in the farmer's own-jobs round trip, next to the offer count, rather than costing a second query on 2G.
+
+**Verified:** 199 unit tests (4 new), **118 database assertions**, typecheck clean across 6 packages, 828 modules bundling, CI green on all three jobs.
+
+**What this closes.** Four entries — 29, 30, 33, 34, 35 — were all the same bug: a server capability that was built, tested and correct, with no caller. Verification, re-dispatch, rate guidance, getting out of a job, ratings. The lesson is not about any of them individually: **a passing database suite proves the server keeps its promises, and says nothing about whether anyone ever asks it to.** Tracing each flow from a thumb on a screen to a row in Postgres is what found all five, and it is now a standing rule in BUILD_PLAN.
+
+---
 
 ## 34 · There was no way out of a job
 

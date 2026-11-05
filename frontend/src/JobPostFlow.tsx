@@ -144,6 +144,8 @@ export function JobPostFlow({
       captainName: null,
       distanceKm: null,
       offeredCount: null,
+      captainId: null,
+      myRating: null,
       finalAmount: null,
       paymentMode: null,
       notes: '',

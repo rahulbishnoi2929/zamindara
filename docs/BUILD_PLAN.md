@@ -470,6 +470,7 @@ Things that apply in every phase, and are easiest to lose when a deadline is clo
 4. **Every negative result gets written down.** Karam snapping is a passing test asserting it doesn't help — so nobody quietly re-enables it in month six.
 5. **When a measurement contradicts a plan, the measurement wins.**
 6. **Cut features, never cut the season.** April does not move.
+7. **A green database suite says nothing about whether anyone calls it.** Five bugs in a row — captain verification, re-dispatch, rate guidance, cancelling a job, ratings — were correct, tested server capabilities with **no caller**. Every one of them would have read in November as "nobody wants this" rather than as a bug. So: trace each flow from a thumb on a screen to a row in Postgres, and treat a table nothing writes to as a bug until proven otherwise.
 
 ## What is deliberately not in this plan
 

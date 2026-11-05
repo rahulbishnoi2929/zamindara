@@ -54,6 +54,8 @@ function field(overrides: Partial<SavedField> = {}): SavedField {
 
 function job(overrides: Partial<Job> = {}): Job {
   return {
+    captainId: null,
+    myRating: null,
     id: '7c1d9e20-2222-4b3b-9f4c-1a2b3c4d5e01',
     fieldId: '9b2f8a10-1111-4c1c-8e2a-0d6a9c3f7a01',
     fieldName: 'Nehar wala khet',
@@ -209,6 +211,7 @@ describe('jobFromWire', () => {
   const base = {
     id: '7c1d9e20-2222-4b3b-9f4c-1a2b3c4d5e01',
     field_id: '9b2f8a10-1111-4c1c-8e2a-0d6a9c3f7a01',
+    captain_id: null,
     service_id: 'e5a0b1c2-3333-4d4d-8a5b-2b3c4d5e6f01',
     area_sqm: 4601.2,
     is_immediate: false,
@@ -237,8 +240,11 @@ describe('jobFromWire', () => {
       'Jaspal',
       2.5,
       3,
+      4,
     )!;
     expect(j.offeredCount).toBe(3);
+    expect(j.myRating).toBe(4);
+    expect(j.captainId).toBeNull();
     expect(j.status).toBe('accepted');
     expect(j.createdAt).toBe(1729437200000);
     expect(j.acceptedAt).toBe(1729437300000);
@@ -247,12 +253,12 @@ describe('jobFromWire', () => {
   });
 
   it('drops statuses the phone has no honest representation of', () => {
-    expect(jobFromWire({ ...base, status: 'draft' }, 'wheat_harvest', '', '', null, null, null)).toBeNull();
-    expect(jobFromWire({ ...base, status: 'expired' }, 'wheat_harvest', '', '', null, null, null)).toBeNull();
+    expect(jobFromWire({ ...base, status: 'draft' }, 'wheat_harvest', '', '', null, null, null, null)).toBeNull();
+    expect(jobFromWire({ ...base, status: 'expired' }, 'wheat_harvest', '', '', null, null, null, null)).toBeNull();
   });
 
   it('drops a service this build cannot name', () => {
-    expect(jobFromWire({ ...base, status: 'searching' }, null, '', '', null, null, null)).toBeNull();
+    expect(jobFromWire({ ...base, status: 'searching' }, null, '', '', null, null, null, null)).toBeNull();
   });
 });
 

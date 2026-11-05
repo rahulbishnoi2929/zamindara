@@ -20,6 +20,8 @@ interface Props {
   onAdvanceJob: (job: Job) => void;
   /** The farmer withdraws his own job. */
   onCancelJob: (job: Job) => void;
+  /** The farmer rates the captain who did the work. */
+  onRateJob: (job: Job, stars: number) => void;
   /** The captain hands a job back, so it can reach someone else. */
   onReleaseJob: (job: Job) => void;
   onEditProfile: () => void;
@@ -46,6 +48,7 @@ export function HomeScreen({
   onAcceptJob,
   onAdvanceJob,
   onCancelJob,
+  onRateJob,
   onReleaseJob,
   onEditProfile,
   onToggleOnline,
@@ -212,6 +215,7 @@ export function HomeScreen({
                     position={slot?.position}
                     etaAt={slot?.startsAt}
                     onCancel={onCancelJob}
+                    onRate={onRateJob}
                   />
                 );
               })

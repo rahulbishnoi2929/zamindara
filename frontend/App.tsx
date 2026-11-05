@@ -28,6 +28,7 @@ import {
   addJob,
   cancelJob,
   loadJobs,
+  rateJob,
   releaseJob,
   updateJob,
   type Job,
@@ -48,6 +49,7 @@ import {
   syncFields,
   cancelJobRemote,
   fetchRateGuidance,
+  pushRating,
   releaseJobRemote,
   syncJobs,
   syncProfile,
@@ -396,6 +398,20 @@ export default function App() {
     );
   };
 
+  /**
+   * Rating the captain.
+   *
+   * Written locally first, so the stars he tapped stay tapped with no
+   * signal, then pushed. The unique (job_id, rater_id) makes the push
+   * idempotent, so a retry on the next pass cannot double-count him.
+   */
+  const rateJobNow = async (job: Job, stars: number) => {
+    setJobs(await rateJob(job.id, stars));
+    if (signedIn && job.captainId !== null) {
+      void pushRating(job.id, job.captainId, stars);
+    }
+  };
+
   const claimJob = async (job: Job) => {
     if (profile === null) return;
 
@@ -510,6 +526,7 @@ export default function App() {
                 onAcceptJob={(job) => void claimJob(job)}
                 onAdvanceJob={(job) => void advanceJob(job)}
                 onCancelJob={(job) => exitJob(job, 'cancel')}
+                onRateJob={(job, stars) => void rateJobNow(job, stars)}
                 onReleaseJob={(job) => exitJob(job, 'release')}
                 onEditProfile={() => setScreen({ name: 'onboarding' })}
                 onToggleOnline={() => {
