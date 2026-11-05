@@ -192,6 +192,28 @@ const strings = {
   startWork: { pa: 'ਕੰਮ ਸ਼ੁਰੂ ਕਰੋ', hi: 'काम शुरू करें', en: 'Start work' },
   onMyWay: { pa: 'ਚੱਲ ਪਿਆ ਹਾਂ', hi: 'चल पड़ा हूँ', en: 'On my way' },
   markComplete: { pa: 'ਕੰਮ ਪੂਰਾ ਹੋਇਆ', hi: 'काम पूरा हुआ', en: 'Mark complete' },
+
+  // Getting out of a job. The farmer's word is "cancel"; the captain's is
+  // not — he is handing work back that the farmer still wants done, and
+  // calling that cancelling would read as though he had ended it.
+  cancelJob: { pa: 'ਕੰਮ ਰੱਦ ਕਰੋ', hi: 'काम रद्द करें', en: 'Cancel job' },
+  cancelJobAsk: {
+    pa: 'ਇਹ ਕੰਮ ਰੱਦ ਕਰਨਾ ਹੈ?',
+    hi: 'यह काम रद्द करना है?',
+    en: 'Cancel this job?',
+  },
+  releaseJob: { pa: 'ਮੈਂ ਨਹੀਂ ਕਰ ਸਕਦਾ', hi: 'मैं नहीं कर सकता', en: "I can't do it" },
+  releaseJobAsk: {
+    pa: 'ਕੰਮ ਵਾਪਸ ਕਰਨਾ ਹੈ? ਕਿਸੇ ਹੋਰ ਕੈਪਟਨ ਨੂੰ ਭੇਜ ਦਿਆਂਗੇ।',
+    hi: 'काम वापस करना है? किसी और कैप्टन को भेज देंगे।',
+    en: 'Hand this job back? We will offer it to another captain.',
+  },
+  keepIt: { pa: 'ਨਹੀਂ, ਰਹਿਣ ਦਿਓ', hi: 'नहीं, रहने दो', en: 'No, keep it' },
+  tooLateToStop: {
+    pa: 'ਕੰਮ ਸ਼ੁਰੂ ਹੋ ਚੁੱਕਾ ਹੈ। ਫ਼ੋਨ ਤੇ ਗੱਲ ਕਰੋ।',
+    hi: 'काम शुरू हो चुका है। फ़ोन पर बात करें।',
+    en: 'Work has already started. Settle it by phone.',
+  },
   amountTaken: { pa: 'ਕਿੰਨੇ ਪੈਸੇ ਲਏ?', hi: 'कितने पैसे लिए?', en: 'Amount received' },
   payCash: { pa: 'ਨਕਦ', hi: 'नकद', en: 'Cash' },
   payUpi: { pa: 'UPI', hi: 'UPI', en: 'UPI' },
@@ -314,6 +336,11 @@ const strings = {
     pa: 'ਕੰਮ ਨਹੀਂ ਲਿਆ ਜਾ ਸਕਿਆ। ਸਿਗਨਲ ਵੇਖੋ ਤੇ ਮੁੜ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
     hi: 'काम नहीं लिया जा सका। सिग्नल देखें और फिर कोशिश करें।',
     en: 'Could not take the job. Check your signal and try again.',
+  },
+  exitFailed: {
+    pa: 'ਨਹੀਂ ਹੋ ਸਕਿਆ। ਸਿਗਨਲ ਵੇਖੋ ਤੇ ਮੁੜ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
+    hi: 'नहीं हो सका। सिग्नल देखें और फिर कोशिश करें।',
+    en: 'Could not do it. Check your signal and try again.',
   },
   recovered: {
     pa: 'ਪਿਛਲਾ ਅਧੂਰਾ ਨਾਪ ਮਿਲਿਆ',

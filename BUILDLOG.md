@@ -13,18 +13,18 @@ Newest first, so the most recent work is always at the top. Each entry says what
 | | |
 |---|---|
 | **Phase** | Code done through 5. **Phase 1 field test never run — the gate was walked past.** See the revision at the top of BUILD_PLAN. |
-| **Tests** | 192 unit (122 packages + 70 app) + **97 database assertions**, all green in CI |
+| **Tests** | 195 unit (122 packages + 73 app) + **115 database assertions**, all green in CI |
 | **App** | **Installable release APK built** — 70 MB, `com.zamindara.app`, targetSdk 36 |
 | **Not yet done** | Never run on a physical device; sync never run against a hosted Supabase project |
 | **Blocking next step** | Setup: Maps key, hosted Supabase project, `expo prebuild` + APK, a phone, a 50 m tape |
 | **Repo** | [rahulbishnoi2929/zamindara](https://github.com/rahulbishnoi2929/zamindara) — private, CI green |
-| **Backend** | ✅ **Schema verified.** 14 migrations apply; all three guarantees hold. |
+| **Backend** | ✅ **Schema verified.** 15 migrations apply; all three guarantees hold. |
 
 ```
 C:\Zamidara\
 ├── docs\              12 product and engineering documents
 ├── frontend\          Expo SDK 57 Android app — 65 tests
-├── backend\supabase\  14 migrations, RLS, dispatch functions — 97 assertions
+├── backend\supabase\  15 migrations, RLS, dispatch functions — 115 assertions
 ├── packages\          units · geo · catalog · pricing · scheduling — 122 tests
 └── assets\            logo
 ```
@@ -53,6 +53,36 @@ The most useful part of this log. Each of these was believed, written down, then
 ---
 
 # Entries
+
+## 34 · There was no way out of a job
+
+**Asked:** solve the bugs, then start building.
+
+With the money path fixed, the next thing November actually needs is not a feature from the plan — it is the one that was missing. **Nothing could get out of a job.**
+
+A farmer who posted by mistake, or whose crop turned out not to be ready, had no way to withdraw. The job sat in `searching` and — since entry 30 made re-dispatch run every sync pass — was re-offered to captains **forever**. The fastest possible way to teach a captain to ignore the ping, which is the one thing that has to work in April. And a captain whose combine broke after accepting could not hand the job back: the farmer waited on a machine that was never coming, and the job could never reach anyone else.
+
+**Two functions, deliberately not one.** `cancel_job` is the farmer saying he no longer wants the work. `release_job` is the captain saying he cannot do it — and the job goes **back to `searching`**, unassigned, so it reaches someone else. Collapsing them would have been shorter and wrong: a breakdown is not a cancellation, and the job should go back on the market rather than die with his gearbox.
+
+Release is only worth having *because* re-dispatch now runs every pass. The two entries fit together: 30 made a stranded job findable, 34 is what creates one honestly.
+
+**Neither is allowed once work is `in_progress`.** A machine is in the field and diesel has been burned; what is being asked for then is a settlement, and a button cannot decide one. The app says so — "work has already started, settle it by phone" — which is the season's stated plan for disputes anyway.
+
+**And the guard had to move onto the table.** `jobs_update_party` lets a farmer or his captain write *any* column on their own job, status included. So both function guards were advisory: a client setting `status = 'cancelled'` directly on a job already being cut sailed straight past them. Our app wouldn't — but "our app wouldn't" is not a guarantee, and everything else in this schema puts its guarantees in the database. `jobs_transition_guard` now enforces the legal moves on the table itself.
+
+Forward moves stay permissive on purpose, `accepted → completed` included: a captain who drives out, cuts, and only then touches his phone never tapped "on my way", and refusing his completion would be the app arguing with what actually happened. What is refused is a job going backwards without being released, and work being cancelled after it started.
+
+**The affordances are deliberately quiet** — a text press, left-aligned, last on the card, never a full-width button beside "on my way". Ending a job is not what either of them came to do, and a bumpy tractor seat makes a mis-tap expensive. Both ask first. Nothing moves locally unless the server agreed, because a cancel that half happened is worse than one that did not: the farmer would stop expecting a machine that is still coming.
+
+**No reason text.** The founder is shadowing every job this season and will hear the reason by phone; a free-text box in a field, in the sun, collects nothing worth reading. The column stays for when that changes.
+
+**18 new database assertions** — a stranger cannot cancel, an *offered captain* cannot cancel the farmer's job, the farmer can and the open offers close, a cancelled job stops being re-dispatched, a released job reaches the other captain and he can take it, and writing the status column directly gets around none of it.
+
+**Verified:** 195 unit tests (3 new), **115 database assertions**, typecheck clean across 6 packages, 828 modules bundling, CI green on all three jobs.
+
+**Found while writing it, not fixed yet:** nothing in the app can write a **rating**. The table, the trigger and `captains.rating` all exist, and `eligible_captains` gives rating **30% of the match score** — so today it ranks every captain by the same constant 3.5. Same family as entries 29, 30 and 33: a built, tested server capability with no caller. That is the next one.
+
+---
 
 ## 33 · The rate guide was quoting itself
 

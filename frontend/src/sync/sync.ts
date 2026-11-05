@@ -559,6 +559,40 @@ export interface PendingCaptain {
   machineCount: number;
 }
 
+/**
+ * Getting out of a job.
+ *
+ * 'too-late' is its own answer rather than a failure: the work is already
+ * underway, and what the person is asking for then is a settlement, not a
+ * button. The screen has to say that, not "something went wrong".
+ *
+ * 'offline' leaves the local job exactly as it was. A cancel that half
+ * happened is worse than one that did not: the farmer would stop expecting
+ * a machine that is still coming.
+ */
+export type ExitOutcome = 'done' | 'too-late' | 'not-yours' | 'offline';
+
+async function callExit(
+  fn: 'cancel_job' | 'release_job',
+  jobId: string,
+): Promise<ExitOutcome> {
+  if (!isBackendConfigured()) return 'offline';
+
+  const { error } = await supabase.rpc(fn, { p_job_id: jobId });
+  if (error === null) return 'done';
+  if (error.code === '55006') return 'too-late';
+  if (error.code === '42501') return 'not-yours';
+  return 'offline';
+}
+
+/** The farmer withdraws. */
+export const cancelJobRemote = (jobId: string): Promise<ExitOutcome> =>
+  callExit('cancel_job', jobId);
+
+/** The captain hands it back, and it goes looking for someone else. */
+export const releaseJobRemote = (jobId: string): Promise<ExitOutcome> =>
+  callExit('release_job', jobId);
+
 /** Empty for everyone who is not staff — the guard is in the database. */
 export async function fetchPendingCaptains(): Promise<PendingCaptain[]> {
   if (!isBackendConfigured()) return [];

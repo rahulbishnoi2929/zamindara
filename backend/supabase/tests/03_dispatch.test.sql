@@ -13,7 +13,7 @@
 --     it is still searching
 
 begin;
-select plan(24);
+select plan(42);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures — same helpers as 02_guarantees.
@@ -442,6 +442,190 @@ select is(
   )),
   4,
   'a job that was never paid does not vote'
+);
+
+-- ===========================================================================
+-- Getting out of a job
+--
+-- There was no way out of one. A farmer who posted by mistake had the job
+-- re-offered to captains on every sync pass, and a captain whose combine
+-- broke after accepting could not hand it back — the farmer waited on a
+-- machine that was never coming. cancel_job and release_job are two
+-- different events on purpose: a breakdown is not a cancellation.
+-- ===========================================================================
+
+select tests.act_as('11111111-1111-1111-1111-111111111111');
+
+insert into public.jobs (id, farmer_id, field_id, service_id, area_sqm, status, is_immediate)
+select 'ffffffff-ffff-ffff-ffff-ffffffffffff', '11111111-1111-1111-1111-111111111111',
+       f.id, (select id from public.services where code = 'wheat_harvest'),
+       f.area_sqm, 'searching', true
+from public.fields f where f.name = 'Nehar wala khet';
+
+select is(
+  public.dispatch_job('ffffffff-ffff-ffff-ffff-ffffffffffff'),
+  1,
+  'the job to be cancelled is offered to Jaspal first, so there is an open offer to close'
+);
+
+-- Balwinder has nothing to do with this job.
+select tests.act_as('22222222-2222-2222-2222-222222222222');
+select throws_ok(
+  $$ select public.cancel_job('ffffffff-ffff-ffff-ffff-ffffffffffff') $$,
+  '42501',
+  null,
+  'a stranger cannot cancel somebody else''s job'
+);
+
+-- Being offered the work is not the same as owning it.
+select tests.act_as('33333333-3333-3333-3333-333333333333');
+select throws_ok(
+  $$ select public.cancel_job('ffffffff-ffff-ffff-ffff-ffffffffffff') $$,
+  '42501',
+  null,
+  'a captain cannot cancel the farmer''s job'
+);
+
+select tests.act_as('11111111-1111-1111-1111-111111111111');
+select lives_ok(
+  $$ select public.cancel_job('ffffffff-ffff-ffff-ffff-ffffffffffff', 'crop not ready') $$,
+  'the farmer who posted it can withdraw it'
+);
+
+select is(
+  (select status::text from public.jobs where id = 'ffffffff-ffff-ffff-ffff-ffffffffffff'),
+  'cancelled',
+  'and the job is cancelled, with his reason on the record'
+);
+
+select is_empty(
+  $$ select 1 from public.job_dispatch
+     where job_id = 'ffffffff-ffff-ffff-ffff-ffffffffffff' and response = 'pending' $$,
+  'the open offer is closed, so captains stop seeing work that no longer exists'
+);
+
+select throws_ok(
+  $$ select public.dispatch_job('ffffffff-ffff-ffff-ffff-ffffffffffff') $$,
+  '55006',
+  null,
+  'and every sync pass after this stops ringing captains about it'
+);
+
+-- ---------------------------------------------------------------------------
+-- The captain hands one back
+--
+-- Scheduled far enough ahead that Sukhdev's borrowed combine clears its lead
+-- time too — so there is somebody else for the job to reach.
+-- ---------------------------------------------------------------------------
+insert into public.jobs (id, farmer_id, field_id, service_id, area_sqm, status,
+                         is_immediate, scheduled_date, scheduled_window)
+select 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', '11111111-1111-1111-1111-111111111111',
+       f.id, (select id from public.services where code = 'wheat_harvest'),
+       f.area_sqm, 'searching', false, current_date + 2, 'morning'
+from public.fields f where f.name = 'Nehar wala khet';
+
+select is(
+  public.dispatch_job('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee'),
+  2,
+  'a job far enough ahead reaches the borrowed combine as well as the owned one'
+);
+
+select tests.act_as('33333333-3333-3333-3333-333333333333');
+select lives_ok(
+  $$ select public.accept_job('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee') $$,
+  'Jaspal takes it'
+);
+
+select tests.act_as('55555555-5555-5555-5555-555555555555');
+select throws_ok(
+  $$ select public.release_job('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee') $$,
+  '42501',
+  null,
+  'a captain cannot release a job that was given to someone else'
+);
+
+select tests.act_as('33333333-3333-3333-3333-333333333333');
+select lives_ok(
+  $$ select public.release_job('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'combine broke') $$,
+  'and when his combine breaks he can hand it back'
+);
+
+select is(
+  (select status::text || coalesce(captain_id::text, ' unassigned')
+   from public.jobs where id = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee'),
+  'searching unassigned',
+  'the job goes back on the market rather than dying with his breakdown'
+);
+
+-- This is the whole point: the farmer is not stranded.
+select tests.act_as('55555555-5555-5555-5555-555555555555');
+select lives_ok(
+  $$ select public.accept_job('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee') $$,
+  'and the other captain can pick it up'
+);
+
+-- ---------------------------------------------------------------------------
+-- Once the machine is in the field, neither of them gets a button
+-- ---------------------------------------------------------------------------
+select tests.act_as_admin();
+insert into public.jobs (id, farmer_id, field_id, service_id, captain_id, area_sqm,
+                         status, is_immediate, started_at)
+select '99999999-9999-9999-9999-999999999999', '11111111-1111-1111-1111-111111111111',
+       f.id, (select id from public.services where code = 'wheat_harvest'),
+       '33333333-3333-3333-3333-333333333333',
+       f.area_sqm, 'in_progress', true, now()
+from public.fields f where f.name = 'Nehar wala khet';
+
+select tests.act_as('11111111-1111-1111-1111-111111111111');
+select throws_ok(
+  $$ select public.cancel_job('99999999-9999-9999-9999-999999999999') $$,
+  '55006',
+  null,
+  'a farmer cannot cancel work already underway — that is a settlement, not a cancellation'
+);
+
+select tests.act_as('33333333-3333-3333-3333-333333333333');
+select throws_ok(
+  $$ select public.release_job('99999999-9999-9999-9999-999999999999') $$,
+  '55006',
+  null,
+  'and a captain cannot walk off a field he has already started cutting'
+);
+
+-- ---------------------------------------------------------------------------
+-- And the guard is on the table, not only inside the functions
+--
+-- jobs_update_party lets a party write any column on their own job. Without
+-- this trigger both rules above were advisory: setting the column directly
+-- walked straight past them.
+-- ---------------------------------------------------------------------------
+select tests.act_as('11111111-1111-1111-1111-111111111111');
+select throws_ok(
+  $$ update public.jobs set status = 'cancelled'
+     where id = '99999999-9999-9999-9999-999999999999' $$,
+  '55006',
+  null,
+  'writing the status column directly does not get around the in-progress rule'
+);
+
+select throws_ok(
+  $$ update public.jobs set status = 'searching', captain_id = null
+     where id = '99999999-9999-9999-9999-999999999999' $$,
+  '55006',
+  null,
+  'and a job already underway cannot be pushed back onto the market'
+);
+
+select tests.act_as_admin();
+update public.jobs set status = 'completed', completed_at = now()
+where id = '99999999-9999-9999-9999-999999999999';
+
+select throws_ok(
+  $$ update public.jobs set status = 'in_progress'
+     where id = '99999999-9999-9999-9999-999999999999' $$,
+  '55006',
+  null,
+  'finished work is finished — a completed job cannot be reopened'
 );
 
 select * from finish();

@@ -3,8 +3,8 @@ import { formatAreaShort, type Locale } from '@zamindara/units';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Button, Card } from './components';
 import { t, type StringKey } from './i18n';
-import { searchState, type Job, type JobStatus } from './jobs';
-import { colors, radius, space, type } from './theme';
+import { canCancel, canRelease, searchState, type Job, type JobStatus } from './jobs';
+import { colors, radius, space, TOUCH_MIN, type } from './theme';
 
 const STATUS_KEY: Record<JobStatus, StringKey> = {
   searching: 'statusSearching',
@@ -31,10 +31,18 @@ interface FarmerCardProps {
   position?: number | undefined;
   /** Approximate start. Work durations only — see HomeScreen. */
   etaAt?: Date | undefined;
+  /** Withdraw the job. Absent where there is nothing to withdraw. */
+  onCancel?: ((job: Job) => void) | undefined;
 }
 
 /** A job as the farmer who booked it sees it. */
-export function FarmerJobCard({ job, locale, position, etaAt }: FarmerCardProps) {
+export function FarmerJobCard({
+  job,
+  locale,
+  position,
+  etaAt,
+  onCancel,
+}: FarmerCardProps) {
   const service = SERVICE_BY_CODE.get(job.serviceCode);
   return (
     <Card>
@@ -59,6 +67,15 @@ export function FarmerJobCard({ job, locale, position, etaAt }: FarmerCardProps)
       )}
       {job.finalAmount !== null && (
         <Text style={s.amount}>{`₹${Math.round(job.finalAmount)}`}</Text>
+      )}
+
+      {/* Quiet, and last. He is here to watch a job, not to end one — but
+          with no way out at all, a job posted by mistake was re-offered to
+          captains on every sync pass until someone drove to an empty field. */}
+      {onCancel !== undefined && canCancel(job) && (
+        <Pressable onPress={() => onCancel(job)} style={s.exit}>
+          <Text style={s.exitText}>{t('cancelJob', locale)}</Text>
+        </Pressable>
       )}
     </Card>
   );
@@ -86,6 +103,8 @@ interface CaptainCardProps {
   locale: Locale;
   onAccept: (job: Job) => void;
   onAdvance: (job: Job) => void;
+  /** Hand the job back, so it can reach another captain. */
+  onRelease?: ((job: Job) => void) | undefined;
 }
 
 /**
@@ -99,7 +118,13 @@ interface CaptainCardProps {
  * farmer's land record, and the RLS policies in the backend enforce the same
  * rule — a captain sees the geometry only once he has the job.
  */
-export function CaptainJobCard({ job, locale, onAccept, onAdvance }: CaptainCardProps) {
+export function CaptainJobCard({
+  job,
+  locale,
+  onAccept,
+  onAdvance,
+  onRelease,
+}: CaptainCardProps) {
   const service = SERVICE_BY_CODE.get(job.serviceCode);
   const incoming = job.status === 'searching';
 
@@ -143,6 +168,14 @@ export function CaptainJobCard({ job, locale, onAccept, onAdvance }: CaptainCard
           )}
         </View>
       )}
+
+      {/* A combine breaks. Without this the farmer waited on a machine that
+          was never coming, and the job could never reach anyone else. */}
+      {onRelease !== undefined && canRelease(job) && (
+        <Pressable onPress={() => onRelease(job)} style={s.exit}>
+          <Text style={s.exitText}>{t('releaseJob', locale)}</Text>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -170,6 +203,12 @@ const s = StyleSheet.create({
   captain: { ...type.body, color: colors.primary, marginTop: space.xs },
   queue: { ...type.body, color: colors.text, marginTop: space.xs },
   searchNote: { ...type.body, color: colors.textMuted, marginTop: space.xs },
+
+  // Deliberately not a Button. Ending a job is never the thing he came to
+  // do, and a full-width button next to "on my way" is a mis-tap waiting
+  // for a bumpy tractor seat.
+  exit: { alignSelf: 'flex-start', paddingVertical: space.sm, minHeight: TOUCH_MIN },
+  exitText: { ...type.label, color: colors.textMuted },
   amount: { ...type.body, fontSize: 20, color: colors.good, marginTop: space.xs },
   empty: { ...type.body, color: colors.textMuted, lineHeight: 25 },
 

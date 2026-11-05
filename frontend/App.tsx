@@ -26,7 +26,9 @@ import * as Notifications from 'expo-notifications';
 import {
   acceptJob,
   addJob,
+  cancelJob,
   loadJobs,
+  releaseJob,
   updateJob,
   type Job,
   type JobStatus,
@@ -44,7 +46,9 @@ import {
   acceptJobRemote,
   amIAdmin,
   syncFields,
+  cancelJobRemote,
   fetchRateGuidance,
+  releaseJobRemote,
   syncJobs,
   syncProfile,
 } from './src/sync/sync';
@@ -341,6 +345,57 @@ export default function App() {
     }
   };
 
+  /**
+   * Getting out of a job.
+   *
+   * One function for both because only three things differ: who is asking,
+   * which server call, and what the local store does afterwards. The shape
+   * is the same and so are the two things that matter — ask first, because a
+   * mis-tap in a field cancels a harvest, and never move the local job
+   * unless the server agreed.
+   */
+  const exitJob = (job: Job, kind: 'cancel' | 'release') => {
+    const cancelling = kind === 'cancel';
+    Alert.alert(
+      t(cancelling ? 'cancelJobAsk' : 'releaseJobAsk', locale),
+      undefined,
+      [
+        { text: t('keepIt', locale), style: 'cancel' },
+        {
+          text: t(cancelling ? 'cancelJob' : 'releaseJob', locale),
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              if (signedIn) {
+                const outcome = cancelling
+                  ? await cancelJobRemote(job.id)
+                  : await releaseJobRemote(job.id);
+
+                // Already underway. A button cannot settle that, and
+                // pretending it worked would leave him expecting no machine.
+                if (outcome === 'too-late') {
+                  Alert.alert(t('tooLateToStop', locale));
+                  if (profile !== null) void syncJobs(await loadJobs(), profile).then(setJobs);
+                  return;
+                }
+                if (outcome !== 'done') {
+                  Alert.alert(t('exitFailed', locale));
+                  return;
+                }
+              }
+
+              const updated = cancelling ? await cancelJob(job.id) : await releaseJob(job.id);
+              setJobs(updated);
+              if (signedIn && profile !== null) {
+                void syncJobs(updated, profile).then(setJobs);
+              }
+            })();
+          },
+        },
+      ],
+    );
+  };
+
   const claimJob = async (job: Job) => {
     if (profile === null) return;
 
@@ -454,6 +509,8 @@ export default function App() {
                 onBookWork={() => setScreen({ name: 'book' })}
                 onAcceptJob={(job) => void claimJob(job)}
                 onAdvanceJob={(job) => void advanceJob(job)}
+                onCancelJob={(job) => exitJob(job, 'cancel')}
+                onReleaseJob={(job) => exitJob(job, 'release')}
                 onEditProfile={() => setScreen({ name: 'onboarding' })}
                 onToggleOnline={() => {
                   void (async () => {

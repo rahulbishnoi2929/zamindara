@@ -18,6 +18,10 @@ interface Props {
   onBookWork: () => void;
   onAcceptJob: (job: Job) => void;
   onAdvanceJob: (job: Job) => void;
+  /** The farmer withdraws his own job. */
+  onCancelJob: (job: Job) => void;
+  /** The captain hands a job back, so it can reach someone else. */
+  onReleaseJob: (job: Job) => void;
   onEditProfile: () => void;
   onToggleOnline: () => void;
   onOpenFieldTest: () => void;
@@ -41,6 +45,8 @@ export function HomeScreen({
   onBookWork,
   onAcceptJob,
   onAdvanceJob,
+  onCancelJob,
+  onReleaseJob,
   onEditProfile,
   onToggleOnline,
   onOpenFieldTest,
@@ -141,6 +147,7 @@ export function HomeScreen({
                     locale={locale}
                     onAccept={onAcceptJob}
                     onAdvance={onAdvanceJob}
+                    onRelease={onReleaseJob}
                   />
                 ))}
               </>
@@ -156,6 +163,7 @@ export function HomeScreen({
                     locale={locale}
                     onAccept={onAcceptJob}
                     onAdvance={onAdvanceJob}
+                    onRelease={onReleaseJob}
                   />
                 ))}
               </>
@@ -203,6 +211,7 @@ export function HomeScreen({
                     locale={locale}
                     position={slot?.position}
                     etaAt={slot?.startsAt}
+                    onCancel={onCancelJob}
                   />
                 );
               })

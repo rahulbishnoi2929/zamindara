@@ -151,6 +151,60 @@ export function completedRates(jobs: readonly Job[], serviceCode: string): numbe
     .map((j) => (j.finalAmount! - j.travelCharge) / fromSqm(j.areaSqm, 'killa'));
 }
 
+/**
+ * Who may still get out of a job, and until when.
+ *
+ * Both stop at 'in_progress'. A machine is in the field and diesel has been
+ * burned; what is being asked for then is a settlement, and no button can
+ * decide one. Mirrors the guards in cancel_job and release_job — the
+ * database refuses it either way, this only keeps the button from appearing.
+ */
+const EXITABLE: ReadonlySet<JobStatus> = new Set<JobStatus>([
+  'searching',
+  'accepted',
+  'en_route',
+]);
+
+/** The farmer no longer wants the work done. */
+export const canCancel = (job: Job): boolean => EXITABLE.has(job.status);
+
+/** The captain cannot do it — but the farmer still wants it done. */
+export const canRelease = (job: Job): boolean =>
+  job.status === 'accepted' || job.status === 'en_route';
+
+export async function cancelJob(jobId: string): Promise<Job[]> {
+  const jobs = await loadJobs();
+  return writeAll(
+    jobs.map((j) =>
+      j.id === jobId && canCancel(j)
+        ? { ...j, status: 'cancelled' as JobStatus, synced: false }
+        : j,
+    ),
+  );
+}
+
+/**
+ * Back to searching, and unassigned. Not cancelled: his breakdown is not
+ * the farmer's cancellation, and the job should go back on the market.
+ */
+export async function releaseJob(jobId: string): Promise<Job[]> {
+  const jobs = await loadJobs();
+  return writeAll(
+    jobs.map((j) =>
+      j.id === jobId && canRelease(j)
+        ? {
+            ...j,
+            status: 'searching' as JobStatus,
+            captainName: null,
+            acceptedAt: null,
+            offeredCount: null,
+            synced: false,
+          }
+        : j,
+    ),
+  );
+}
+
 export const isLive = (job: Job): boolean =>
   job.status !== 'completed' && job.status !== 'cancelled';
 

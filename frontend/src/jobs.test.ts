@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { completedRates, searchState, type Job } from './jobs';
+import { canCancel, canRelease, completedRates, searchState, type Job } from './jobs';
 
 const job: Job = {
   id: 'j1',
@@ -92,5 +92,29 @@ describe('completedRates', () => {
         'wheat_harvest',
       ),
     ).toEqual([1000, 800]);
+  });
+});
+
+describe('who may get out of a job', () => {
+  const at = (status: Job['status']): Job => ({ ...job, status });
+
+  it('lets the farmer withdraw until the machine starts', () => {
+    expect(['searching', 'accepted', 'en_route'].map((st) => canCancel(at(st as Job['status']))))
+      .toEqual([true, true, true]);
+  });
+
+  it('lets the captain hand back only work he took and has not started', () => {
+    expect(canRelease(at('searching'))).toBe(false); // not his yet
+    expect(canRelease(at('accepted'))).toBe(true);
+    expect(canRelease(at('en_route'))).toBe(true);
+  });
+
+  it('gives neither of them a button once the machine is in the field', () => {
+    // Diesel has been burned. What is being asked for then is a settlement,
+    // and the database refuses it either way — this only hides the button.
+    for (const status of ['in_progress', 'completed', 'cancelled'] as const) {
+      expect(canCancel(at(status))).toBe(false);
+      expect(canRelease(at(status))).toBe(false);
+    }
   });
 });
