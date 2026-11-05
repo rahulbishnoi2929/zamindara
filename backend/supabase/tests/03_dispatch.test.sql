@@ -13,7 +13,7 @@
 --     it is still searching
 
 begin;
-select plan(20);
+select plan(24);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures — same helpers as 02_guarantees.
@@ -346,6 +346,102 @@ select is(
   public.dispatch_job('dddddddd-dddd-dddd-dddd-dddddddddddd'),
   1,
   'and is offered the moment a captain comes online, instead of sitting forever'
+);
+
+-- ===========================================================================
+-- Rate guidance
+--
+-- The promise on the farmer's posting screen is that the suggested rate
+-- "comes from what has actually been paid nearby, never from a number the
+-- platform invented". It was ordering by quoted_rate — the number the
+-- platform invented. Guidance learned from its own guesses, so it could
+-- never fall, and a farmer who talked 1200 down to 900 still handed 1200 to
+-- the next farmer. These are the assertions that tell the two apart.
+-- ===========================================================================
+select tests.act_as_admin();
+
+-- One killa each, so the realised rate is the money itself and the
+-- arithmetic under test stays visible.
+insert into public.jobs (
+  farmer_id, field_id, service_id, captain_id, area_sqm, status,
+  is_immediate, quoted_rate, quoted_unit, final_amount, completed_at
+)
+select '11111111-1111-1111-1111-111111111111', f.id,
+       (select id from public.services where code = 'wheat_harvest'),
+       '33333333-3333-3333-3333-333333333333',
+       4046.8564224, 'completed', true, 1200, 'per_killa', paid, now()
+from public.fields f, (values (800), (900), (1000)) as v(paid)
+where f.name = 'Nehar wala khet';
+
+select is(
+  (select low from public.rate_guidance(
+    (select id from public.services where code = 'wheat_harvest'),
+    (select extensions.st_y(centroid::extensions.geometry)
+     from public.fields where name = 'Nehar wala khet'),
+    (select extensions.st_x(centroid::extensions.geometry)
+     from public.fields where name = 'Nehar wala khet')
+  )),
+  850.00::numeric,
+  'guidance reports what was paid, not the 1200 every one of them was quoted'
+);
+
+select is(
+  (select sample_size from public.rate_guidance(
+    (select id from public.services where code = 'wheat_harvest'),
+    (select extensions.st_y(centroid::extensions.geometry)
+     from public.fields where name = 'Nehar wala khet'),
+    (select extensions.st_x(centroid::extensions.geometry)
+     from public.fields where name = 'Nehar wala khet')
+  )),
+  3,
+  'and counts the jobs it drew that from'
+);
+
+-- Travel is a charge for distance, not a rate for work. Folding it in would
+-- make every far field look like an expensive one.
+insert into public.jobs (
+  farmer_id, field_id, service_id, captain_id, area_sqm, status,
+  is_immediate, quoted_rate, quoted_unit, final_amount, travel_charge, completed_at
+)
+select '11111111-1111-1111-1111-111111111111', f.id,
+       (select id from public.services where code = 'wheat_harvest'),
+       '33333333-3333-3333-3333-333333333333',
+       4046.8564224, 'completed', true, 1200, 'per_killa', 1100, 200, now()
+from public.fields f where f.name = 'Nehar wala khet';
+
+select is(
+  (select high from public.rate_guidance(
+    (select id from public.services where code = 'wheat_harvest'),
+    (select extensions.st_y(centroid::extensions.geometry)
+     from public.fields where name = 'Nehar wala khet'),
+    (select extensions.st_x(centroid::extensions.geometry)
+     from public.fields where name = 'Nehar wala khet')
+  )),
+  925.00::numeric,
+  'travel money is not mistaken for a work rate'
+);
+
+-- A job marked complete with no amount named is not evidence of anything.
+insert into public.jobs (
+  farmer_id, field_id, service_id, captain_id, area_sqm, status,
+  is_immediate, quoted_rate, quoted_unit, completed_at
+)
+select '11111111-1111-1111-1111-111111111111', f.id,
+       (select id from public.services where code = 'wheat_harvest'),
+       '33333333-3333-3333-3333-333333333333',
+       4046.8564224, 'completed', true, 1200, 'per_killa', now()
+from public.fields f where f.name = 'Nehar wala khet';
+
+select is(
+  (select sample_size from public.rate_guidance(
+    (select id from public.services where code = 'wheat_harvest'),
+    (select extensions.st_y(centroid::extensions.geometry)
+     from public.fields where name = 'Nehar wala khet'),
+    (select extensions.st_x(centroid::extensions.geometry)
+     from public.fields where name = 'Nehar wala khet')
+  )),
+  4,
+  'a job that was never paid does not vote'
 );
 
 select * from finish();

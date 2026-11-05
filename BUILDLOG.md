@@ -13,18 +13,18 @@ Newest first, so the most recent work is always at the top. Each entry says what
 | | |
 |---|---|
 | **Phase** | Code done through 5. **Phase 1 field test never run — the gate was walked past.** See the revision at the top of BUILD_PLAN. |
-| **Tests** | 187 unit (122 packages + 65 app) + **93 database assertions**, all green in CI |
+| **Tests** | 192 unit (122 packages + 70 app) + **97 database assertions**, all green in CI |
 | **App** | **Installable release APK built** — 70 MB, `com.zamindara.app`, targetSdk 36 |
 | **Not yet done** | Never run on a physical device; sync never run against a hosted Supabase project |
 | **Blocking next step** | Setup: Maps key, hosted Supabase project, `expo prebuild` + APK, a phone, a 50 m tape |
 | **Repo** | [rahulbishnoi2929/zamindara](https://github.com/rahulbishnoi2929/zamindara) — private, CI green |
-| **Backend** | ✅ **Schema verified.** 12 migrations apply; all three guarantees hold. |
+| **Backend** | ✅ **Schema verified.** 14 migrations apply; all three guarantees hold. |
 
 ```
 C:\Zamidara\
 ├── docs\              12 product and engineering documents
 ├── frontend\          Expo SDK 57 Android app — 65 tests
-├── backend\supabase\  14 migrations, RLS, dispatch functions — 93 assertions
+├── backend\supabase\  14 migrations, RLS, dispatch functions — 97 assertions
 ├── packages\          units · geo · catalog · pricing · scheduling — 122 tests
 └── assets\            logo
 ```
@@ -46,11 +46,35 @@ The most useful part of this log. Each of these was believed, written down, then
 | 7 | The backend SQL was carefully reviewed and probably sound | **Two bugs, both fatal to dispatch** | Reading SQL is not running it. Three sessions of review missed an enum cast that killed every accept, and a guard that told the losing captain he was never asked. CI found both in twenty minutes. |
 | 6 | Reject GPS fixes moving faster than walking pace | That rejected **150 of 196 honest fixes** | Two fixes 1 s apart, each ±5 m, can sit 10 m apart while the walker barely moved. Now subtracts the admitted error budget first. |
 
+| 9 | Rate guidance was finished — the function existed and the screen read it | **It learned from its own guesses, and no farmer could ever see it** | `rate_guidance` ordered by `quoted_rate`, the number the platform invented, so a rate talked down from ₹1200 to ₹900 still fed ₹1200 to the next farmer and the guide could only rise. And nothing in the app called it: the screen read the farmer's *own* history, which for a first-time farmer is empty. Now derived from `final_amount`, and actually called. |
+
 **Rule that came out of this:** when a measurement contradicts a plan, the measurement wins. It is written into [BUILD_PLAN](docs/BUILD_PLAN.md#standing-rules).
 
 ---
 
 # Entries
+
+## 33 · The rate guide was quoting itself
+
+**Asked:** solve the bugs, then start building.
+
+Traced the money — post, accept, complete, what the next farmer is then told. Three bugs, all on that path, all invisible to the suite because nothing tested the end of it.
+
+**1 · Guidance learned from its own guesses.** `rate_guidance` took the percentiles of **`quoted_rate`** — the number the platform suggested — not of the money. So a farmer who was shown ₹1200 and settled at ₹900 still fed ₹1200 into the next farmer's guide. Nothing it ever said came from money changing hands, and the guide could only rise. The posting screen says, in a comment I had written myself: *"Guidance comes from what has actually been paid nearby, never from a number the platform invented."* It was the number the platform invented.
+
+Now `(final_amount − travel_charge) / killa`, in the SQL and in `completedRates` identically. Travel comes off first because it is a charge for distance, not a rate for work — leave it in and every far field looks like an expensive one. A job completed with no amount named does not vote.
+
+**2 · No farmer could ever have seen it.** `rate_guidance` was **never called**. The screen computed guidance from `history` — the farmer's *own* jobs — which needs three completed per-killa jobs of the same service on his own phone. Every farmer in April has none, so the price estimate simply never appeared. Same shape as the verification gap in entry 29: a built, tested, correct server function with no caller. Its signature took a PostGIS `geography`, which supabase-js cannot send — so it was not callable from a phone even in principle. Now lat/lng, called with the field's centroid, with his own history still the offline fallback.
+
+**3 · The completion sheet held the previous job's money.** `CompleteJobSheet` was mounted permanently with `job={completing}`, usually null. `useState` runs once, so the prefill never arrived — and after one completion the amount field kept the **last job's number**, one tap from being recorded as what was taken for this one. Fixed by mounting it only while a job is being closed, which also let the null branches inside it go.
+
+**Four new database assertions**, the ones that tell a quote from a payment: three jobs all quoted ₹1200 and paid ₹800/₹900/₹1000 must report ₹850, travel must not be read as rate, an unpaid job must not vote. There were **no assertions on `rate_guidance` at all** — that is why it lived.
+
+**Verified:** 192 unit tests (5 new), 97 database assertions, typecheck clean across 6 packages, 828 modules bundling, CI green on all three jobs.
+
+**Migrations edited in place** rather than added: nothing is deployed yet (SETUP step 4), and CI drops and reapplies from scratch. Once there is a hosted project this stops being allowed.
+
+---
 
 ## 32 · "Finding a captain" now says whether anyone was asked
 

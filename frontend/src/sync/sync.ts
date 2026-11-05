@@ -1,3 +1,4 @@
+import type { RateGuidance } from '@zamindara/pricing';
 import { isBackendConfigured, supabase } from '../supabase';
 import { currentSession } from '../auth';
 import type { Job, JobStatus } from '../jobs';
@@ -585,6 +586,49 @@ export async function setCaptainVerification(
     p_status: status,
   });
   return error === null;
+}
+
+/**
+ * What the district has actually been paying for this work, near this field.
+ *
+ * The farmer's own phone only knows his own jobs, and a first-time farmer —
+ * which every farmer is in April — has none. So the number that matters is
+ * the district's, and only the server can see it: `rate_guidance` is
+ * `security definer` precisely so a farmer gets the percentiles without
+ * being able to read anyone else's jobs.
+ *
+ * Null when offline, unconfigured, or too thin a sample to be honest. The
+ * caller falls back to his own history, which is better than inventing one.
+ */
+export async function fetchRateGuidance(
+  serviceCode: string,
+  at: { lat: number; lng: number },
+): Promise<RateGuidance | null> {
+  if (!isBackendConfigured()) return null;
+
+  const maps = await loadCatalog();
+  const serviceId = maps?.serviceId(serviceCode);
+  if (serviceId === undefined) return null;
+
+  const { data, error } = await supabase.rpc('rate_guidance', {
+    p_service_id: serviceId,
+    p_lat: at.lat,
+    p_lng: at.lng,
+  });
+  if (error !== null) return null;
+
+  // Returns a one-row table, so supabase-js hands back an array.
+  const row = (Array.isArray(data) ? data[0] : data) as Record<string, unknown> | undefined;
+  if (row === undefined || row === null) return null;
+
+  const low = Number(row['low']);
+  const high = Number(row['high']);
+  const sampleSize = Number(row['sample_size']);
+  // Same floor as the local path: below a handful of jobs a "typical rate"
+  // is one man's opinion dressed up as data.
+  if (!Number.isFinite(low) || !Number.isFinite(high) || sampleSize < 3) return null;
+
+  return { low, high, sampleSize };
 }
 
 /** Is this user staff? Decides whether the verify queue is offered at all. */

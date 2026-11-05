@@ -75,7 +75,7 @@ create index jobs_active_idx on public.jobs (status, created_at)
 
 -- Feeds the rate guidance shown to farmers.
 create index jobs_completed_rates_idx on public.jobs (service_id, completed_at desc)
-  where status = 'completed' and quoted_rate is not null;
+  where status = 'completed' and final_amount is not null;
 
 create trigger jobs_touch
   before update on public.jobs

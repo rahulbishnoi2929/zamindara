@@ -44,6 +44,7 @@ import {
   acceptJobRemote,
   amIAdmin,
   syncFields,
+  fetchRateGuidance,
   syncJobs,
   syncProfile,
 } from './src/sync/sync';
@@ -544,6 +545,7 @@ export default function App() {
                 fields={fields}
                 history={jobs}
                 village={profile.village}
+                fetchGuidance={signedIn ? fetchRateGuidance : undefined}
                 onPost={(job) => {
                   void addJob(job).then((added) => {
                     setJobs(added);
@@ -619,19 +621,23 @@ export default function App() {
                 onBack={() => setScreen({ name: 'test' })}
               />
             )}
-            <CompleteJobSheet
-              job={completing}
-              locale={locale}
-              captainRate={
-                completing === null || profile === null
-                  ? null
-                  : profile.rates.find(
-                      (r) => r.serviceCode === completing.serviceCode,
-                    )?.rate ?? null
-              }
-              onComplete={(amount, payment) => void finishJob(amount, payment)}
-              onCancel={() => setCompleting(null)}
-            />
+            {/* Mounted only while a job is being closed out. Kept mounted,
+                its amount field held the *previous* job's number: useState
+                runs once, so the prefill never arrived and then never
+                cleared. One tap away from recording the wrong money. */}
+            {completing !== null && (
+              <CompleteJobSheet
+                job={completing}
+                locale={locale}
+                captainRate={
+                  profile?.rates.find(
+                    (r) => r.serviceCode === completing.serviceCode,
+                  )?.rate ?? null
+                }
+                onComplete={(amount, payment) => void finishJob(amount, payment)}
+                onCancel={() => setCompleting(null)}
+              />
+            )}
           </>
         )}
       </SafeAreaView>

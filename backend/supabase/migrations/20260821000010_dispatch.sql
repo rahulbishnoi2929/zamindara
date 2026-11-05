@@ -201,9 +201,14 @@ $fn$;
 
 -- Rate guidance: a range from recent nearby work, never a single number.
 -- The platform takes no position on price; it only shows what has been paid.
+-- Lat/lng rather than a geography, because the caller is a phone: this is
+-- the one guidance query the app itself makes, and supabase-js cannot pass a
+-- PostGIS type. Nothing in SQL calls it, so there is no second signature to
+-- keep.
 create or replace function public.rate_guidance(
   p_service_id uuid,
-  p_near       geography,
+  p_lat        double precision,
+  p_lng        double precision,
   p_radius_km  numeric default 20,
   p_days       integer default 120
 )
@@ -213,18 +218,35 @@ stable
 security definer
 set search_path = public, extensions
 as $fn$
+  -- The rate that was actually realised, not the one we predicted. Reading
+  -- quoted_rate here made guidance learn from its own guesses: a farmer who
+  -- negotiated 1200 down to 900 still fed 1200 to the next farmer, so the
+  -- guide could never fall and nothing it said came from money changing
+  -- hands. final_amount is what was taken; travel is subtracted because it
+  -- is a distance charge, not a work rate, and 4046.8564224 m² is one killa.
   select
-    percentile_cont(0.25) within group (order by j.quoted_rate)::numeric(10,2),
-    percentile_cont(0.75) within group (order by j.quoted_rate)::numeric(10,2),
+    percentile_cont(0.25) within group (
+      order by (j.final_amount - j.travel_charge) / (j.area_sqm / 4046.8564224)
+    )::numeric(10,2),
+    percentile_cont(0.75) within group (
+      order by (j.final_amount - j.travel_charge) / (j.area_sqm / 4046.8564224)
+    )::numeric(10,2),
     count(*)::integer
   from public.jobs j
   join public.fields f on f.id = j.field_id
   where j.service_id = p_service_id
     and j.status = 'completed'
-    and j.quoted_rate is not null
+    and j.final_amount is not null
+    -- A job that ended with no money named, or at less than the travel to
+    -- reach it, says nothing about the going rate.
+    and j.final_amount > j.travel_charge
     and j.quoted_unit = 'per_killa'
     and j.completed_at > now() - make_interval(days => p_days)
-    and extensions.st_dwithin(f.centroid, p_near, p_radius_km * 1000);
+    and extensions.st_dwithin(
+      f.centroid,
+      extensions.st_setsrid(extensions.st_makepoint(p_lng, p_lat), 4326)::geography,
+      p_radius_km * 1000
+    );
 $fn$;
 
 -- ---------------------------------------------------------------------------

@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { PricingUnit } from '@zamindara/catalog';
+import { fromSqm } from '@zamindara/units';
 
 /**
  * Jobs, stored locally.
@@ -122,7 +123,18 @@ export async function acceptJob(
   return { jobs: await writeAll(jobs.map((j) => (j.id === jobId ? claimed : j))), accepted: claimed };
 }
 
-/** Rates actually paid for a service, newest first. Feeds rate guidance. */
+/**
+ * Rates actually realised for a service, newest first. Feeds rate guidance.
+ *
+ * Derived from the money, never from `quotedRate`. Reading the quote made
+ * guidance learn from its own guesses: a farmer who talked ₹1200 down to
+ * ₹900 still handed ₹1200 to the next farmer, so the guide could only ever
+ * rise. Travel comes off first — it is a charge for distance, not a rate for
+ * work, and leaving it in makes every far field look like an expensive one.
+ *
+ * Mirrors public.rate_guidance in backend/supabase/migrations deliberately:
+ * the phone must say the same thing offline as the server says online.
+ */
 export function completedRates(jobs: readonly Job[], serviceCode: string): number[] {
   return jobs
     .filter(
@@ -130,10 +142,13 @@ export function completedRates(jobs: readonly Job[], serviceCode: string): numbe
         j.serviceCode === serviceCode &&
         j.status === 'completed' &&
         j.quotedUnit === 'per_killa' &&
-        j.quotedRate !== null,
+        j.finalAmount !== null &&
+        // Nothing named, or less than the travel to reach it, says nothing
+        // about the going rate.
+        j.finalAmount > j.travelCharge,
     )
     .sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0))
-    .map((j) => j.quotedRate!);
+    .map((j) => (j.finalAmount! - j.travelCharge) / fromSqm(j.areaSqm, 'killa'));
 }
 
 export const isLive = (job: Job): boolean =>

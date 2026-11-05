@@ -1,7 +1,8 @@
 import { SERVICE_BY_CODE, servicesForMonth, type Service } from '@zamindara/catalog';
-import { quote, rateGuidance } from '@zamindara/pricing';
+import { quote, rateGuidance, type RateGuidance } from '@zamindara/pricing';
 import type { Locale } from '@zamindara/units';
-import { useMemo, useState } from 'react';
+import { centroidOf } from '@zamindara/geo';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AreaDisplay, Button, Card } from './components';
 import { t } from './i18n';
@@ -15,6 +16,14 @@ interface Props {
   fields: SavedField[];
   history: readonly Job[];
   village: string;
+  /**
+   * What the district has been paying, from the server. Absent offline or
+   * before sign-in, and that is the whole reason the local fallback stays.
+   */
+  fetchGuidance?: (
+    serviceCode: string,
+    at: { lat: number; lng: number },
+  ) => Promise<RateGuidance | null>;
   onPost: (job: Job) => void;
   onCancel: () => void;
 }
@@ -45,6 +54,7 @@ export function JobPostFlow({
   fields,
   history,
   village,
+  fetchGuidance,
   onPost,
   onCancel,
 }: Props) {
@@ -64,10 +74,33 @@ export function JobPostFlow({
 
   // Guidance comes from what has actually been paid nearby, never from a
   // number the platform invented.
-  const guidance = useMemo(
+  //
+  // His own completed jobs are the offline floor, and for a first-time
+  // farmer they are empty — so the district's number is the one that
+  // actually gets shown, and it has to come from the server.
+  const ownHistory = useMemo(
     () => (service === null ? null : rateGuidance(completedRates(history, service.code))),
     [history, service],
   );
+  const [nearby, setNearby] = useState<RateGuidance | null>(null);
+
+  useEffect(() => {
+    setNearby(null);
+    if (service === null || field === null || fetchGuidance === undefined) return;
+    if (field.polygon.length === 0) return;
+
+    let live = true;
+    void fetchGuidance(service.code, centroidOf(field.polygon)).then((g) => {
+      if (live) setNearby(g);
+    });
+    // A stale rate for the previous service is worse than none: he is about
+    // to agree a price against it.
+    return () => {
+      live = false;
+    };
+  }, [service, field, fetchGuidance]);
+
+  const guidance = nearby ?? ownHistory;
 
   const estimate = useMemo(() => {
     if (field === null || service === null || guidance === null) return null;

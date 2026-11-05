@@ -9,7 +9,8 @@ import type { Job, PaymentMode } from './jobs';
 import { colors, radius, space, TOUCH_MIN, type } from './theme';
 
 interface Props {
-  job: Job | null;
+  /** Non-null: the parent mounts this only while a job is being closed. */
+  job: Job;
   locale: Locale;
   /** The captain's own rate for this work, if he set one. */
   captainRate: number | null;
@@ -43,7 +44,7 @@ export function CompleteJobSheet({
   onCancel,
 }: Props) {
   const suggested = useMemo(() => {
-    if (job === null || captainRate === null) return null;
+    if (captainRate === null) return null;
     const q = quote({
       areaSqm: job.areaSqm,
       rate: captainRate,
@@ -58,8 +59,6 @@ export function CompleteJobSheet({
     suggested === null ? '' : String(Math.round(suggested)),
   );
   const [payment, setPayment] = useState<PaymentMode>('cash');
-
-  if (job === null) return null;
 
   const service = SERVICE_BY_CODE.get(job.serviceCode);
   const value = Number(amount.replace(/[^\d.]/g, ''));
