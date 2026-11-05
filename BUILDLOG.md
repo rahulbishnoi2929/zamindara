@@ -76,6 +76,8 @@ Note what that changes: the farmer posted against **district guidance**, a range
 
 **10 new assertions** in a new `06_pricing.test.sql`: the captain in the next village is charged nothing, the combine 30 km out is paid for coming, the charge is exactly the kilometres past the free five at the machine's own rate, the total is the work plus the drive, an hourly job says it cannot say yet, and accepting writes all of it onto the job.
 
+**And CI caught my own assertion.** The one checking "exactly the kilometres beyond the free five, at the machine's own rate" hardcoded **₹40** — the column default — while a combine is **₹60/km**. It wanted ₹1,354.40 and the code produced ₹2,031.60. The code was right; the expectation was wrong, and in exactly the way the sentence beside it warned against. Now read from the catalogue.
+
 **Verified:** 199 unit tests, **128 database assertions**, typecheck clean across 6 packages, 828 modules bundling, CI green on all three jobs.
 
 **Audit result, for the record.** The remaining uncalled things are uncalled correctly: `job_events` is written by a trigger and read out-of-band when a dispute needs evidence; `admins` is reached only through `is_admin()`; `regions` is read by `quote_job` and by RLS, not by the app. The family entry 35 described is closed.

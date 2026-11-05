@@ -159,11 +159,17 @@ select is(
     (select id from public.services where code = 'wheat_harvest'),
     '33333333-3333-3333-3333-333333333333'
   )),
-  (select round(greatest(distance_km - 5, 0) * 40, 2) from public.quote_job(
-    (select id from public.fields where name = 'Nehar wala khet'),
-    (select id from public.services where code = 'wheat_harvest'),
-    '33333333-3333-3333-3333-333333333333'
-  )),
+  -- The machine's own rate, read from the catalogue rather than written in
+  -- here. A combine is ₹60/km and the column default is ₹40; hardcoding the
+  -- default made this assertion pass for the wrong reason until CI caught it.
+  (select round(greatest(q.distance_km - 5, 0) * mt.travel_rate_per_km, 2)
+   from public.quote_job(
+     (select id from public.fields where name = 'Nehar wala khet'),
+     (select id from public.services where code = 'wheat_harvest'),
+     '33333333-3333-3333-3333-333333333333'
+   ) q
+   join public.services s on s.code = 'wheat_harvest'
+   join public.machine_types mt on mt.id = s.machine_type_id),
   'exactly the kilometres beyond the free five, at the machine''s own rate'
 );
 
