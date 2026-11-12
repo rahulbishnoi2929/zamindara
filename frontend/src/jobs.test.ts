@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   canCancel,
+  isLive,
   canRelease,
   completedRates,
   ratingAsk,
@@ -153,5 +154,22 @@ describe('ratingAsk', () => {
     // Two-way reputation is a Phase 7 question and buys dispatch nothing:
     // the farmer is not ranked by anything.
     expect(ratingAsk(done, true)).toBeNull();
+  });
+});
+
+describe('a lapsed job', () => {
+  const lapsed: Job = { ...job, status: 'expired' };
+
+  it('is not live, so it leaves the list of things still happening', () => {
+    expect(isLive(lapsed)).toBe(false);
+  });
+
+  it('offers no way out, because there is nothing left to get out of', () => {
+    expect(canCancel(lapsed)).toBe(false);
+    expect(canRelease(lapsed)).toBe(false);
+  });
+
+  it('stops claiming to be looking for a captain', () => {
+    expect(searchState(lapsed)).toBeNull();
   });
 });

@@ -252,9 +252,27 @@ describe('jobFromWire', () => {
     expect(j.distanceKm).toBe(2.5);
   });
 
-  it('drops statuses the phone has no honest representation of', () => {
+  it('drops a status the phone has no honest representation of', () => {
+    // A draft was never posted, so there is nothing for a farmer to see.
     expect(jobFromWire({ ...base, status: 'draft' }, 'wheat_harvest', '', '', null, null, null, null)).toBeNull();
-    expect(jobFromWire({ ...base, status: 'expired' }, 'wheat_harvest', '', '', null, null, null, null)).toBeNull();
+  });
+
+  it('keeps a lapsed job rather than making it vanish', () => {
+    // 'expired' used to be dropped here too. That made a request the farmer
+    // posted disappear from his list with no explanation — worse than the
+    // "finding a captain" it replaced, and it hid the one fact he needed:
+    // no captain was free that day.
+    const j = jobFromWire(
+      { ...base, status: 'expired' },
+      'wheat_harvest',
+      'Nehar wala khet',
+      'Roshan Wala',
+      null,
+      null,
+      null,
+      null,
+    );
+    expect(j?.status).toBe('expired');
   });
 
   it('drops a service this build cannot name', () => {

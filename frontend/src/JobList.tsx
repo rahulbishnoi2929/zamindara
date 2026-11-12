@@ -20,6 +20,7 @@ const STATUS_KEY: Record<JobStatus, StringKey> = {
   in_progress: 'statusInProgress',
   completed: 'statusCompleted',
   cancelled: 'statusCancelled',
+  expired: 'statusExpired',
 };
 
 const STATUS_COLOR: Record<JobStatus, string> = {
@@ -29,6 +30,8 @@ const STATUS_COLOR: Record<JobStatus, string> = {
   in_progress: colors.primary,
   completed: colors.good,
   cancelled: colors.textMuted,
+  // Not red. Nobody did anything wrong — no machine was free that day.
+  expired: colors.textMuted,
 };
 
 interface FarmerCardProps {
@@ -88,6 +91,13 @@ export function FarmerJobCard({
 
       {job.finalAmount !== null && (
         <Text style={s.amount}>{`₹${Math.round(job.finalAmount)}`}</Text>
+      )}
+
+      {/* A lapsed request needs a sentence, not just a label. "Finding a
+          captain" ran for three days and then stopped; without this he is
+          left to work out why by himself. */}
+      {job.status === 'expired' && (
+        <Text style={s.lapsed}>{t('expiredWhy', locale)}</Text>
       )}
 
       {/* Asked once, on the card, right after the work is done — which is
@@ -253,6 +263,7 @@ const s = StyleSheet.create({
   // Deliberately not a Button. Ending a job is never the thing he came to
   // do, and a full-width button next to "on my way" is a mis-tap waiting
   // for a bumpy tractor seat.
+  lapsed: { ...type.body, color: colors.textMuted, marginTop: space.xs, lineHeight: 24 },
   breakdown: { ...type.label, fontWeight: '400', color: colors.textMuted, marginTop: space.xs },
   rateRow: { marginTop: space.sm },
   rateAsk: { ...type.label, color: colors.textMuted },

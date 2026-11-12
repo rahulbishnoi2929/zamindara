@@ -13,18 +13,18 @@ Newest first, so the most recent work is always at the top. Each entry says what
 | | |
 |---|---|
 | **Phase** | Code done through 5. **Phase 1 field test never run — the gate was walked past.** See the revision at the top of BUILD_PLAN. |
-| **Tests** | 199 unit (122 packages + 77 app) + **128 database assertions**, all green in CI |
+| **Tests** | 203 unit (122 packages + 81 app) + **139 database assertions**, all green in CI |
 | **App** | Release APK builds (72 MB, `com.zamindara.app`, targetSdk 36). **Install once:** JS changes reach a phone over the air, or instantly from Metro during development. |
 | **Not yet done** | Never run on a physical device; sync never run against a hosted Supabase project |
 | **Blocking next step** | Setup: Maps key, hosted Supabase project, `expo prebuild` + APK, a phone, a 50 m tape |
 | **Repo** | [rahulbishnoi2929/zamindara](https://github.com/rahulbishnoi2929/zamindara) — private, CI green |
-| **Backend** | ✅ **Schema verified.** 15 migrations apply; all three guarantees hold. |
+| **Backend** | ✅ **Schema verified.** 16 migrations apply; all three guarantees hold. |
 
 ```
 C:\Zamidara\
 ├── docs\              12 product and engineering documents
 ├── frontend\          Expo SDK 57 Android app — 65 tests
-├── backend\supabase\  15 migrations, RLS, dispatch functions — 128 assertions
+├── backend\supabase\  16 migrations, RLS, dispatch functions — 139 assertions
 ├── packages\          units · geo · catalog · pricing · scheduling — 122 tests
 └── assets\            logo
 ```
@@ -55,6 +55,32 @@ The most useful part of this log. Each of these was believed, written down, then
 ---
 
 # Entries
+
+## 38 · The request that never died
+
+**Asked:** get started and continue.
+
+`expired` has been in the `job_status` enum since the **first migration**. The constraint permits it, the transition guard allows `searching → expired`, and the app had code to handle it. **Nothing ever set it.**
+
+So: a farmer asks for a combine tomorrow morning. Nobody takes it. Tomorrow comes and goes, and the job stays `searching` — forever. And because re-dispatch runs on every sync pass (entry 30) and push is wired (entry 31), that dead request keeps **ringing captains' phones about work from last week**. By late November the pool would be full of them, every captain's phone going off for harvests already done.
+
+That is precisely the failure `cancel_job` was built to stop — except cancelling needs a farmer to remember. A request for a day that has ended should lapse on its own.
+
+**One rule, and it fits in a sentence a farmer would accept: a request stands for the day it was wanted, and no longer.** `scheduled_date` for a booked job, the day it was posted for an immediate one. Nobody wants yesterday's harvest request quietly filled today.
+
+**No scheduler.** `expire_stale_jobs()` is time-based and idempotent, so it is safe for *any* signed-in client to call on *every* sync pass — and that is the mechanism rather than a waste. Whoever opens their app next keeps the pool clean. A function that writes other people's rows and is callable by anyone deserves the scrutiny, so: it can only move `searching → expired`, only for jobs whose day is already over, and no caller can name a job or expire one early. The clock decides. There is an assertion that a captain running it gets the same answer as the farmer, and one that an unauthenticated caller cannot run it at all. (`pg_cron` is the textbook home for this and is marked as the upgrade path; it needs enabling and scheduling, and expiring when someone next looks is enough for a district.)
+
+**It closes the offers too.** The open `job_dispatch` row *is* the stale ping — a captain sees pending offers in his feed whether or not anyone re-dispatches. Expiring the job without closing them would have fixed the symptom I could see and left the one he could.
+
+**Order matters, twice.** The sweep runs before the pull and before re-dispatch. After the pull, this pass would still ping captains about a job about to expire, and the farmer would see "finding a captain" for one more pass on a request that had already stopped standing.
+
+**And the app had to stop hiding it.** `jobFromWire` dropped `expired` along with `draft`, so a lapsed request would have **vanished from the farmer's list with no explanation** — worse than the "finding a captain" it replaced, and it hid the single fact he needs: *no captain was free that day.* Now a real local status, muted rather than red because nobody did anything wrong, with a sentence under it in all three languages.
+
+**Deliberately skipped:** a one-tap "ask again". His crop still needs cutting, but he already has a Book work button, and what a re-post should carry over is a November question, not a guess. Noted here so it is a decision rather than an omission.
+
+**Verified:** 203 unit tests (4 new), **139 database assertions** (11 new), typecheck clean across 6 packages, 828 modules bundling.
+
+---
 
 ## 37 · Install once, not once per change
 

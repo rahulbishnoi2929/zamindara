@@ -181,6 +181,12 @@ const strings = {
   statusEnRoute: { pa: 'ਰਸਤੇ ਵਿੱਚ', hi: 'रास्ते में', en: 'On the way' },
   statusInProgress: { pa: 'ਕੰਮ ਚੱਲ ਰਿਹਾ ਹੈ', hi: 'काम चल रहा है', en: 'Work in progress' },
   statusCompleted: { pa: 'ਪੂਰਾ ਹੋਇਆ', hi: 'पूरा हुआ', en: 'Completed' },
+  statusExpired: { pa: 'ਸਮਾਂ ਨਿਕਲ ਗਿਆ', hi: 'समय निकल गया', en: 'Lapsed' },
+  expiredWhy: {
+    pa: 'ਉਸ ਦਿਨ ਕੋਈ ਕੈਪਟਨ ਨਹੀਂ ਮਿਲਿਆ। ਲੋੜ ਹੋਵੇ ਤਾਂ ਨਵਾਂ ਕੰਮ ਪਾ ਦਿਓ।',
+    hi: 'उस दिन कोई कैप्टन नहीं मिला। ज़रूरत हो तो नया काम डाल दें।',
+    en: 'No captain was free that day. Post it again if you still need it.',
+  },
   statusCancelled: { pa: 'ਰੱਦ', hi: 'रद्द', en: 'Cancelled' },
   accept: { pa: 'ਹਾਂ, ਕਰਾਂਗਾ', hi: 'हाँ, करूँगा', en: 'Accept' },
   decline: { pa: 'ਨਹੀਂ', hi: 'नहीं', en: 'Decline' },

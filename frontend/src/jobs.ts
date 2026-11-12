@@ -20,7 +20,13 @@ export type JobStatus =
   | 'en_route'
   | 'in_progress'
   | 'completed'
-  | 'cancelled';
+  | 'cancelled'
+  /**
+   * Nobody took it and the day it was wanted has ended. Set by the server's
+   * expire_stale_jobs, never on the phone — the clock decides, and the
+   * phone's clock is not the one anyone agrees on.
+   */
+  | 'expired';
 
 export type JobWindow = 'morning' | 'afternoon' | 'evening' | 'any';
 export type PaymentMode = 'cash' | 'upi' | 'pending';
@@ -238,7 +244,7 @@ export async function rateJob(jobId: string, stars: number): Promise<Job[]> {
 }
 
 export const isLive = (job: Job): boolean =>
-  job.status !== 'completed' && job.status !== 'cancelled';
+  job.status !== 'completed' && job.status !== 'cancelled' && job.status !== 'expired';
 
 /** The order a captain works through his day. */
 export function sortForCaptain(jobs: readonly Job[]): Job[] {
@@ -249,6 +255,7 @@ export function sortForCaptain(jobs: readonly Job[]): Job[] {
     searching: 3,
     completed: 4,
     cancelled: 5,
+    expired: 6,
   };
   return [...jobs].sort(
     (a, b) => rank[a.status] - rank[b.status] || a.createdAt - b.createdAt,

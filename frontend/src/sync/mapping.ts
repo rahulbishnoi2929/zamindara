@@ -218,6 +218,10 @@ const LOCAL_STATUSES: ReadonlySet<string> = new Set([
   'in_progress',
   'completed',
   'cancelled',
+  // Used to be dropped here along with 'draft'. Dropping it made a lapsed
+  // request vanish from the farmer's list with no explanation, which is
+  // worse than the "finding a captain" it replaced.
+  'expired',
 ]);
 
 export interface WireJobInsert {
@@ -307,7 +311,7 @@ export function jobEditsToWire(job: Job): WireJobUpdate {
 
 /**
  * A server job becomes a local one. Null means the local model has no
- * honest representation — 'draft' and 'expired' do not exist on the phone —
+ * honest representation — 'draft' does not exist on the phone —
  * or the service is not in this build's catalogue, and a job we cannot
  * name is a job we cannot show.
  */

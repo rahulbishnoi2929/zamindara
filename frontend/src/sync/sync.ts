@@ -292,6 +292,9 @@ const STATUS_RANK: Record<JobStatus, number> = {
   in_progress: 3,
   completed: 4,
   cancelled: 4,
+  // An ending, like the other two: the phone must never push 'searching'
+  // back over a job the server has already let lapse.
+  expired: 4,
 };
 
 interface PulledJob {
@@ -460,6 +463,18 @@ export async function syncJobs(
   const maps = await loadCatalog();
   if (maps === null) return jobs;
 
+  // Lapse anything whose day has ended, before reading or offering anything.
+  //
+  // Order matters twice over: run after the pull and this pass would still
+  // ping captains about a job that is about to expire, and the farmer's
+  // screen would show "finding a captain" for one more pass on a request
+  // that has already stopped standing.
+  //
+  // Time-based and idempotent, so every client calling it on every pass is
+  // the mechanism rather than a waste — whoever opens their app next keeps
+  // the pool clean, and there is no scheduler to run.
+  await supabase.rpc('expire_stale_jobs');
+
   const pulled = await pullJobs(uid, profile.fullName, profile.village, isCaptain(profile));
   const serverById = new Map(pulled.map((p) => [p.row.id, p]));
 
@@ -513,7 +528,12 @@ export async function syncJobs(
   // up captains who have come online since.
   for (const job of jobs) {
     if (job.status !== 'searching' || !isUuid(job.id)) continue;
-    if (!serverById.has(job.id) && !pushed.has(job.id)) continue;
+    const known = serverById.get(job.id);
+    if (known === undefined && !pushed.has(job.id)) continue;
+    // The sweep above may have just let it lapse. The local copy still says
+    // 'searching' until the merge below, and dispatching an expired job is
+    // refused anyway — this skips a pointless round trip per stale job.
+    if (known !== undefined && known.row.status !== 'searching') continue;
     const { data: offered } = await supabase.rpc('dispatch_job', {
       p_job_id: job.id,
     });
