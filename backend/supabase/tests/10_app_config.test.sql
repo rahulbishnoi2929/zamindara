@@ -99,17 +99,22 @@ select is(
 -- district; if it could change latest_apk_url, it could hand everyone an
 -- APK of its choosing.
 -- ===========================================================================
-select throws_ok(
-  $$ update public.app_config set minimum_supported_version = '9.9.9' $$,
-  '42501',
-  null,
+-- Note the shape of these three. An UPDATE or DELETE with no permissive
+-- policy does not raise in Postgres — it matches zero rows and reports
+-- success. Only INSERT, which is checked with WITH CHECK, throws. So the
+-- assertion that means anything is that the row did not move.
+update public.app_config set minimum_supported_version = '9.9.9';
+
+select is(
+  (select minimum_supported_version from public.app_config),
+  '0.0.0',
   'a signed-in user cannot raise the floor and lock out every other phone'
 );
 
-select throws_ok(
-  $$ update public.app_config set latest_apk_url = 'https://example.invalid/evil.apk' $$,
-  '42501',
-  null,
+update public.app_config set latest_apk_url = 'https://example.invalid/evil.apk';
+
+select ok(
+  (select latest_apk_url is null from public.app_config),
   'nor point the district at an APK of his choosing'
 );
 
@@ -121,10 +126,11 @@ select throws_ok(
   'nor add a second configuration for the app to find'
 );
 
-select throws_ok(
-  $$ delete from public.app_config $$,
-  '42501',
-  null,
+delete from public.app_config;
+
+select is(
+  (select count(*)::int from public.app_config),
+  1,
   'nor delete the one that is there'
 );
 
