@@ -291,10 +291,22 @@ describe('jobEditsToWire', () => {
     });
     const wire = jobEditsToWire(done);
     expect(wire.status).toBe('completed');
-    expect(wire.completed_at).toBe(toIso(1729440000000));
     expect(wire.final_amount).toBe(1250);
     expect(wire.payment_mode).toBe('cash');
     expect(wire.quoted_rate).toBe(1100);
+  });
+
+  it("does not send when the work happened — that is the server's clock", () => {
+    // started_at and completed_at used to travel up stamped with Date.now().
+    // They are what a farmer and a captain argue about, so they cannot be
+    // one party's handset's word; the server stamps them on the status
+    // change and freezes them otherwise. Sending them would be sending
+    // something we know is thrown away.
+    const wire = jobEditsToWire(
+      job({ status: 'completed', startedAt: 1, completedAt: 2 }),
+    ) as unknown as Record<string, unknown>;
+    expect('started_at' in wire).toBe(false);
+    expect('completed_at' in wire).toBe(false);
   });
 });
 

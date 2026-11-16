@@ -266,8 +266,6 @@ export interface WireJobRow {
 
 export interface WireJobUpdate {
   status: JobStatus;
-  started_at: string | null;
-  completed_at: string | null;
   final_amount: number | null;
   payment_mode: PaymentMode | null;
   quoted_rate: number | null;
@@ -301,8 +299,11 @@ export function jobToWire(job: Job, serviceId: string): WireJobInsert | null {
 export function jobEditsToWire(job: Job): WireJobUpdate {
   return {
     status: job.status,
-    started_at: job.startedAt === null ? null : toIso(job.startedAt),
-    completed_at: job.completedAt === null ? null : toIso(job.completedAt),
+    // started_at and completed_at are deliberately absent. The server stamps
+    // them from its own clock when the status moves, and freezes them
+    // otherwise — they are what a farmer and a captain argue about, so they
+    // must not be one party's handset's word. Sending them anyway would be
+    // sending something we know is discarded.
     final_amount: job.finalAmount,
     payment_mode: job.paymentMode,
     quoted_rate: job.quotedRate,
