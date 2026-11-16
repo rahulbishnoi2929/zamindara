@@ -123,6 +123,20 @@ frontend/android/app/build/outputs/apk/release/app-release.apk
 > second command is there. The first build after a clean takes around 45
 > minutes; later ones are minutes.
 
+> **If the build stops with no error message**, ending partway through a
+> task list with no `BUILD FAILED` and no explanation, it ran out of
+> memory. The project sets `-Xmx2048m -XX:MaxMetaspaceSize=512m`, and a full
+> release build of this app exhausts that — the daemon dies mid-build, which
+> reads as a hang rather than a failure. Put this in the same
+> `~/.gradle/gradle.properties` as your signing values (that file takes
+> precedence over the project's):
+>
+> ```properties
+> org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m
+> ```
+>
+> Then `./gradlew --stop` before rebuilding, so the old daemon is replaced.
+
 **Watch for this line.** If the build prints
 
 ```
