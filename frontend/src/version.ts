@@ -20,6 +20,11 @@ export interface AppConfig {
   minimumSupportedVersion: string;
   /** Already picked for this user's language by the caller. */
   note: string | null;
+  /**
+   * True while there is no SMS provider: the sign-in screen says the code
+   * came from the founder, because no message is on its way.
+   */
+  founderCodeSignin: boolean;
 }
 
 export type UpdateState =

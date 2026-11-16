@@ -22,6 +22,7 @@ describe('updateState', () => {
     latestApkUrl: 'https://example.test/app.apk',
     minimumSupportedVersion: '0.1.0',
     note: null,
+    founderCodeSignin: true,
   };
 
   it('says nothing when the phone is current', () => {

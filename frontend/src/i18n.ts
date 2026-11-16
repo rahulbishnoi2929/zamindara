@@ -32,6 +32,24 @@ const strings = {
   sendCode: { pa: 'ਕੋਡ ਭੇਜੋ', hi: 'कोड भेजें', en: 'Send code' },
   enterCode: { pa: 'ਕੋਡ ਪਾਓ', hi: 'कोड डालें', en: 'Enter the code' },
   codeSentTo: { pa: 'ਕੋਡ ਭੇਜਿਆ', hi: 'कोड भेजा', en: 'Code sent to' },
+
+  // No SMS provider yet: a captain's code is one the founder reads to him
+  // over the phone. Saying "we have sent you an SMS" to a man who will
+  // never receive one tells him to wait for something that is not coming,
+  // and he will decide the app is broken — which, from where he stands,
+  // it is. Switched by app_config.founder_code_signin, so the day the SMS
+  // paperwork clears this changes on phones already in captains' hands.
+  codeFromFounder: {
+    pa: 'ਜੋ ਕੋਡ ਤੁਹਾਨੂੰ ਫ਼ੋਨ ਤੇ ਦੱਸਿਆ ਗਿਆ ਸੀ, ਉਹ ਪਾਓ',
+    hi: 'जो कोड आपको फ़ोन पर बताया गया था, वह डालें',
+    en: 'Enter the code you were given on the phone',
+  },
+  codeFromFounderHint: {
+    pa: 'ਕੋਈ SMS ਨਹੀਂ ਆਵੇਗਾ। ਕੋਡ ਨਾ ਹੋਵੇ ਤਾਂ ਸਾਨੂੰ ਫ਼ੋਨ ਕਰੋ।',
+    hi: 'कोई SMS नहीं आएगा। कोड न हो तो हमें फ़ोन करें।',
+    en: 'No SMS will arrive. Ring us if you do not have a code.',
+  },
+  getCode: { pa: 'ਅੱਗੇ ਵਧੋ', hi: 'आगे बढ़ें', en: 'Continue' },
   verify: { pa: 'ਅੱਗੇ ਵਧੋ', hi: 'आगे बढ़ें', en: 'Continue' },
   resend: { pa: 'ਦੁਬਾਰਾ ਭੇਜੋ', hi: 'दोबारा भेजें', en: 'Send again' },
   changeNumber: { pa: 'ਨੰਬਰ ਬਦਲੋ', hi: 'नंबर बदलें', en: 'Change number' },
@@ -379,6 +397,15 @@ const strings = {
 } as const;
 
 export type StringKey = keyof typeof strings;
+
+/**
+ * Exposed for the completeness test only.
+ *
+ * "A screen isn't done until it's complete in Punjabi" is standing rule 3
+ * in BUILD_PLAN, and until now nothing checked it — a missing Gurmukhi
+ * string would have reached a captain's phone as English, or as nothing.
+ */
+export const ALL_STRINGS: Readonly<Record<string, Record<string, string>>> = strings;
 
 export function t(key: StringKey, locale: Locale = 'pa'): string {
   return strings[key][locale];

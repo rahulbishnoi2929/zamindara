@@ -19,6 +19,11 @@ interface Props {
   onSignedIn: (phone: string) => void;
   /** Measuring fields works without an account. Booking work does not. */
   onSkip: () => void;
+  /**
+   * True while there is no SMS provider. Defaults to true because that is
+   * the honest answer: with nothing configured, no message is coming.
+   */
+  founderCode?: boolean | undefined;
 }
 
 const ERROR_KEY: Record<string, StringKey> = {
@@ -42,7 +47,7 @@ const ERROR_KEY: Record<string, StringKey> = {
  * and a captain standing in a yard with no signal should still be able to see
  * what the app does before committing to an account.
  */
-export function SignInScreen({ locale, onSignedIn, onSkip }: Props) {
+export function SignInScreen({ locale, onSignedIn, onSkip, founderCode = true }: Props) {
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [stage, setStage] = useState<'phone' | 'code'>('phone');
@@ -108,9 +113,13 @@ export function SignInScreen({ locale, onSignedIn, onSkip }: Props) {
           </>
         ) : (
           <>
-            <Text style={s.question}>{t('enterCode', locale)}</Text>
+            <Text style={s.question}>
+              {t(founderCode ? 'codeFromFounder' : 'enterCode', locale)}
+            </Text>
             <Text style={s.hint}>
-              {`${t('codeSentTo', locale)} +91 ${phone.replace(/\D/g, '').slice(-10)}`}
+              {founderCode
+                ? t('codeFromFounderHint', locale)
+                : `${t('codeSentTo', locale)} +91 ${phone.replace(/\D/g, '').slice(-10)}`}
             </Text>
             <TextInput
               ref={codeInput}
@@ -141,7 +150,7 @@ export function SignInScreen({ locale, onSignedIn, onSkip }: Props) {
           </View>
         ) : stage === 'phone' ? (
           <Button
-            label={t('sendCode', locale)}
+            label={t(founderCode ? 'getCode' : 'sendCode', locale)}
             onPress={() => void send()}
             disabled={!tenDigits}
           />

@@ -9,7 +9,7 @@
 -- version is" would mean any captain's handset can lock out every other.
 
 begin;
-select plan(9);
+select plan(12);
 
 create schema if not exists tests;
 
@@ -133,6 +133,40 @@ select is(
   1,
   'nor delete the one that is there'
 );
+
+-- ===========================================================================
+-- Which story the sign-in screen tells
+--
+-- There is no SMS provider. Telling a captain an SMS is on its way, when
+-- none is, is the app asking him to wait for something that is not coming.
+-- ===========================================================================
+select is(
+  (select founder_code_signin from public.app_config),
+  true,
+  'the default is the honest one: the code comes from the founder'
+);
+
+update public.app_config set founder_code_signin = false;
+
+select is(
+  (select founder_code_signin from public.app_config),
+  true,
+  'and a captain cannot flip it — it is read from the dashboard, not written by a phone'
+);
+
+-- The day the SMS paperwork clears, this changes on phones already in
+-- captains' hands. There is no store to push an update through, which is
+-- the whole reason it is a column.
+select tests.act_as_admin();
+update public.app_config set founder_code_signin = false;
+
+select is(
+  (select founder_code_signin from public.app_config),
+  false,
+  'the founder can switch it from the dashboard without rebuilding anything'
+);
+
+select tests.act_as('11111111-1111-1111-1111-111111111111');
 
 -- ===========================================================================
 -- The row cannot become nonsense

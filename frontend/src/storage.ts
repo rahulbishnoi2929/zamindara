@@ -15,6 +15,7 @@ import type { GpsPoint, LatLng } from '@zamindara/geo';
 const KEY_ACTIVE_WALK = 'zamindara/active-walk';
 const KEY_FIELDS = 'zamindara/fields';
 const KEY_LOCALE = 'zamindara/locale';
+const KEY_APP_CONFIG = 'zamindara/app-config';
 
 export interface SavedField {
   id: string;
@@ -82,4 +83,28 @@ export async function loadLocale(): Promise<string | null> {
 
 export async function saveLocale(locale: string): Promise<void> {
   await AsyncStorage.setItem(KEY_LOCALE, locale);
+}
+
+/**
+ * The last configuration the server gave us.
+ *
+ * Sign-in happens before anything else, often on a phone handed over in a
+ * yard with one bar of signal. Without a cached copy the screen would fall
+ * back to its built-in wording — "we have sent you an SMS" — on exactly the
+ * occasion it is most wrong, because no SMS is coming.
+ *
+ * Stale is fine. The question it answers changes about once a year.
+ */
+export async function saveAppConfig(config: unknown): Promise<void> {
+  await AsyncStorage.setItem(KEY_APP_CONFIG, JSON.stringify(config));
+}
+
+export async function loadCachedAppConfig<T>(): Promise<T | null> {
+  const raw = await AsyncStorage.getItem(KEY_APP_CONFIG);
+  if (raw === null) return null;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
 }

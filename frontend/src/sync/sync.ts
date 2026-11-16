@@ -4,7 +4,7 @@ import { isBackendConfigured, supabase } from '../supabase';
 import { currentSession } from '../auth';
 import type { Job, JobStatus } from '../jobs';
 import { isCaptain, type Profile } from '../profile';
-import { saveField, type SavedField } from '../storage';
+import { loadCachedAppConfig, saveAppConfig, saveField, type SavedField } from '../storage';
 import {
   captainMachinesToWire,
   captainRatesToWire,
@@ -748,29 +748,39 @@ export async function fetchRateGuidance(
  * working — the one with no signal is the one standing in a field.
  */
 export async function fetchAppConfig(locale: 'pa' | 'hi' | 'en'): Promise<AppConfig | null> {
-  if (!isBackendConfigured()) return null;
+  if (!isBackendConfigured()) return loadCachedAppConfig<AppConfig>();
 
   const { data, error } = await supabase
     .from('app_config')
     .select(
-      'latest_version, latest_apk_url, minimum_supported_version, update_note_pa, update_note_hi, update_note_en',
+      'latest_version, latest_apk_url, minimum_supported_version, founder_code_signin, update_note_pa, update_note_hi, update_note_en',
     )
     .maybeSingle();
-  if (error !== null || data === null) return null;
+  // The cache is the answer when the server cannot be reached. Sign-in
+  // happens on a phone in a yard with one bar, and that is exactly when
+  // falling back to the built-in SMS wording would be most wrong.
+  if (error !== null || data === null) return loadCachedAppConfig<AppConfig>();
 
   const row = data as Record<string, unknown>;
   const latestVersion = String(row['latest_version'] ?? '');
   const minimumSupportedVersion = String(row['minimum_supported_version'] ?? '');
-  if (latestVersion === '' || minimumSupportedVersion === '') return null;
+  if (latestVersion === '' || minimumSupportedVersion === '') {
+    return loadCachedAppConfig<AppConfig>();
+  }
 
   const note = row[`update_note_${locale}`];
 
-  return {
+  const config: AppConfig = {
     latestVersion,
     latestApkUrl: typeof row['latest_apk_url'] === 'string' ? row['latest_apk_url'] : null,
     minimumSupportedVersion,
+    // An older APK reading a server that predates the column, or any shape
+    // we do not recognise, gets the honest answer: there is no SMS.
+    founderCodeSignin: row['founder_code_signin'] !== false,
     note: typeof note === 'string' && note.length > 0 ? note : null,
   };
+  await saveAppConfig(config);
+  return config;
 }
 
 /** Is this user staff? Decides whether the verify queue is offered at all. */

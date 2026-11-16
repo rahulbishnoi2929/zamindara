@@ -510,6 +510,11 @@ export default function App() {
         ) : !signedIn && !skippedAuth ? (
           <SignInScreen
             locale={locale}
+            // Undefined until the config is read, and the default is the
+            // honest one: with no SMS provider configured, no message is
+            // coming. Cached from the last run, so a phone with no signal
+            // still shows the right words.
+            founderCode={appConfig?.founderCodeSignin}
             onSignedIn={(phone) => {
               setSignedIn(true);
               // persistProfile stamps the session's user id and phone onto
