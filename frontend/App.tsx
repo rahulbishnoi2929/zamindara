@@ -56,6 +56,7 @@ import {
   syncProfile,
 } from './src/sync/sync';
 import { uuid } from './src/sync/mapping';
+import { acceptedJobId } from './src/lockScreen';
 import type { AppConfig } from './src/version';
 import {
   clearActiveWalk,
@@ -458,14 +459,36 @@ export default function App() {
   // Accept or decline straight from the lock screen, without opening the app.
   useEffect(() => {
     const sub = Notifications.addNotificationResponseReceivedListener((response) => {
-      const jobId = response.notification.request.content.data?.['jobId'];
-      if (typeof jobId !== 'string') return;
-      if (response.actionIdentifier !== 'accept') return;
+      const jobId = acceptedJobId(response);
+      if (jobId === null) return;
 
       void (async () => {
+        // Deliberately not claimJob. That begins `if (profile === null)
+        // return`, and a cold start from a notification has no profile
+        // yet; it also looked the job up in local storage, and a job
+        // offered since the last sync is not there. Either one made the
+        // tap do nothing, silently.
+        //
+        // accept_job needs a job id and a session and decides the rest
+        // server-side, so none of that local state is required. The token
+        // refreshes itself on the way: supabase-js asks getSession for the
+        // access token, and getSession refreshes an expired one.
+        const outcome = await acceptJobRemote(jobId);
+
+        if (outcome === 'lost-race') {
+          Alert.alert(t('alreadyTaken', locale));
+        } else if (outcome !== 'accepted') {
+          // Never silent. He believes he has the job.
+          Alert.alert(t('acceptFailed', locale));
+          return;
+        }
+
+        // Reconcile whenever we can. If the profile has not loaded yet the
+        // next ordinary sync pass picks it up — the job is already his on
+        // the server, which is the part that matters.
         const current = await loadJobs();
-        const target = current.find((j) => j.id === jobId);
-        if (target !== undefined) await claimJob(target);
+        if (profile !== null) void syncJobs(current, profile).then(setJobs);
+        else setJobs(current);
       })();
     });
     return () => sub.remove();
