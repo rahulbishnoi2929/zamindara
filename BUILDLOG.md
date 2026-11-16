@@ -13,18 +13,18 @@ Newest first, so the most recent work is always at the top. Each entry says what
 | | |
 |---|---|
 | **Phase** | Code done through 5. **Phase 1 field test never run — the gate was walked past.** See the revision at the top of BUILD_PLAN. |
-| **Tests** | 203 unit (122 packages + 81 app) + **139 database assertions**, all green in CI |
+| **Tests** | 204 unit (122 packages + 82 app) + **159 database assertions**, all green in CI |
 | **App** | Release APK builds (72 MB, `com.zamindara.app`, targetSdk 36). **Install once:** JS changes reach a phone over the air, or instantly from Metro during development. |
 | **Not yet done** | Never run on a physical device; sync never run against a hosted Supabase project |
 | **Blocking next step** | Setup: Maps key, hosted Supabase project, `expo prebuild` + APK, a phone, a 50 m tape |
 | **Repo** | [rahulbishnoi2929/zamindara](https://github.com/rahulbishnoi2929/zamindara) — private, CI green |
-| **Backend** | ✅ **Schema verified.** 16 migrations apply; all three guarantees hold. |
+| **Backend** | ✅ **Schema verified.** 20 migrations apply; all three guarantees hold. |
 
 ```
 C:\Zamidara\
 ├── docs\              12 product and engineering documents
 ├── frontend\          Expo SDK 57 Android app — 65 tests
-├── backend\supabase\  16 migrations, RLS, dispatch functions — 139 assertions
+├── backend\supabase\  20 migrations, RLS, dispatch functions — 159 assertions
 ├── packages\          units · geo · catalog · pricing · scheduling — 122 tests
 └── assets\            logo
 ```
@@ -55,6 +55,40 @@ The most useful part of this log. Each of these was believed, written down, then
 ---
 
 # Entries
+
+## 39 · An audit, and four things the audit was wrong about
+
+**Asked:** a numbered brief — audit Batches 1–4 against the code, then fix Batch 1. New standing rules came with it: **never edit an existing migration**, failing test before any money or area fix, and every change traced from a tap to a row.
+
+**The audit mattered more than the fixes.** Of ten Batch 1 items, **four were already done** and one had a wrong premise:
+
+- **Area carry** (9603.7 m² → "2 killa 3 kanal") already works. I ran it rather than reading it: `2 killa 3 kanal`, and `500.857 → 1 kanal`. No SQL formats area at all, so that half was not applicable either.
+- **`search_path` on every `security definer`** — all sixteen already have it.
+- **`lead_time_hours` against scheduled time** — already correct and asserted in 03.
+- **One row per captain with several machines** — the machine check is inside `exists(…)`, so duplication was never possible.
+- **"Offline accept shows accepted"** — it does not. A failed accept leaves the job searching and says so. The real gap is the absence of a queued "sending" state, which is a different and smaller thing.
+
+Writing that down is the point. Four fixes I did not make is four diffs not reviewed and four chances not taken to break something that worked.
+
+**What was real:**
+
+**A farmer could set his own field area, and therefore his own price.** `derive_field_geometry` recomputes area from the boundary and ignores the client — the column comment even says so. But the trigger was `before insert or update **of boundary**`, which in Postgres fires only when that column is in the UPDATE's list, and `fields_update_own` lets an owner write any column on his own field. So `update fields set area_sqm = 1000000` never fired it, and a one-killa field became four hundred acres: priced, quoted, and fed into rate guidance at that size. The first assertion in the new test file *is* the attack.
+
+Also added a floor of one marla. There was a 200-hectare ceiling and nothing below — a three-square-metre field is equally a mis-drawn polygon, two corners on the same spot while the map was zoomed out. One marla is the smallest unit the app can express, so below it a field already displays as nothing.
+
+**The captain search could not use the spatial index.** `st_dwithin(…, c.service_radius_km * 1000)` reads its distance from the candidate row, so PostGIS has no constant to seek on and the planner scans every captain. The comment beside it claimed the opposite. Now a constant bound first — `captains_radius_sane`'s own maximum, so nobody who would have matched is lost — then the per-captain radius as a filter.
+
+**`dispatch_job` had no abuse limits**, while running on every sync pass and sending a push on success. Now: a confirmed field, five open requests, twenty an hour. And a correction worth keeping — my first test could not even post a job on an unconfirmed field, because `jobs_insert_own` already refuses that. The gap is narrower and more real than I wrote: the field is confirmed when the job is posted and **un-confirmed afterwards by re-drawing it**, and the existing job kept being offered at whatever the new boundary said.
+
+**The phone said when the work happened.** `started_at` and `completed_at` came up from the handset stamped with `Date.now()`. They are what a farmer and a captain argue about, so they cannot be one party's word. A trigger stamps each on the transition that earns it and **freezes all three otherwise** — the freeze being the half that matters, because without it the completion write still carried the handset's `started_at` up with it. The client stops sending them.
+
+**Verified:** 204 unit tests, **159 database assertions** (20 new), typecheck clean across 6 packages, 828 modules bundling, CI green.
+
+**Raised, not decided:** five open requests and twenty an hour are my numbers, and wrong if a commission agent books for ten farmers from one handset. A 200 km service radius is the whole of Punjab, so the new index bound is correct but not sharp. And server time means a captain who finishes at 14:00 with no signal and syncs at 19:00 is recorded at 19:00.
+
+**Noted conflict:** entries 33 and 36 edited migrations 0008 and 0010 in place, on the reasoning that nothing was deployed. That is now forbidden. Harmless while there is no hosted project; a problem the moment there is one.
+
+---
 
 ## 38 · The request that never died
 
