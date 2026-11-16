@@ -122,9 +122,14 @@ select is(
   'a job on a confirmed field is offered as before'
 );
 
--- Re-drawing the boundary un-confirms the field (the geometry trigger), and
--- the area is the price — so work on a freshly re-shaped field must wait
--- until he has seen the new number.
+-- jobs_insert_own already refuses a job on an unconfirmed field: "an
+-- unconfirmed area must never reach a price". So the gap dispatch_job
+-- closes is narrower, and it is the one that actually happens — the field
+-- is confirmed when the job is posted, and un-confirmed afterwards by
+-- re-drawing it. The job already exists; without this guard it keeps being
+-- offered at whatever the new boundary says.
+select tests.post_job('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
+
 update public.fields
 set boundary = tests.killa_polygon(30.4030, 74.0288)
 where name = 'Nehar wala khet';
@@ -135,13 +140,11 @@ select is(
   're-drawing a boundary un-confirms the field'
 );
 
-select tests.post_job('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
-
 select throws_ok(
   $$ select public.dispatch_job('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb') $$,
   '55006',
   null,
-  'and work on it is not offered until he has accepted the new area'
+  'and a job already posted on it stops being offered until he accepts the new area'
 );
 
 update public.fields set confirmed_by_owner = true where name = 'Nehar wala khet';

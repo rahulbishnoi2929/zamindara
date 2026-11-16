@@ -11,15 +11,18 @@
 -- ---------------------------------------------------------------------------
 -- 1 · The field has to be one the farmer stood on and confirmed
 --
--- `confirmed_by_owner` is set when he taps Confirm on the screen showing him
--- his own area with draggable corners, and the geometry trigger clears it
--- again the moment a boundary changes. So requiring it here means: a field
--- whose shape was edited cannot be dispatched until he has looked at the new
--- area and accepted it.
+-- `jobs_insert_own` already refuses to create a job on an unconfirmed field
+-- — "an unconfirmed area must never reach a price". So this guard is not
+-- about posting; it is about what happens afterwards.
 --
--- That matters because the area is the price. Re-drawing a field larger and
--- immediately posting work on it is the cheapest version of the attack that
--- migration 17 closed from the other side.
+-- `confirmed_by_owner` is set when the farmer taps Confirm on the screen
+-- showing his own area with draggable corners, and the geometry trigger
+-- clears it the moment a boundary changes. So a job posted on a confirmed
+-- field, whose field is then re-drawn, keeps being offered on every sync
+-- pass at whatever the new boundary says — and the area is the price.
+--
+-- This stops that job going out again until he has looked at the new area
+-- and accepted it.
 -- ---------------------------------------------------------------------------
 
 -- ---------------------------------------------------------------------------
