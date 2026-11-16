@@ -212,16 +212,26 @@ has an x86 processor.
 `plugins/withPhoneArchitectures.js` drops them, so builds carry
 `armeabi-v7a` and `arm64-v8a` only: every Android phone a captain owns.
 
-Measured, before and after:
+Measured, at each step:
 
-| | Before | After |
-|---|---|---|
-| **APK** | 75.8 MB | **43.0 MB** |
-| `lib/arm64-v8a` | 15.5 MB | 15.5 MB |
-| `lib/armeabi-v7a` | 10.7 MB | 10.7 MB |
-| `lib/x86` | 16.6 MB | — |
-| `lib/x86_64` | 16.0 MB | — |
-| `classes*.dex` | 29.4 MB | 29.4 MB |
+| | Original | Phones only | + minified |
+|---|---|---|---|
+| **APK** | 75.8 MB | 43.0 MB | **35.3 MB** |
+| `lib/x86` | 16.6 MB | — | — |
+| `lib/x86_64` | 16.0 MB | — | — |
+| `lib/arm64-v8a` | 15.5 MB | 15.5 MB | 15.5 MB |
+| `lib/armeabi-v7a` | 10.7 MB | 10.7 MB | 10.7 MB |
+| `classes*.dex` | 29.4 MB | 29.4 MB | 8.9 MB |
+
+**53% smaller than where it started.** What remains is 26 MB of ARM native
+libraries, and there is only one way to cut those: ship a separate APK per
+architecture, so an arm64 phone does not carry the 32-bit copy it will
+never load. That would land around 22 MB — at the cost of two APKs to keep
+straight when you are standing in a yard with a captain's phone.
+
+For ten captains installed by hand over a cable, 35 MB costs nothing. The
+size matters when `latest_apk_url` is set and a hundred phones download it
+over mobile data.
 
 > **This affects debug builds too**, because the setting is global rather
 > than per build type. The standard Android emulator on Windows is x86_64,
