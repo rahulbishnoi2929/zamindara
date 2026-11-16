@@ -138,14 +138,26 @@ then step 3 did not take effect. Stop. Do not give that APK to anyone.
 Before handing out any build:
 
 ```bash
-keytool -printcert -jarfile frontend/android/app/build/outputs/apk/release/app-release.apk
+"C:/Users/rahul/AppData/Local/Android/Sdk/build-tools/37.0.0/apksigner.bat" verify --print-certs --verbose frontend/android/app/build/outputs/apk/release/app-release.apk
 ```
 
-The owner line should be your name from step 1, **not** `CN=Android Debug`.
-Note the SHA-256 fingerprint the first time and compare it on later builds —
-same fingerprint means the same key, which means the update will install.
+You want a line reading:
 
----
+```
+V2 Signer: certificate DN: CN=<your name from step 1>, ...
+```
+
+If it says `CN=Android Debug`, the key was not picked up — go back to step 3
+and do not hand that APK to anyone.
+
+Note the `certificate SHA-256 digest` the first time, and compare it on
+later builds. The same digest means the same key, which means the update
+will install over the old one.
+
+> **Not `keytool -printcert -jarfile`.** That only reads v1 (JAR) signatures,
+> and this APK is signed with v2 — so keytool answers "Not a signed jar
+> file" on a perfectly well-signed APK. It looks exactly like a failure and
+> is not one. Use `apksigner`.
 
 ## 6 · Put it on a phone
 
