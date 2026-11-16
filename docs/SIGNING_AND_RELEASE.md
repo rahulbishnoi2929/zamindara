@@ -159,6 +159,33 @@ will install over the old one.
 > file" on a perfectly well-signed APK. It looks exactly like a failure and
 > is not one. Use `apksigner`.
 
+## 5b · Why the APK is the size it is
+
+The first measured release build was **75 MB**, of which 59 MB was native
+libraries for four CPU architectures. Two of those — `x86` and `x86_64`,
+**32 MB between them** — exist for desktop emulators. No phone in Fazilka
+has an x86 processor.
+
+`plugins/withPhoneArchitectures.js` drops them, so builds carry
+`armeabi-v7a` and `arm64-v8a` only: every Android phone a captain owns.
+
+> **This affects debug builds too**, because the setting is global rather
+> than per build type. The standard Android emulator on Windows is x86_64,
+> so it will not run a build made this way. If you ever want an emulator
+> build, pass the architectures back for that one build:
+>
+> ```bash
+> cd frontend/android && ./gradlew assembleDebug -PreactNativeArchitectures=x86_64
+> ```
+
+**Still to cut, when you are ready.** About 29 MB is compiled Java
+(`classes*.dex`), because `android.enableMinifyInReleaseBuilds` and
+`enableShrinkResourcesInReleaseBuilds` both default to false. Turning them
+on shrinks that substantially — but ProGuard can break reflection-based
+native modules at *runtime*, not at build time. That is a crash in a field
+rather than on your desk, so it is worth doing only once the app is running
+on a real phone and you can tell one kind of failure from another.
+
 ## 6 · Put it on a phone
 
 ```bash
