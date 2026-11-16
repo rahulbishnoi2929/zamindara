@@ -36,7 +36,8 @@
           "isAndroidForegroundServiceEnabled": true
         }
       ],
-      "expo-sharing"
+      "expo-sharing",
+      "./plugins/withReleaseSigning"
     ],
     "assetBundlePatterns": [
       "**/*"

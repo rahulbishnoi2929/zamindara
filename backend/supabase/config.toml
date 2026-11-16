@@ -268,6 +268,22 @@ max_frequency = "5s"
 # without an SMS provider. India requires DLT registration with TRAI before
 # real SMS can be sent, and that takes weeks (docs/BUILD_PLAN.md, Phase 2).
 # These exist so the paperwork does not block the app.
+#
+# ========================================================================
+#  NEVER PUT A REAL PHONE NUMBER HERE. CI fails if you do.
+#
+#  These four are fictional and match the pgTAP test users. A test number
+#  is a permanent sign-in backdoor: anyone who knows the number and its
+#  code *is* that person, with no SMS and no second factor.
+#
+#  And `supabase config push` copies this whole block to the HOSTED
+#  project with a ten-year expiry. Never run it. To send schema changes
+#  up, use `supabase db push`, which pushes migrations and not this file.
+#
+#  To give a real captain a fixed code, set it in the Supabase dashboard
+#  (Authentication > Sign In / Providers > Phone > Test Phone Numbers and
+#  OTPs) — never in this file. See docs/ONBOARDING_A_CAPTAIN.md.
+# ========================================================================
 [auth.sms.test_otp]
 9876500001 = "100001"
 9876500002 = "100002"

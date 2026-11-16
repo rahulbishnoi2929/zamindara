@@ -18,6 +18,42 @@ jobs:
   # The suites that matter most here are units and pricing: a regression in
   # either misprices a job, and that is money out of a farmer's pocket.
   # ---------------------------------------------------------------------------
+  secrets:
+    name: No secrets committed
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # A keystore in the repository is not recoverable by deleting it: it
+      # stays in the history, and the key that signs the app is the key that
+      # lets anyone ship an update to a captain's phone.
+      - name: No keystore or signing passwords
+        run: |
+          if git ls-files | grep -iE '\.(keystore|jks)$|keystore\.properties$|^gradle\.properties$'; then
+            echo "::error::A keystore or signing properties file is tracked by git."
+            exit 1
+          fi
+          if git grep -nIE 'ZAMINDARA_(STORE|KEY)_PASSWORD[[:space:]]*=[[:space:]]*[^[:space:]$]' -- . ':!docs/**' ':!.github/**'; then
+            echo "::error::A signing password looks hard-coded outside the docs."
+            exit 1
+          fi
+
+      # `supabase config push` copies [auth.sms.test_otp] to the HOSTED
+      # project with a ten-year expiry. A test number is a permanent sign-in
+      # backdoor: anyone who knows the number and its code IS that captain.
+      #
+      # The four numbers below are fictional fixtures (they match the pgTAP
+      # test users) and exist so the whole login flow is testable with no SMS
+      # provider. A real captain's number must never join them.
+      - name: Only fixture numbers in test_otp
+        run: |
+          real=$(git grep -hE '^[0-9]{10,15}[[:space:]]*=' -- backend/supabase/config.toml                  | grep -vE '^(9876500001|9876500002|9876500003|9876500004)[[:space:]]*=' || true)
+          if [ -n "$real" ]; then
+            echo "::error::A phone number outside the fixture set is in config.toml. Real numbers must never be committed: supabase config push would make them permanent backdoors on the hosted project."
+            echo "$real"
+            exit 1
+          fi
+
   test:
     name: Tests and types
     runs-on: ubuntu-latest
