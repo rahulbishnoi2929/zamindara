@@ -1,29 +1,85 @@
 import { MACHINE_BY_CODE, SERVICE_BY_CODE } from '@zamindara/catalog';
+import type { Locale } from '@zamindara/units';
 import { buildSchedule, findInSchedule, type QueueJob } from '@zamindara/scheduling';
 import { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
-import { AreaDisplay, Button, Card } from './components';
+import { AreaDisplay, Banner, Button, Card } from './components';
 import { t } from './i18n';
+import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
 import { CaptainJobCard, EmptyJobs, FarmerJobCard } from './JobList';
 import { isLive, sortForCaptain, type Job } from './jobs';
 import { isCaptain, isFarmer, type Profile } from './profile';
 import type { SavedField } from './storage';
+import { updateState, type AppConfig } from './version';
 import { colors, radius, space, TOUCH_MIN, type } from './theme';
 
 /**
- * A short, readable identity for the running bundle.
+ * What this phone is running, in one line.
  *
- * `updateId` is null when the app is running its embedded bundle — which is
- * every build before anyone publishes an update, and the honest answer then
- * is the app version alone.
+ * Two different things, both needed, and they are not the same number:
+ *
+ *   the **version** — `0.1.0`, from app.json. This is what a captain reads
+ *   out when he rings, and what the update check compares against. Under
+ *   the fingerprint runtime policy `Updates.runtimeVersion` is a *hash*, so
+ *   showing it here (as this line used to) told him nothing he could use.
+ *
+ *   the **update id** — which over-the-air bundle is on top of that build.
+ *   Two captains on the same APK can be running different JavaScript.
  */
+export function runningVersion(): string {
+  return Constants.expoConfig?.version ?? '0.0.0';
+}
+
 function buildLine(): string {
-  const version = Updates.runtimeVersion ?? '?';
-  if (Updates.updateId === null) return `v${version} · built in`;
+  const base = `v${runningVersion()}`;
+  if (Updates.updateId === null) return `${base} · built in`;
   const at = Updates.createdAt;
   const when = at === null ? '' : ` · ${at.toISOString().slice(0, 10)}`;
-  return `v${version} · ${Updates.updateId.slice(0, 8)}${when}`;
+  return `${base} · ${Updates.updateId.slice(0, 8)}${when}`;
+}
+
+/**
+ * Four states, like every other screen: nothing known (offline, or not read
+ * yet) shows nothing at all, current shows nothing, and the two update
+ * states show a banner with a download if there is one to give.
+ *
+ * `required` is a stronger sentence, not a locked door. Blocking the app
+ * outright is a screen of its own and a decision about what a captain
+ * mid-harvest is allowed to do with an old build — not something to slip in
+ * behind a banner.
+ */
+function UpdateNotice({
+  config,
+  locale,
+  onGet,
+}: {
+  config: AppConfig | null;
+  locale: Locale;
+  onGet?: ((url: string) => void) | undefined;
+}) {
+  const state = updateState(runningVersion(), config);
+  if (state.kind === 'current') return null;
+
+  const headline =
+    state.kind === 'required' ? t('updateRequired', locale) : t('updateAvailable', locale);
+
+  return (
+    <View style={s.update}>
+      <Banner
+        text={state.note === null ? headline : `${headline}
+${state.note}`}
+        tone={state.kind === 'required' ? 'warn' : 'info'}
+      />
+      {state.url !== null && onGet !== undefined && (
+        <Button
+          label={`${t('getUpdate', locale)}  v${state.version}`}
+          onPress={() => onGet(state.url as string)}
+          variant="secondary"
+        />
+      )}
+    </View>
+  );
 }
 
 interface Props {
@@ -38,6 +94,10 @@ interface Props {
   onCancelJob: (job: Job) => void;
   /** The farmer rates the captain who did the work. */
   onRateJob: (job: Job, stars: number) => void;
+  /** What the server says about versions. Null until read, or offline. */
+  appConfig?: AppConfig | null | undefined;
+  /** Open the download link for a newer build. */
+  onGetUpdate?: ((url: string) => void) | undefined;
   /** The captain hands a job back, so it can reach someone else. */
   onReleaseJob: (job: Job) => void;
   onEditProfile: () => void;
@@ -65,6 +125,8 @@ export function HomeScreen({
   onAdvanceJob,
   onCancelJob,
   onRateJob,
+  appConfig,
+  onGetUpdate,
   onReleaseJob,
   onEditProfile,
   onToggleOnline,
@@ -136,6 +198,11 @@ export function HomeScreen({
       </View>
 
       <ScrollView contentContainerStyle={s.list}>
+        {/* There is no store, so nothing else would ever tell him. Top of
+            the screen, above the day's work, because an out-of-date build
+            is the explanation for whatever else looks wrong. */}
+        <UpdateNotice config={appConfig ?? null} locale={locale} onGet={onGetUpdate} />
+
         {captain && (
           <>
             {/* The one decision a captain makes each morning. */}
@@ -333,6 +400,7 @@ const s = StyleSheet.create({
   },
 
   sectionTitle: { ...type.label, color: colors.textMuted },
+  update: { gap: space.sm },
   build: { ...type.label, fontWeight: '400', fontSize: 12, color: colors.textMuted },
   empty: { ...type.body, color: colors.textMuted, lineHeight: 25 },
 

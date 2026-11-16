@@ -1,4 +1,5 @@
 import type { RateGuidance } from '@zamindara/pricing';
+import type { AppConfig } from '../version';
 import { isBackendConfigured, supabase } from '../supabase';
 import { currentSession } from '../auth';
 import type { Job, JobStatus } from '../jobs';
@@ -734,6 +735,42 @@ export async function fetchRateGuidance(
   if (!Number.isFinite(low) || !Number.isFinite(high) || sampleSize < 3) return null;
 
   return { low, high, sampleSize };
+}
+
+/**
+ * The one row the app asks about itself.
+ *
+ * Readable without signing in, on purpose: a handset below the supported
+ * floor has to be able to learn that *before* it signs in, or the lockout
+ * is a dead end with no message.
+ *
+ * Null on any failure. A version check is never a reason to stop a phone
+ * working — the one with no signal is the one standing in a field.
+ */
+export async function fetchAppConfig(locale: 'pa' | 'hi' | 'en'): Promise<AppConfig | null> {
+  if (!isBackendConfigured()) return null;
+
+  const { data, error } = await supabase
+    .from('app_config')
+    .select(
+      'latest_version, latest_apk_url, minimum_supported_version, update_note_pa, update_note_hi, update_note_en',
+    )
+    .maybeSingle();
+  if (error !== null || data === null) return null;
+
+  const row = data as Record<string, unknown>;
+  const latestVersion = String(row['latest_version'] ?? '');
+  const minimumSupportedVersion = String(row['minimum_supported_version'] ?? '');
+  if (latestVersion === '' || minimumSupportedVersion === '') return null;
+
+  const note = row[`update_note_${locale}`];
+
+  return {
+    latestVersion,
+    latestApkUrl: typeof row['latest_apk_url'] === 'string' ? row['latest_apk_url'] : null,
+    minimumSupportedVersion,
+    note: typeof note === 'string' && note.length > 0 ? note : null,
+  };
 }
 
 /** Is this user staff? Decides whether the verify queue is offered at all. */

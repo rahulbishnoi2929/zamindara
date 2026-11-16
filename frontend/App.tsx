@@ -2,7 +2,7 @@ import type { LatLng, WalkResult } from '@zamindara/geo';
 import type { Locale } from '@zamindara/units';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { ChooseMethodScreen } from './src/ChooseMethodScreen';
 import { ConfirmScreen } from './src/ConfirmScreen';
@@ -48,6 +48,7 @@ import {
   amIAdmin,
   syncFields,
   cancelJobRemote,
+  fetchAppConfig,
   fetchRateGuidance,
   pushRating,
   releaseJobRemote,
@@ -55,6 +56,7 @@ import {
   syncProfile,
 } from './src/sync/sync';
 import { uuid } from './src/sync/mapping';
+import type { AppConfig } from './src/version';
 import {
   clearActiveWalk,
   loadFields,
@@ -92,6 +94,11 @@ export default function App() {
   const [fields, setFields] = useState<SavedField[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [completing, setCompleting] = useState<Job | null>(null);
+  /**
+   * What the server says about versions. Null until read, and null forever
+   * with no backend — a version check never stops the app working.
+   */
+  const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
   const [signedIn, setSignedIn] = useState(false);
   // He chose to carry on without an account. Field measurement works fully
   // offline, so this is a legitimate way to use the app, not an escape hatch.
@@ -442,6 +449,12 @@ export default function App() {
     }
   };
 
+  // Read once, and again when his language changes so the note is in it.
+  // Not on every sync: a version is not news that arrives mid-harvest.
+  useEffect(() => {
+    void fetchAppConfig(locale).then(setAppConfig);
+  }, [locale, signedIn]);
+
   // Accept or decline straight from the lock screen, without opening the app.
   useEffect(() => {
     const sub = Notifications.addNotificationResponseReceivedListener((response) => {
@@ -525,6 +538,8 @@ export default function App() {
                 onBookWork={() => setScreen({ name: 'book' })}
                 onAcceptJob={(job) => void claimJob(job)}
                 onAdvanceJob={(job) => void advanceJob(job)}
+                appConfig={appConfig}
+                onGetUpdate={(url) => void Linking.openURL(url)}
                 onCancelJob={(job) => exitJob(job, 'cancel')}
                 onRateJob={(job, stars) => void rateJobNow(job, stars)}
                 onReleaseJob={(job) => exitJob(job, 'release')}

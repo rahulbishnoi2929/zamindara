@@ -1,0 +1,70 @@
+/**
+ * Which version this phone is on, and whether that is still good enough.
+ *
+ * There is no Play Store. An APK is installed by hand and stays until
+ * someone replaces it, so a captain can be three builds behind for weeks
+ * and nothing tells him. One row in `app_config` is how he finds out.
+ *
+ * Two separate questions, deliberately:
+ *
+ *   `available` — there is a newer build. A notice, ignorable.
+ *   `required`  — this build is below the floor. It must stop.
+ *
+ * Most new versions are a suggestion. Collapsing the two would mean either
+ * nagging a working phone or blocking one that was fine.
+ */
+
+export interface AppConfig {
+  latestVersion: string;
+  latestApkUrl: string | null;
+  minimumSupportedVersion: string;
+  /** Already picked for this user's language by the caller. */
+  note: string | null;
+}
+
+export type UpdateState =
+  | { kind: 'current' }
+  | { kind: 'available'; version: string; url: string | null; note: string | null }
+  | { kind: 'required'; version: string; url: string | null; note: string | null };
+
+const PARTS = /^(\d+)\.(\d+)\.(\d+)$/;
+
+/**
+ * Negative, zero or positive, like any comparator.
+ *
+ * Numeric part by part, because `'0.10.0' < '0.9.0'` as text and that is
+ * exactly the release where it would first matter.
+ *
+ * Anything unreadable compares **equal**. The alternative — treating it as
+ * older — turns a typo in the dashboard into every phone in the district
+ * locking itself out, with no way to fix it from the phone.
+ */
+export function compareVersions(a: string, b: string): number {
+  const left = PARTS.exec(a);
+  const right = PARTS.exec(b);
+  if (left === null || right === null) return 0;
+
+  for (let i = 1; i <= 3; i += 1) {
+    const diff = Number(left[i]) - Number(right[i]);
+    if (diff !== 0) return diff;
+  }
+  return 0;
+}
+
+/**
+ * No config means say nothing. The phone with no signal is the one standing
+ * in a field, and a version check is never a reason to stop it working.
+ */
+export function updateState(running: string, config: AppConfig | null): UpdateState {
+  if (config === null) return { kind: 'current' };
+
+  const { latestVersion: version, latestApkUrl: url, note } = config;
+
+  if (compareVersions(running, config.minimumSupportedVersion) < 0) {
+    return { kind: 'required', version, url, note };
+  }
+  if (compareVersions(running, version) < 0) {
+    return { kind: 'available', version, url, note };
+  }
+  return { kind: 'current' };
+}

@@ -343,6 +343,19 @@ const strings = {
     hi: 'काम नहीं लिया जा सका। सिग्नल देखें और फिर कोशिश करें।',
     en: 'Could not take the job. Check your signal and try again.',
   },
+  // No store, so an update is a sentence and a link, not a badge.
+  updateAvailable: {
+    pa: 'ਨਵਾਂ ਵਰਜ਼ਨ ਆਇਆ ਹੈ',
+    hi: 'नया वर्ज़न आया है',
+    en: 'A newer version is available',
+  },
+  updateRequired: {
+    pa: 'ਇਹ ਵਰਜ਼ਨ ਪੁਰਾਣਾ ਹੈ। ਨਵਾਂ ਪਾਉਣਾ ਪਵੇਗਾ।',
+    hi: 'यह वर्ज़न पुराना है। नया डालना पड़ेगा।',
+    en: 'This version is too old. You will need the new one.',
+  },
+  getUpdate: { pa: 'ਡਾਊਨਲੋਡ ਕਰੋ', hi: 'डाउनलोड करें', en: 'Download' },
+
   // Rating. One question, five taps, no comment box: he is asked once, on
   // the card, right after the work is done.
   howWasWork: { pa: 'ਕੰਮ ਕਿਹੋ ਜਿਹਾ ਰਿਹਾ?', hi: 'काम कैसा रहा?', en: 'How was the work?' },
