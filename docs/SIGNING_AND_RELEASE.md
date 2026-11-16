@@ -168,6 +168,19 @@ Note the `certificate SHA-256 digest` the first time, and compare it on
 later builds. The same digest means the same key, which means the update
 will install over the old one.
 
+This is not theoretical. Two test builds made during this work, from two
+keystores generated the same way with the same details, produced:
+
+```
+bb387d5e473b2103926dfabbc8d1a8b634069cbbb7a6c42e6b4af283db2181f9
+856044f731b7855869446350ec6e1850dff16888c9c7cb407736b56a34af1cbb
+```
+
+Same name, same organisation, same everything a human reads — different
+keys, and Android treats them as different apps. The digest is the only
+thing that tells you, which is why you check it before handing out a
+build.
+
 > **Not `keytool -printcert -jarfile`.** That only reads v1 (JAR) signatures,
 > and this APK is signed with v2 — so keytool answers "Not a signed jar
 > file" on a perfectly well-signed APK. It looks exactly like a failure and
@@ -175,13 +188,24 @@ will install over the old one.
 
 ## 5b · Why the APK is the size it is
 
-The first measured release build was **75 MB**, of which 59 MB was native
+The first measured release build was **75.8 MB**, of which 59 MB was native
 libraries for four CPU architectures. Two of those — `x86` and `x86_64`,
 **32 MB between them** — exist for desktop emulators. No phone in Fazilka
 has an x86 processor.
 
 `plugins/withPhoneArchitectures.js` drops them, so builds carry
 `armeabi-v7a` and `arm64-v8a` only: every Android phone a captain owns.
+
+Measured, before and after:
+
+| | Before | After |
+|---|---|---|
+| **APK** | 75.8 MB | **43.0 MB** |
+| `lib/arm64-v8a` | 15.5 MB | 15.5 MB |
+| `lib/armeabi-v7a` | 10.7 MB | 10.7 MB |
+| `lib/x86` | 16.6 MB | — |
+| `lib/x86_64` | 16.0 MB | — |
+| `classes*.dex` | 29.4 MB | 29.4 MB |
 
 > **This affects debug builds too**, because the setting is global rather
 > than per build type. The standard Android emulator on Windows is x86_64,
