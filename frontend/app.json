@@ -38,7 +38,8 @@
       ],
       "expo-sharing",
       "./plugins/withReleaseSigning",
-      "./plugins/withPhoneArchitectures"
+      "./plugins/withPhoneArchitectures",
+      "./plugins/withMinification"
     ],
     "assetBundlePatterns": [
       "**/*"

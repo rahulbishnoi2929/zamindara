@@ -137,6 +137,22 @@ frontend/android/app/build/outputs/apk/release/app-release.apk
 >
 > Then `./gradlew --stop` before rebuilding, so the old daemon is replaced.
 
+> **If the build fails with `Unable to delete file ... classes.jar`**, a
+> gradle daemon from an earlier build still has the file open — Windows
+> will not let anything delete a file another process holds. Stop the
+> daemons, clear that module's build directory, and build again:
+>
+> ```bash
+> cd frontend/android && ./gradlew --stop
+> ```
+>
+> ```bash
+> rm -rf node_modules/expo-modules-core/android/build
+> ```
+>
+> The `rm` fails with "Device or resource busy" until the daemon has
+> actually exited; if it does, wait a moment and run it again.
+
 **Watch for this line.** If the build prints
 
 ```
@@ -216,13 +232,45 @@ Measured, before and after:
 > cd frontend/android && ./gradlew assembleDebug -PreactNativeArchitectures=x86_64
 > ```
 
-**Still to cut, when you are ready.** About 29 MB is compiled Java
-(`classes*.dex`), because `android.enableMinifyInReleaseBuilds` and
-`enableShrinkResourcesInReleaseBuilds` both default to false. Turning them
-on shrinks that substantially — but ProGuard can break reflection-based
-native modules at *runtime*, not at build time. That is a crash in a field
-rather than on your desk, so it is worth doing only once the app is running
-on a real phone and you can tell one kind of failure from another.
+### Minification is on, and it needs a phone to trust
+
+`plugins/withMinification.js` turns on R8, which removes dead code and
+renames what is left. That is where the remaining dex weight goes.
+
+**This is the one setting that can break the app at runtime rather than at
+build time.** R8 cannot see code reached by reflection, so a native module
+looked up by name can be stripped — and the failure appears when a captain
+opens that screen, not when you build.
+
+A build that installs and runs is **not** evidence. Walk these three, which
+are the paths that cross into native code:
+
+| Check | What you should see |
+|---|---|
+| Open the draw screen | A map, not a blank grey box |
+| Start a boundary walk and take twenty steps | The area counting up |
+| Post a job from a second phone | The ping arrives |
+
+If one of them fails on a minified build but works on a non-minified one,
+R8 stripped something. Tell me which screen and I will add the keep rule.
+To build without it for comparison:
+
+```bash
+cd frontend/android && ./gradlew assembleRelease -Pandroid.enableMinifyInReleaseBuilds=false
+```
+
+### Keep the mapping file with every APK
+
+R8 renames classes, so a crash report from a captain's phone is
+unreadable without the translation table written to:
+
+```
+frontend/android/app/build/outputs/mapping/release/mapping.txt
+```
+
+It is regenerated on every build and matches **only** that build. Save it
+beside the APK you hand out. Without it, "the app closed itself" is all you
+will ever know.
 
 ## 6 · Put it on a phone
 
