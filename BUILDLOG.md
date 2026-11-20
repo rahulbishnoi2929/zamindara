@@ -13,18 +13,19 @@ Newest first, so the most recent work is always at the top. Each entry says what
 | | |
 |---|---|
 | **Phase** | Code done through 5. **Phase 1 field test never run — the gate was walked past.** See the revision at the top of BUILD_PLAN. |
-| **Tests** | 204 unit (122 packages + 82 app) + **159 database assertions**, all green in CI |
-| **App** | Release APK builds (72 MB, `com.zamindara.app`, targetSdk 36). **Install once:** JS changes reach a phone over the air, or instantly from Metro during development. |
+| **Brief** | Working through the 16 Nov staged brief. Stage 1 done (awaiting your phone install). Stage 2: 2.1–2.4, 2.6, 2.7, 2.10 done; **2.5, 2.8, 2.9 open**. |
+| **Tests** | 220 unit (122 packages + 98 app) + **171 database assertions**, all green in CI |
+| **App** | Signed release APK, **35.3 MB** (from 75.8), R8 on, ARM only. Shows `v0.1.0` on home; an `app_config` row tells old phones to update. **Install once:** JS changes reach a phone over the air. |
 | **Not yet done** | Never run on a physical device; sync never run against a hosted Supabase project |
 | **Blocking next step** | Setup: Maps key, hosted Supabase project, `expo prebuild` + APK, a phone, a 50 m tape |
 | **Repo** | [rahulbishnoi2929/zamindara](https://github.com/rahulbishnoi2929/zamindara) — private, CI green |
-| **Backend** | ✅ **Schema verified.** 20 migrations apply; all three guarantees hold. |
+| **Backend** | ✅ **Schema verified.** 22 migrations apply; all three guarantees hold. |
 
 ```
 C:\Zamidara\
-├── docs\              12 product and engineering documents
-├── frontend\          Expo SDK 57 Android app — 65 tests
-├── backend\supabase\  20 migrations, RLS, dispatch functions — 159 assertions
+├── docs\              16 product and engineering documents
+├── frontend\          Expo SDK 57 Android app — 98 tests
+├── backend\supabase\  22 migrations, RLS, dispatch functions — 171 assertions
 ├── packages\          units · geo · catalog · pricing · scheduling — 122 tests
 └── assets\            logo
 ```
@@ -48,6 +49,8 @@ The most useful part of this log. Each of these was believed, written down, then
 
 | 9 | Rate guidance was finished — the function existed and the screen read it | **It learned from its own guesses, and no farmer could ever see it** | `rate_guidance` ordered by `quoted_rate`, the number the platform invented, so a rate talked down from ₹1200 to ₹900 still fed ₹1200 to the next farmer and the guide could only rise. And nothing in the app called it: the screen read the farmer's *own* history, which for a first-time farmer is empty. Now derived from `final_amount`, and actually called. |
 
+| 11 | Lock-screen accept failed because the **session token had expired** (brief item 2.7) | The token refreshes itself; the real bug was **two silent returns** — no profile on a cold start, and a job not yet in local storage | Read the installed auth-js source: `getSession` refreshes an expired token. The tap did nothing for a different reason, which fixing the token would never have touched. |
+
 | 10 | The distance surcharge was built — pricing library, schema columns, server function, twenty tests | **It was applied to nothing.** `travel_charge` was 0 on every job ever created | The app priced a job at *posting* time, when there is no captain and so no distance, and nothing ever priced it again. A combine 25 km out earned exactly what one in the next village earned. `accept_job` now prices the job at the one moment all three unknowns — whose rate, how far, which machine — are known. |
 
 **Rule that came out of this:** when a measurement contradicts a plan, the measurement wins. It is written into [BUILD_PLAN](docs/BUILD_PLAN.md#standing-rules).
@@ -55,6 +58,60 @@ The most useful part of this log. Each of these was believed, written down, then
 ---
 
 # Entries
+
+## 43 · 2.7 — the lock-screen Accept could silently do nothing
+
+**Asked:** accepting from the lock screen must work when the app was killed and the token has expired.
+
+**The premise was wrong; the bug was worse** (reversal 11). An expired token refreshes on its own — `getSession` does it, checked in the installed auth-js source. The real failure was two silent `return`s: `claimJob` begins `if (profile === null) return`, and a cold start from a notification has no profile yet; and it looked the job up locally first, where a job offered since the last sync is not. Either way the tap did nothing, with no message. A captain that happens to does not report a bug — he stops trusting the sound.
+
+**Fix:** the handler calls `accept_job` directly (it needs only a job id and a session), reconciles local state afterwards, and always tells him something. Tapping the notification *body* no longer accepts — that would commit him to a job because he looked at it.
+
+**Verified:** 220 unit tests (3 new, `lockScreen.test.ts`), 171 DB assertions, typecheck, bundle, CI green. **Not verified:** a real killed-app tap on a phone. Commit `1d69ce5`.
+
+---
+
+## 42 · Stage 1.2 — sign-in without an SMS provider
+
+**Asked:** sign in with Supabase test numbers and a code the founder assigns; a config switch so the screen says "enter the code the founder gave you"; keep real numbers out of git; write the onboarding doc.
+
+**Built:** `app_config.founder_code_signin` (new migration 0022). A column, not a build flag: the day DLT registration clears, the wording must change on phones already in captains' hands. Defaults to **on** at every layer that can fail — column, wire mapping, component — because with nothing configured "no SMS is coming" is the honest answer. Cached on the phone, since sign-in happens in a yard with one bar.
+
+An **i18n completeness test**: every string in pa/hi/en, and no English pasted into the Punjabi slot. All existing strings passed. CI also now rejects any phone number in `auth.sms.test_otp` other than the four fictional fixtures — `supabase config push` would copy them to the hosted project as permanent back doors.
+
+[ONBOARDING_A_CAPTAIN.md](docs/ONBOARDING_A_CAPTAIN.md): dashboard to handset, start to finish.
+
+**Verified:** 217 unit, 171 DB assertions, CI green. **Not verified:** a real sign-in against a hosted project. Commit `49d6b61`.
+
+---
+
+## 41 · Stage 1.1 — a signed APK, and 75.8 MB down to 35.3 MB
+
+**Asked:** exact commands to build a signed APK at home, keystore backup advice, and the size with cuts proposed if over 30 MB.
+
+**Signing** is a config plugin, because `android/` is regenerated by `prebuild --clean` and a hand edit silently vanishes. Passwords live in `~/.gradle/gradle.properties`, never the repo. The plugin **throws** if it cannot apply: the quiet failure is a debug-signed APK, and Android will never update that over a correct one without an uninstall that loses his unsynced fields. Confirmed with `apksigner` (the `keytool` command I first documented reports "Not a signed jar" on a correct v2-only APK — corrected). [SIGNING_AND_RELEASE.md](docs/SIGNING_AND_RELEASE.md) covers backup and what losing the key means.
+
+**Size, measured each step:** 75.8 MB → **43.0** (drop x86/x86_64, emulator-only) → **35.3** (R8 on; dex 29.4 → 8.9 MB). The remaining 26 MB is ARM native code; a per-architecture split would reach ~22 MB at the cost of two APKs to keep straight. Not done. **Keep `mapping.txt` (28 MB) with every APK handed out**, or crash reports are unreadable.
+
+**Two build traps documented:** a build that stops with no error is gradle running out of Metaspace; "Unable to delete classes.jar" is an old daemon holding the file on Windows.
+
+**Not verified:** R8 can break reflection at runtime. Three on-phone checks are in the doc — map draws, a walk counts up, a ping arrives. Commits `776777b`…`503243f`.
+
+---
+
+## 40 · Stage 1.1 — the app can tell you it is out of date
+
+**Asked:** show the version on the home screen; an "update available" notice from one database row.
+
+**Built:** `app_config`, one global row readable without signing in (a phone below the floor must learn it before sign-in). **No write policy at all** — the anon key ships in every APK, and a writable row would let anyone lock out the district or point everyone at their own APK. Version compare is numeric per part (`0.10.0` > `0.9.0`); unreadable compares equal, so a dashboard typo cannot lock out every phone. Home shows `v0.1.0` plus the OTA update id, replacing a fingerprint hash a captain could not read out.
+
+`required` is a stronger sentence, not a locked door — blocking the app mid-harvest is its own decision.
+
+Also corrected three tests: an RLS-blocked UPDATE/DELETE succeeds on zero rows rather than raising, so the meaningful assertion is that the row did not move.
+
+**Verified:** 212 unit, 168 DB assertions, CI green. Commits `0c443c5`, `46afb56`, `2046dd9`.
+
+---
 
 ## 39 · An audit, and four things the audit was wrong about
 
