@@ -26,6 +26,7 @@ import {
   profileToWire,
   toIso,
   uuid,
+  withMachineUuids,
 } from './mapping';
 
 /**
@@ -391,6 +392,7 @@ describe('captain machinery to wire', () => {
     );
     expect(rows).toEqual([
       {
+        id: 'm1',
         machine_type_id: 'aaaa-bbbb',
         ownership: 'arrangeable',
         lead_time_hours: 24,
@@ -398,6 +400,21 @@ describe('captain machinery to wire', () => {
         make: null,
       },
     ]);
+  });
+
+  it('gives machines from older builds a real id once, and leaves the rest alone (4.6)', () => {
+    const good = uuid();
+    const before = {
+      machines: [
+        { id: '1700000000000-combine', machineCode: 'combine', ownership: 'owned' as const, leadTimeHours: 0, withOperatorOnly: false },
+        { id: good, machineCode: 'combine', ownership: 'owned' as const, leadTimeHours: 0, withOperatorOnly: false },
+      ],
+    } as unknown as Profile;
+    const after = withMachineUuids(before);
+    expect(isUuid(after.machines[0]!.id)).toBe(true);
+    expect(after.machines[1]!.id).toBe(good);
+    // Nothing to repair: the very same object, so nothing is re-saved.
+    expect(withMachineUuids(after)).toBe(after);
   });
 
   it('keeps a null rate negotiable rather than zero', () => {

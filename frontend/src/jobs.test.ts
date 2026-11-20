@@ -8,7 +8,22 @@ import {
   searchState,
   type Job,
 } from './jobs';
-import { splitJobs } from './jobs';
+import { machineLabels, splitJobs } from './jobs';
+
+describe('machineLabels (4.6)', () => {
+  const m = (id: string, machineCode: string) =>
+    ({ id, machineCode, ownership: 'owned', leadTimeHours: 0, withOperatorOnly: false }) as const;
+  it('numbers only the kinds he has more than one of', () => {
+    const labels = machineLabels(
+      [m('a', 'combine'), m('b', 'tractor'), m('c', 'combine')],
+      (code) => (code === 'combine' ? 'ਕੰਬਾਈਨ' : 'ਟਰੈਕਟਰ'),
+    );
+    expect([...labels]).toEqual([
+      ['a', 'ਕੰਬਾਈਨ 1'],
+      ['c', 'ਕੰਬਾਈਨ 2'],
+    ]);
+  });
+});
 
 const job: Job = {
   id: 'j1',

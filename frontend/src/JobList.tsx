@@ -190,6 +190,8 @@ interface CaptainCardProps {
   /** Hand the job back, so it can reach another captain. */
   onRelease?: ((job: Job) => void) | undefined;
   onDisputeArea?: ((job: Job) => void) | undefined;
+  /** Which of his machines, when he has two of a kind (4.6). */
+  machineLabel?: string | undefined;
 }
 
 /**
@@ -211,6 +213,7 @@ export function CaptainJobCard({
   onAdvance,
   onRelease,
   onDisputeArea,
+  machineLabel,
 }: CaptainCardProps) {
   const service = SERVICE_BY_CODE.get(job.serviceCode);
   const incoming = job.status === 'searching';
@@ -233,7 +236,7 @@ export function CaptainJobCard({
       </Text>
 
       <Text style={[s.meta, incoming && s.metaIncoming]}>
-        {[job.village, job.isImmediate ? t('now', locale) : job.scheduledDate]
+        {[machineLabel, job.village, job.isImmediate ? t('now', locale) : job.scheduledDate]
           .filter(Boolean)
           .join(' · ')}
       </Text>

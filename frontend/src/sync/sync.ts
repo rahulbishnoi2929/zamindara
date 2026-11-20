@@ -15,6 +15,7 @@ import {
 } from '../storage';
 import {
   captainMachinesToWire,
+  withMachineUuids,
   captainRatesToWire,
   fieldFromWire,
   fieldToWire,
@@ -122,8 +123,10 @@ export async function loadCatalog(): Promise<CatalogMaps | null> {
  * dispatched nothing, which is the honest state for a captain the phone
  * cannot yet place.
  */
-export async function syncProfile(profile: Profile): Promise<Profile | null> {
+export async function syncProfile(given: Profile): Promise<Profile | null> {
   if (!isBackendConfigured()) return null;
+  // Machine ids must be ones the server can keep before they are pushed.
+  const profile = withMachineUuids(given);
   const session = await currentSession();
   if (session === null) return null;
 
@@ -191,9 +194,10 @@ async function pushCaptainSide(profile: Profile, uid: string): Promise<boolean> 
   );
   if (captains.error !== null) return false;
 
-  // Machines have no natural key the client can address, so the push is a
-  // replace: delete his rows, insert the current registry. Rates have a
-  // real key and upsert cleanly; any service no longer offered is removed.
+  // Machines are keyed by the phone's own id and upserted; any he removed
+  // is deleted. They used to be replaced wholesale every pass, which gave
+  // each machine a new id each time — and jobs point at a machine (4.6).
+  // Rates have a real key and upsert the same way.
   //
   // A replace-set whose inputs are incomplete would delete real data: if
   // even one code has no server id (an app and a database out of step),
@@ -206,14 +210,15 @@ async function pushCaptainSide(profile: Profile, uid: string): Promise<boolean> 
     (m) => maps.machineTypeId(m.machineCode) !== undefined,
   );
   if (allMachinesMapped) {
-    await supabase.from('captain_machines').delete().eq('captain_id', uid);
     const machines = captainMachinesToWire(profile.machines, maps.machineTypeId);
     if (machines.length > 0) {
-      const inserted = await supabase
+      const upserted = await supabase
         .from('captain_machines')
-        .insert(machines.map((m) => ({ ...m, captain_id: uid })));
-      if (inserted.error !== null) return false;
+        .upsert(machines.map((m) => ({ ...m, captain_id: uid })), { onConflict: 'id' });
+      if (upserted.error !== null) return false;
     }
+    const gone = supabase.from('captain_machines').delete().eq('captain_id', uid);
+    await (machines.length === 0 ? gone : gone.not('id', 'in', `(${machines.map((m) => m.id).join(',')})`));
   }
 
   const allRatesMapped = profile.rates.every(

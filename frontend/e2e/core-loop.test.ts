@@ -83,7 +83,7 @@ describe.skipIf(URL_ === '')('core loop against the database', { timeout: 60_000
     globalThis.fetch = realFetch;
     if (admin === undefined) return;
     await admin.from('ratings').delete().in('job_id', [jobId, job2]);
-    await admin.from('jobs').delete().in('id', [jobId, job2, phonedJob, job3].filter(Boolean));
+    await admin.from('jobs').delete().in('id', [jobId, job2, phonedJob, job3, ...twoCombineJobs].filter(Boolean));
     await admin.from('admins').delete().eq('phone', FARMER_PHONE);
     for (const id of [farmerId, captainUid, phonedUid]) {
       if (id !== '') await admin.auth.admin.deleteUser(id);
@@ -476,6 +476,51 @@ describe.skipIf(URL_ === '')('core loop against the database', { timeout: 60_000
     // The field is about one killa: smaller than he takes.
     const note = farmerJobs.find((j) => j.id === job3)?.sizeFloorSqm;
     expect(Math.round(note ?? 0)).toBe(8094);
+  });
+
+  const twoCombineJobs: string[] = [];
+
+  it('4.6: a captain buys a second combine; two jobs run on the two machines', async () => {
+    await signInAs(CAPTAIN_PHONE, CAPTAIN_CODE);
+    const first = captain.machines[0]!;
+    captain = {
+      ...captain,
+      machines: [...captain.machines, { ...first, id: app.mapping.uuid() }],
+      updatedAt: Date.now(),
+    };
+    expect(await app.sync.syncProfile(captain)).not.toBeNull();
+    const machines = await admin.from('captain_machines').select('id').eq('captain_id', captainUid);
+    // The phone's ids are the server's: the first combine kept its id.
+    expect(machines.data!.map((m) => m.id).sort()).toEqual(captain.machines.map((m) => m.id).sort());
+
+    // The founder books two jobs and gives both to him.
+    await signInAs(FARMER_PHONE, FARMER_CODE);
+    for (const lat of [30.42, 30.43]) {
+      const id = await app.sync.founderCreateJob({
+        farmerId,
+        serviceCode: 'wheat_harvest',
+        areaSqm: 3 * 4046.8564224,
+        at: { lat, lng: 74.02 },
+        isImmediate: true,
+        scheduledDate: null,
+        window: 'any',
+      });
+      expect(id).toBeTruthy();
+      twoCombineJobs.push(id!);
+      expect(await app.sync.founderAssign(id!, captainUid)).toBe(true);
+    }
+
+    await signInAs(CAPTAIN_PHONE, CAPTAIN_CODE);
+    captainJobs = await app.sync.syncJobs(captainJobs, captain);
+    const onMachines = twoCombineJobs.map((id) => captainJobs.find((j) => j.id === id)?.machineId);
+    // One on each combine, not both on the first.
+    expect(new Set(onMachines)).toEqual(new Set(captain.machines.map((m) => m.id)));
+
+    // A later profile push does not unhook them: ids are stable now.
+    captain = { ...captain, updatedAt: Date.now() };
+    expect(await app.sync.syncProfile(captain)).not.toBeNull();
+    const { data } = await admin.from('jobs').select('machine_id').in('id', twoCombineJobs);
+    expect(data!.every((j) => j.machine_id !== null)).toBe(true);
   });
 
   it('a phone that lost its local copy gets everything back, cursors notwithstanding', async () => {

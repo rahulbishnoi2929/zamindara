@@ -263,6 +263,7 @@ export interface WireJobInsert {
 export interface WireJobRow {
   id: string;
   area_disputed_at?: string | null;
+  machine_id?: string | null;
   field_id: string;
   captain_id: string | null;
   service_id: string;
@@ -385,6 +386,7 @@ export function jobFromWire(
     startedAt: fromIso(row.started_at),
     completedAt: fromIso(row.completed_at),
     areaDisputedAt: fromIso(row.area_disputed_at ?? null),
+    machineId: row.machine_id ?? null,
   };
 }
 
@@ -458,6 +460,8 @@ export function profileFromWire(row: WireProfileRow, local: Profile | null): Pro
 // ---------------------------------------------------------------------------
 
 export interface WireMachineRow {
+  /** The phone's id, kept: jobs point at a machine (4.6). */
+  id: string;
   machine_type_id: string;
   ownership: 'owned' | 'arrangeable';
   lead_time_hours: number;
@@ -487,6 +491,7 @@ export function captainMachinesToWire(
     const id = machineTypeId(m.machineCode);
     if (id === undefined) continue;
     rows.push({
+      id: m.id,
       machine_type_id: id,
       ownership: m.ownership,
       lead_time_hours: Math.round(m.leadTimeHours),
@@ -495,6 +500,19 @@ export function captainMachinesToWire(
     });
   }
   return rows;
+}
+
+/**
+ * Machines added by builds before 4.6 had ids like "1700000000000-combine",
+ * which the server cannot keep. Give those a UUID, once; the caller saves
+ * the result. Returns the same object when there is nothing to repair.
+ */
+export function withMachineUuids(profile: Profile): Profile {
+  if (profile.machines.every((m) => isUuid(m.id))) return profile;
+  return {
+    ...profile,
+    machines: profile.machines.map((m) => (isUuid(m.id) ? m : { ...m, id: uuid() })),
+  };
 }
 
 export function captainRatesToWire(

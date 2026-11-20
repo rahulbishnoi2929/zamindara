@@ -9,7 +9,7 @@ import { t } from './i18n';
 import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
 import { CaptainJobCard, EmptyJobs, FarmerJobCard } from './JobList';
-import { isLive, sortForCaptain, splitJobs, type Job } from './jobs';
+import { isLive, machineLabels, sortForCaptain, splitJobs, type Job } from './jobs';
 import { isCaptain, isFarmer, type Profile } from './profile';
 import type { SavedField } from './storage';
 import { updateState, type AppConfig } from './version';
@@ -156,7 +156,13 @@ export function HomeScreen({
     { id: profile.id, fullName: profile.fullName, isOnline: profile.isOnline, captain },
     new Set(fields.map((f) => f.id)),
   );
-  const captainQueue = sortForCaptain(split.captainQueue);
+  // Two combines are two queues (4.6): his work grouped by machine, each
+  // card saying which. Sort is stable, so each machine keeps its order.
+  const labels = machineLabels(profile.machines, (c) => MACHINE_BY_CODE.get(c)?.name[locale] ?? c);
+  const labelOf = (j: Job) => (j.machineId ? labels.get(j.machineId) : undefined);
+  const captainQueue = sortForCaptain(split.captainQueue).sort((a, b) =>
+    (labelOf(a) ?? '').localeCompare(labelOf(b) ?? ''),
+  );
   const incoming = split.incoming;
   const myJobs = split.myJobs;
 
@@ -173,14 +179,16 @@ export function HomeScreen({
     const byCaptain = new Map<string, QueueJob[]>();
 
     for (const j of sortForCaptain(jobs.filter((x) => x.captainName !== null && isLive(x)))) {
-      const list = byCaptain.get(j.captainName!) ?? [];
+      // Per machine where known: his other combine's work is not ahead of yours.
+      const key = j.machineId ?? j.captainName!;
+      const list = byCaptain.get(key) ?? [];
       list.push({
         id: j.id,
         areaSqm: j.areaSqm,
         estMinutesPerKilla: SERVICE_BY_CODE.get(j.serviceCode)?.estMinutesPerKilla ?? null,
         distanceKm: j.distanceKm ?? 0,
       });
-      byCaptain.set(j.captainName!, list);
+      byCaptain.set(key, list);
     }
 
     const out = new Map<string, ReturnType<typeof buildSchedule>>();
@@ -191,7 +199,7 @@ export function HomeScreen({
   const scheduleFor = (job: Job) =>
     job.captainName === null
       ? null
-      : findInSchedule(schedules.get(job.captainName) ?? [], job.id);
+      : findInSchedule(schedules.get(job.machineId ?? job.captainName) ?? [], job.id);
 
   return (
     <View style={s.screen}>
@@ -262,6 +270,7 @@ export function HomeScreen({
                     key={job.id}
                     job={job}
                     locale={locale}
+                    machineLabel={labelOf(job)}
                     onAccept={onAcceptJob}
                     sending={sendingAccepts?.has(job.id)}
                     onAdvance={onAdvanceJob}

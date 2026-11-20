@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { PricingUnit } from '@zamindara/catalog';
 import { fromSqm } from '@zamindara/units';
+import type { CaptainMachine } from './profile';
 
 /**
  * Jobs, stored locally.
@@ -82,6 +83,8 @@ export interface Job {
    * by an older build still load. Set once; the server stamps the real time.
    */
   areaDisputedAt?: number | null;
+  /** The captain's machine this job runs on (4.6). Server-picked on accept. */
+  machineId?: string | null;
   /**
    * When nobody could be offered this job because it is smaller than the
    * captains nearby take: the smallest size they do take (4.5). Server-told.
@@ -324,4 +327,20 @@ export function splitJobs(
       : [],
     myJobs: me.captain ? jobs.filter((j) => myFieldIds.has(j.fieldId)) : [...jobs],
   };
+}
+
+/**
+ * "Combine 1", "Combine 2": a label per machine, for the kinds he has more
+ * than one of — two combines are two queues (4.6). One of a kind needs none.
+ */
+export function machineLabels(
+  machines: readonly CaptainMachine[],
+  name: (code: string) => string,
+): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const m of machines) {
+    const same = machines.filter((x) => x.machineCode === m.machineCode);
+    if (same.length > 1) out.set(m.id, `${name(m.machineCode)} ${same.indexOf(m) + 1}`);
+  }
+  return out;
 }

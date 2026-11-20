@@ -12,6 +12,7 @@ import { Button, Card } from '../components';
 import { t } from '../i18n';
 import type { CaptainMachine, Ownership } from '../profile';
 import { colors, radius, space, TOUCH_MIN, type } from '../theme';
+import { uuid } from '../sync/mapping';
 
 interface Props {
   locale: Locale;
@@ -57,7 +58,7 @@ export function MachineRegistry({ locale, machines, onChange }: Props) {
 
   const add = (machine: MachineType) => {
     const entry: CaptainMachine = {
-      id: `${Date.now()}-${machine.code}`,
+      id: uuid(),
       machineCode: machine.code,
       ownership: 'owned',
       leadTimeHours: 0,

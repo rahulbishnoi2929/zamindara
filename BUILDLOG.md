@@ -13,19 +13,19 @@ Newest first, so the most recent work is always at the top. Each entry says what
 | | |
 |---|---|
 | **Phase** | Code done through 5. **Phase 1 field test never run — the gate was walked past.** See the revision at the top of BUILD_PLAN. |
-| **Brief** | Working through the 16 Nov staged brief. Stage 1 done (awaiting your phone install). **Stage 4.1, 4.2, 4.4, 4.5 done.** Next: 4.6 jobs on a specific machine, then 4.3, 4.7, 4.8. Waiting on you: Supabase project, Firebase, first-phone test. |
-| **Tests** | 264 unit (122 packages + 142 app) + **246 database assertions** (run twice in CI: before and after a backup-and-restore) + **14-step end-to-end test** covering every server call, against a real database, all green in CI |
+| **Brief** | Working through the 16 Nov staged brief. Stage 1 done (awaiting your phone install). **Stage 4.1, 4.2, 4.4, 4.5, 4.6 done.** Next: 4.3 captain-created jobs, then 4.7, 4.8. Waiting on you: Supabase project, Firebase, first-phone test. |
+| **Tests** | 266 unit (122 packages + 144 app) + **255 database assertions** (run twice in CI: before and after a backup-and-restore) + **15-step end-to-end test** covering every server call, against a real database, all green in CI |
 | **App** | Signed release APK, **35.3 MB** (from 75.8), R8 on, ARM only. Shows `v0.1.0` on home; an `app_config` row tells old phones to update. **Install once:** JS changes reach a phone over the air. |
 | **Not yet done** | Never run on a physical device; sync never run against a hosted Supabase project |
 | **Blocking next step** | Setup: Maps key, hosted Supabase project, `expo prebuild` + APK, a phone, a 50 m tape |
 | **Repo** | [rahulbishnoi2929/zamindara](https://github.com/rahulbishnoi2929/zamindara) — private, CI green |
-| **Backend** | ✅ **Schema verified.** 33 migrations apply; all three guarantees hold. |
+| **Backend** | ✅ **Schema verified.** 34 migrations apply; all three guarantees hold. |
 
 ```
 C:\Zamidara\
 ├── docs\              16 product and engineering documents
-├── frontend\          Expo SDK 57 Android app — 142 tests + e2e
-├── backend\supabase\  33 migrations, RLS, dispatch functions — 246 assertions
+├── frontend\          Expo SDK 57 Android app — 144 tests + e2e
+├── backend\supabase\  34 migrations, RLS, dispatch functions — 255 assertions
 ├── packages\          units · geo · catalog · pricing · scheduling — 122 tests
 └── assets\            logo
 ```
@@ -67,6 +67,26 @@ The most useful part of this log. Each of these was believed, written down, then
 ---
 
 # Entries
+
+## 53 · Stage 4.6 — a job runs on a specific machine; two combines, two queues
+
+**Asked:** jobs reference a specific machine, so one owner with two combines has two queues.
+
+**What "working" meant:** a captain's second job goes to his idle combine, not behind the first; dispatch counts an idle machine as free capacity; and the machine stays attached to the job across syncs.
+
+**Found on the way:** the app replaced a captain's machines on the server (delete all, insert all) on **every** sync pass, so every machine got a new id each time. Any job pointing at a machine would have been unhooked within minutes. Machines now keep the phone's id and are upserted; only the ones he removed are deleted. Machines saved by older builds get a proper id once.
+
+**Built:**
+- **Database (migration 0034).** `jobs.machine_id`. One trigger picks the machine whenever a job gets a captain, whether by accept, by the founder, or by anything added later: his least-busy active machine of the right kind, owned before arranged. A machine that isn't his, or is the wrong kind (a wheat harvest on a tractor), is refused. Jobs already under way were given a machine. `eligible_captains`' queue load is now the load on his least-busy machine for that work, so a second idle combine counts as free.
+- **App.** A captain with two of a kind sees "ਕੰਬਾਈਨ 1" or "ਕੰਬਾਈਨ 2" on each job card, and his list is grouped by machine. A farmer's "when does the machine reach me" estimate now queues behind that machine only, not behind the captain's other combine.
+
+**Not built:** a founder screen to move a job to another machine. The server picks it, and the captain can move his own job between his machines. Add it when a real case asks.
+
+**Verified by running:** 266 unit tests (2 new), typecheck clean, bundle exports. **In CI:** 255 database assertions (9 new), twice; 15 end-to-end steps, including a captain adding a second combine, the founder giving him two jobs, one landing on each, and a later profile push leaving both attached.
+
+**Not verified on a phone:** the machine label on the job card at large font size.
+
+---
 
 ## 52 · Stage 4.5 — a captain's smallest job, and the farmer told why
 
