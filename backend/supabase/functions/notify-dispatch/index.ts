@@ -61,7 +61,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   const { data: job, error: jobError } = await asCaller
     .from('jobs')
-    .select('id, farmer_id, captain_id, area_sqm, service_id')
+    .select('id, farmer_id, captain_id, area_sqm, service_id, is_immediate')
     .eq('id', jobId)
     .maybeSingle();
 
@@ -141,7 +141,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
   // app_config.loud_ping. No row, or no column on an older database, is
   // quiet: never ring through Do Not Disturb unless told to.
   const { data: config } = await asService.from('app_config').select('*').maybeSingle();
-  const loud = (config as { loud_ping?: unknown } | null)?.loud_ping === true;
+  // Only a "now" job rings loud (4.8). A job for a later day is an open
+  // offer: it waits in his feed, and the ping is an ordinary notification.
+  const loud = (config as { loud_ping?: unknown } | null)?.loud_ping === true && job.is_immediate === true;
 
   const messages = to.map((token) => ({
     to: token,

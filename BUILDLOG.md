@@ -13,19 +13,19 @@ Newest first, so the most recent work is always at the top. Each entry says what
 | | |
 |---|---|
 | **Phase** | Code done through 5. **Phase 1 field test never run — the gate was walked past.** See the revision at the top of BUILD_PLAN. |
-| **Brief** | Working through the 16 Nov staged brief. Stage 1 done (awaiting your phone install). **Stage 4.1–4.7 done.** Next: 4.8 scheduled jobs as open offers (the last of Stage 4). Waiting on you: Supabase project, Firebase, first-phone test. |
-| **Tests** | 270 unit (122 packages + 148 app) + **278 database assertions** (run twice in CI: before and after a backup-and-restore) + **17-step end-to-end test** covering every server call, against a real database, all green in CI |
+| **Brief** | Working through the 16 Nov staged brief. Stage 1 done (awaiting your phone install). **Stage 4 done (4.1–4.8).** Next: Stages 5–7. Waiting on you: Supabase project, Firebase, first-phone test. |
+| **Tests** | 270 unit (122 packages + 148 app) + **287 database assertions** (run twice in CI: before and after a backup-and-restore) + **18-step end-to-end test** covering every server call, against a real database, all green in CI |
 | **App** | Signed release APK, **35.3 MB** (from 75.8), R8 on, ARM only. Shows `v0.1.0` on home; an `app_config` row tells old phones to update. **Install once:** JS changes reach a phone over the air. |
 | **Not yet done** | Never run on a physical device; sync never run against a hosted Supabase project |
 | **Blocking next step** | Setup: Maps key, hosted Supabase project, `expo prebuild` + APK, a phone, a 50 m tape |
 | **Repo** | [rahulbishnoi2929/zamindara](https://github.com/rahulbishnoi2929/zamindara) — private, CI green |
-| **Backend** | ✅ **Schema verified.** 36 migrations apply; all three guarantees hold. |
+| **Backend** | ✅ **Schema verified.** 37 migrations apply; all three guarantees hold. |
 
 ```
 C:\Zamidara\
 ├── docs\              16 product and engineering documents
 ├── frontend\          Expo SDK 57 Android app — 148 tests + e2e
-├── backend\supabase\  36 migrations, RLS, dispatch functions — 278 assertions
+├── backend\supabase\  37 migrations, RLS, dispatch functions — 287 assertions
 ├── packages\          units · geo · catalog · pricing · scheduling — 122 tests
 └── assets\            logo
 ```
@@ -67,6 +67,25 @@ The most useful part of this log. Each of these was believed, written down, then
 ---
 
 # Entries
+
+## 56 · Stage 4.8 — jobs for a later day are open offers
+
+**Asked:** a job for a later date becomes an open offer: listed quietly to every eligible captain (base location, or a route stop covering the day) for as long as it stands, first to accept wins. The 90-second ping stays for "now" jobs only.
+
+**Built:**
+- **Database (migration 0037).**
+  - `jobs.dispatch_mode` is 'instant' for a "now" job and 'open' for any other. It is computed from `is_immediate`, never written, so no phone (old or new) can set it wrong.
+  - `claim_open_offers()`: a captain's sync pass calls it, and every open job he is eligible for is added to his feed as an ordinary pending offer. Accepting, the first-accept-wins race and the offer list all work exactly as before; nothing new to go wrong there.
+  - It sends no push, obeys the automatic-dispatch switch (off: nobody is listed anything), skips unconfirmed fields, never re-lists a job he declined, and lists nothing from a farmer with more than five requests open (a runaway loop).
+  - An open offer closes when someone takes it or when its day ends (the existing expiry).
+- **Pings.** The server push and the app's own ping ring loud only for a "now" job. A later job is an ordinary notification even with the loud switch on.
+- **App.** No new screen: the offer card already shows the job's date.
+
+**Verified by running:** 270 unit tests, typecheck clean, bundle exports. **In CI:** 287 database assertions (9 new), twice; 18 end-to-end steps. The new step: a farmer books for the day after tomorrow and nobody is offered it; the founder turns dispatch on; the captain's next sync lists it and he accepts it.
+
+**Not verified:** the quiet push from the deployed function (notify-dispatch is not deployed yet), and how an open offer looks in a captain's feed on a phone.
+
+---
 
 ## 55 · Stage 4.7 — a migrant combine's route, as dated stops
 

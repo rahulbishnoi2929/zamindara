@@ -521,6 +521,12 @@ async function pullJobs(
       }
     }
 
+    // Open offers (4.8): jobs for a later day he can do are listed to him as
+    // pending rows, quietly, so they arrive in the pull just below. Older
+    // servers lack the function; the error is harmless.
+    const claimed = await supabase.rpc('claim_open_offers');
+    if (claimed.error !== null) console.warn('sync: open offers failed:', claimed.error.message);
+
     // Offers: pending dispatch rows. A stale pending offer on a job someone
     // else already took is filtered by the status, not left to confuse him.
     const offers = await supabase

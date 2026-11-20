@@ -83,7 +83,8 @@ describe.skipIf(URL_ === '')('core loop against the database', { timeout: 60_000
     globalThis.fetch = realFetch;
     if (admin === undefined) return;
     await admin.from('ratings').delete().in('job_id', [jobId, job2]);
-    await admin.from('jobs').delete().in('id', [jobId, job2, phonedJob, job3, ...twoCombineJobs, captainBooked].filter(Boolean));
+    await admin.from('jobs').delete().in('id', [jobId, job2, phonedJob, job3, ...twoCombineJobs, captainBooked, laterJob].filter(Boolean));
+    await admin.from('app_config').update({ auto_dispatch: false }).eq('id', true);
     await admin.from('admins').delete().eq('phone', FARMER_PHONE);
     await admin.from('profiles').delete().eq('phone', '919876500005');
     for (const id of [farmerId, captainUid, phonedUid]) {
@@ -600,6 +601,34 @@ describe.skipIf(URL_ === '')('core loop against the database', { timeout: 60_000
     };
     expect(await who(new Date())).toContain(captainUid);
     expect(await who(new Date(Date.now() + 7 * 86400_000))).not.toContain(captainUid);
+  });
+
+  let laterJob = '';
+
+  it('4.8: a job for the day after tomorrow is listed quietly, and he takes it', async () => {
+    await signInAs(FARMER_PHONE, FARMER_CODE);
+    laterJob = crypto.randomUUID();
+    const todayIst = new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10);
+    const base = farmerJobs.find((j) => j.id === jobId)!;
+    farmerJobs = await app.sync.syncJobs(
+      [...farmerJobs, { ...base, id: laterJob, status: 'searching', isImmediate: false,
+        scheduledDate: app.profile.addDays(todayIst, 2), window: 'morning', captainId: null, captainName: null,
+        finalAmount: null, paymentMode: null, myRating: null, areaDisputedAt: null,
+        acceptedAt: null, startedAt: null, completedAt: null }],
+      farmer,
+    );
+    const { data } = await admin.from('jobs').select('dispatch_mode').eq('id', laterJob).single();
+    expect(data?.dispatch_mode).toBe('open');
+
+    // The founder turns automatic dispatch on. Nobody was pinged at posting;
+    // the captain's next sync lists it to him.
+    const on = await admin.from('app_config').update({ auto_dispatch: true }).eq('id', true);
+    expect(on.error).toBeNull();
+    await signInAs(CAPTAIN_PHONE, CAPTAIN_CODE);
+    captainJobs = await app.sync.syncJobs(captainJobs, captain);
+    expect(captainJobs.find((j) => j.id === laterJob)?.status).toBe('searching');
+    expect(await app.sync.acceptJobRemote(laterJob)).toBe('accepted');
+    await admin.from('app_config').update({ auto_dispatch: false }).eq('id', true);
   });
 
   it('a phone that lost its local copy gets everything back, cursors notwithstanding', async () => {
