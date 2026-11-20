@@ -40,6 +40,7 @@ import { OnboardingFlow } from './src/onboarding/OnboardingFlow';
 import { SignInScreen } from './src/SignInScreen';
 import { VerifyCaptainsScreen } from './src/VerifyCaptainsScreen';
 import { FounderScreen, PhoneBookingForm } from './src/FounderScreen';
+import { RouteScreen } from './src/RouteScreen';
 import { currentSession } from './src/auth';
 import { startAutoRefresh, stopAutoRefresh } from './src/supabase';
 import { AppState } from 'react-native';
@@ -691,6 +692,7 @@ export default function App() {
                 onVerifyCaptains={isStaff ? () => setScreen({ name: 'verify' }) : undefined}
                 onOpenFounder={isStaff ? () => setScreen({ name: 'founder' }) : undefined}
                 onLogPhoneJob={() => setScreen({ name: 'captainBook' })}
+                onOpenRoute={() => setScreen({ name: 'route' })}
                 onRetrace={(job) => setScreen({ name: 'choose', intent: { kind: 'retrace', jobId: job.id } })}
               />
             )}
@@ -811,6 +813,18 @@ export default function App() {
                 onDone={() => {
                   setScreen({ name: 'home' });
                   void runSync();
+                }}
+              />
+            )}
+
+            {screen.name === 'route' && profile !== null && (
+              <RouteScreen
+                locale={locale}
+                stops={profile.routeStops}
+                near={profile.currentLocation ?? profile.baseLocation}
+                onDone={(routeStops) => {
+                  setScreen({ name: 'home' });
+                  if (routeStops !== profile.routeStops) void persistProfile({ ...profile, routeStops });
                 }}
               />
             )}

@@ -86,3 +86,13 @@ describe('starting a walk', () => {
     expect((await loadActiveWalk())?.points).toEqual([pt(5)]);
   });
 });
+
+describe('route stops (4.7)', () => {
+  it('adds days across a month end, and spots two places on one day', async () => {
+    const { addDays, overlapsRoute } = await import('./profile');
+    expect(addDays('2027-03-30', 3)).toBe('2027-04-02');
+    const stops = [{ id: 'a', place: 'Sirsa', lat: 29.5, lng: 75, fromDate: '2027-04-01', toDate: '2027-04-07' }];
+    expect(overlapsRoute(stops, { fromDate: '2027-04-07', toDate: '2027-04-10' })).toBe(true);
+    expect(overlapsRoute(stops, { fromDate: '2027-04-08', toDate: '2027-04-10' })).toBe(false);
+  });
+});

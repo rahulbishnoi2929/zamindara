@@ -42,6 +42,16 @@ export interface ServiceRate {
   minAreaSqm?: number | null;
 }
 
+/** Where a travelling captain will be, and when (4.7). Dates are local, YYYY-MM-DD, inclusive. */
+export interface RouteStop {
+  id: string;
+  place: string;
+  lat: number;
+  lng: number;
+  fromDate: string;
+  toDate: string;
+}
+
 export interface Profile {
   /** Local id until signed in, then the Supabase auth user id. */
   id: string;
@@ -66,6 +76,8 @@ export interface Profile {
    */
   baseLocation: LatLng | null;
   currentLocation: LatLng | null;
+  /** A migrant combine's route. Dispatch uses the stop covering a job's day. */
+  routeStops: RouteStop[];
 
   onboardedAt: number | null;
   updatedAt: number;
@@ -88,6 +100,7 @@ export function emptyProfile(): Profile {
     isOnline: false,
     baseLocation: null,
     currentLocation: null,
+    routeStops: [],
     onboardedAt: null,
     updatedAt: Date.now(),
   };
@@ -104,6 +117,7 @@ export async function loadProfile(): Promise<Profile | null> {
       ...parsed,
       machines: Array.isArray(parsed.machines) ? parsed.machines : [],
       rates: Array.isArray(parsed.rates) ? parsed.rates : [],
+      routeStops: Array.isArray(parsed.routeStops) ? parsed.routeStops : [],
     };
   } catch {
     return null;
@@ -131,3 +145,16 @@ export const isFarmer = (p: Profile): boolean =>
 /** Machine codes he can actually field, for deriving offerable services. */
 export const machineCodes = (p: Profile): string[] =>
   p.machines.map((m) => m.machineCode);
+
+/** A calendar day plus n, as YYYY-MM-DD. Noon UTC, so no time zone moves the day. */
+export function addDays(isoDay: string, n: number): string {
+  const d = new Date(`${isoDay}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Would this stop put him in two places on one day? The server refuses it too. */
+export const overlapsRoute = (
+  stops: readonly RouteStop[],
+  next: { fromDate: string; toDate: string },
+): boolean => stops.some((s) => s.fromDate <= next.toDate && next.fromDate <= s.toDate);

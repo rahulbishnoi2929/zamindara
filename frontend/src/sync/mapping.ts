@@ -1,7 +1,7 @@
 import type { PricingUnit } from '@zamindara/catalog';
 import type { LatLng } from '@zamindara/geo';
 import type { Job, JobStatus, JobWindow, PaymentMode } from '../jobs';
-import type { CaptainMachine, Profile, Role, ServiceRate } from '../profile';
+import type { CaptainMachine, Profile, Role, RouteStop, ServiceRate } from '../profile';
 import type { SavedField } from '../storage';
 
 /**
@@ -453,6 +453,7 @@ export function profileFromWire(row: WireProfileRow, local: Profile | null): Pro
     // The server does not hold where he stood; the phone does.
     baseLocation: local?.baseLocation ?? null,
     currentLocation: local?.currentLocation ?? null,
+    routeStops: local?.routeStops ?? [],
     onboardedAt: local?.onboardedAt ?? Date.now(),
     updatedAt: fromIso(row.updated_at) ?? Date.now(),
   };
@@ -681,3 +682,24 @@ export function needsPush(job: Job, known: KnownJob | undefined): 'insert' | 'up
   if (job.areaDisputedAt != null && known.hasDispute !== true) return 'update';
   return null;
 }
+
+// ---------------------------------------------------------------------------
+// Route stops (4.7)
+// ---------------------------------------------------------------------------
+
+export interface WireRouteStop {
+  id: string;
+  place: string;
+  location: string;
+  from_date: string;
+  to_date: string;
+}
+
+export const routeStopsToWire = (stops: readonly RouteStop[]): WireRouteStop[] =>
+  stops.map((s) => ({
+    id: s.id,
+    place: s.place.trim(),
+    location: toEwkt(pointToGeoJson({ lat: s.lat, lng: s.lng })),
+    from_date: s.fromDate,
+    to_date: s.toDate,
+  }));

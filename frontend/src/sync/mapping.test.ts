@@ -330,6 +330,7 @@ describe('profileToWire', () => {
     isOnline: false,
     baseLocation: null,
     currentLocation: null,
+    routeStops: [],
     onboardedAt: 1729437100000,
     updatedAt: 1729437100000,
   };

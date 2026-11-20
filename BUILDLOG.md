@@ -13,19 +13,19 @@ Newest first, so the most recent work is always at the top. Each entry says what
 | | |
 |---|---|
 | **Phase** | Code done through 5. **Phase 1 field test never run — the gate was walked past.** See the revision at the top of BUILD_PLAN. |
-| **Brief** | Working through the 16 Nov staged brief. Stage 1 done (awaiting your phone install). **Stage 4.1–4.6 done.** Next: 4.7 route stops, then 4.8 scheduled jobs as open offers. Waiting on you: Supabase project, Firebase, first-phone test. |
-| **Tests** | 269 unit (122 packages + 147 app) + **268 database assertions** (run twice in CI: before and after a backup-and-restore) + **16-step end-to-end test** covering every server call, against a real database, all green in CI |
+| **Brief** | Working through the 16 Nov staged brief. Stage 1 done (awaiting your phone install). **Stage 4.1–4.7 done.** Next: 4.8 scheduled jobs as open offers (the last of Stage 4). Waiting on you: Supabase project, Firebase, first-phone test. |
+| **Tests** | 270 unit (122 packages + 148 app) + **278 database assertions** (run twice in CI: before and after a backup-and-restore) + **17-step end-to-end test** covering every server call, against a real database, all green in CI |
 | **App** | Signed release APK, **35.3 MB** (from 75.8), R8 on, ARM only. Shows `v0.1.0` on home; an `app_config` row tells old phones to update. **Install once:** JS changes reach a phone over the air. |
 | **Not yet done** | Never run on a physical device; sync never run against a hosted Supabase project |
 | **Blocking next step** | Setup: Maps key, hosted Supabase project, `expo prebuild` + APK, a phone, a 50 m tape |
 | **Repo** | [rahulbishnoi2929/zamindara](https://github.com/rahulbishnoi2929/zamindara) — private, CI green |
-| **Backend** | ✅ **Schema verified.** 35 migrations apply; all three guarantees hold. |
+| **Backend** | ✅ **Schema verified.** 36 migrations apply; all three guarantees hold. |
 
 ```
 C:\Zamidara\
 ├── docs\              16 product and engineering documents
-├── frontend\          Expo SDK 57 Android app — 147 tests + e2e
-├── backend\supabase\  35 migrations, RLS, dispatch functions — 268 assertions
+├── frontend\          Expo SDK 57 Android app — 148 tests + e2e
+├── backend\supabase\  36 migrations, RLS, dispatch functions — 278 assertions
 ├── packages\          units · geo · catalog · pricing · scheduling — 122 tests
 └── assets\            logo
 ```
@@ -67,6 +67,28 @@ The most useful part of this log. Each of these was believed, written down, then
 ---
 
 # Entries
+
+## 55 · Stage 4.7 — a migrant combine's route, as dated stops
+
+**Asked:** replace `planned_route text[]` with dated route stops, and match migrant combines using the stop that covers the job's day.
+
+**What "working" meant:**
+- A captain who says "Sirsa, from the 5th, for a week" is offered work near Sirsa for those days, even while he is still elsewhere or offline today.
+- He is **not** offered work back home for those days.
+- Jobs for today, and days no stop covers, match exactly as before.
+
+**One change from the design note:** it said a stop is (captain, **region**, dates). Regions have no map shape in the database, so a region can't say whether a field is within a captain's reach. A stop is a named place with a map pin instead, the same kind of point as his base. `planned_route` is untouched: nothing ever wrote or read it, and it stays in case an installed build does.
+
+**Built:**
+- **Database (migration 0036).** `captain_route_stops`: place, point, from and to dates (at most 120 days). A trigger refuses two places on one day. The captain can write only his own stops; farmers can't see them, staff can.
+- `eligible_captains` is re-declared: for work more than 12 hours out, a stop covering that day (India time) replaces where he is now. It keeps two separate branches, each on its own spatial index, so 0018's fix still holds.
+- **App.** A captain's home screen gets a **ਮੇਰਾ ਰੂਟ** (My route) button. The screen lists his stops and adds one with a place name, − / + steppers for the start date and the number of days, and a map pin. There's no calendar library: no new dependency, and big targets. Stops sync with his profile (removed ones first, then upsert). The founder form's map pin is now a shared `PinMap`.
+
+**Verified by running:** 270 unit tests (1 new), typecheck clean, bundle exports. **In CI:** 278 database assertions (10 new), twice; 17 end-to-end steps. The new step has the captain add a Sirsa stop through his profile sync; the server then offers him a Fazilka field today but not next week.
+
+**Not verified on a phone:** the route screen at large font size, and the map pin zoomed out to district level.
+
+---
 
 ## 54 · Stage 4.3 — a captain logs his phone bookings, and measures the field on arrival
 

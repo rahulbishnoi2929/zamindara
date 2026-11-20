@@ -340,25 +340,7 @@ export function PhoneBookingForm({
         )}
 
         <Text style={s.muted}>{t('founderPin', locale)}</Text>
-        <View style={s.mapWrap}>
-          {center === null ? (
-            <ActivityIndicator size="large" color={colors.primary} />
-          ) : (
-            <>
-              <MapView
-                style={StyleSheet.absoluteFill}
-                provider={PROVIDER_GOOGLE}
-                mapType="hybrid"
-                initialRegion={{ latitude: center.lat, longitude: center.lng, latitudeDelta: 0.03, longitudeDelta: 0.03 } as Region}
-                onRegionChangeComplete={(r) => setCenter({ lat: r.latitude, lng: r.longitude })}
-              />
-              {/* The pin is the map's centre: the founder moves the map, not the pin. */}
-              <View pointerEvents="none" style={s.pin}>
-                <Text style={s.pinText}>📍</Text>
-              </View>
-            </>
-          )}
-        </View>
+        <PinMap center={center} onMove={setCenter} />
       </ScrollView>
       <View style={s.footer}>
         <View style={s.row}>
@@ -366,6 +348,38 @@ export function PhoneBookingForm({
           <Button label={t('founderCreate', locale)} onPress={() => void create()} disabled={saving} flex />
         </View>
       </View>
+    </View>
+  );
+}
+
+/** A map whose centre is the pin: he moves the map, not the pin. Null centre: still locating. */
+export function PinMap({
+  center,
+  onMove,
+  zoom = 0.03,
+}: {
+  center: { lat: number; lng: number } | null;
+  onMove: (p: { lat: number; lng: number }) => void;
+  zoom?: number;
+}) {
+  return (
+    <View style={s.mapWrap}>
+      {center === null ? (
+        <ActivityIndicator size="large" color={colors.primary} />
+      ) : (
+        <>
+          <MapView
+            style={StyleSheet.absoluteFill}
+            provider={PROVIDER_GOOGLE}
+            mapType="hybrid"
+            initialRegion={{ latitude: center.lat, longitude: center.lng, latitudeDelta: zoom, longitudeDelta: zoom } as Region}
+            onRegionChangeComplete={(r) => onMove({ lat: r.latitude, lng: r.longitude })}
+          />
+          <View pointerEvents="none" style={s.pin}>
+            <Text style={s.pinText}>📍</Text>
+          </View>
+        </>
+      )}
     </View>
   );
 }

@@ -567,6 +567,41 @@ describe.skipIf(URL_ === '')('core loop against the database', { timeout: 60_000
     expect(measured.quotedTotal!).toBeLessThan(logged!.quotedTotal!);
   });
 
+  it('4.7: a captain going to Sirsa next week is not offered Fazilka work that week', async () => {
+    // Signed in as the captain from the previous step.
+    const todayIst = new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10);
+    captain = {
+      ...captain,
+      // Any size again (4.5 left him at two killa and up); this step is about where, not how big.
+      rates: [{ serviceCode: 'wheat_harvest', rate: 3500, unit: 'per_killa', minAreaSqm: null }],
+      routeStops: [{
+        id: app.mapping.uuid(),
+        place: 'Sirsa',
+        lat: 29.534,
+        lng: 75.029,
+        fromDate: app.profile.addDays(todayIst, 5),
+        toDate: app.profile.addDays(todayIst, 12),
+      }],
+      updatedAt: Date.now(),
+    };
+    expect(await app.sync.syncProfile(captain)).not.toBeNull();
+    const stops = await admin.from('captain_route_stops').select('place, from_date').eq('captain_id', captainUid);
+    expect(stops.data).toEqual([{ place: 'Sirsa', from_date: captain.routeStops[0]!.fromDate }]);
+
+    const svc = await admin.from('services').select('id').eq('code', 'wheat_harvest').single();
+    const who = async (startsAt: Date) => {
+      const { data, error } = await admin.rpc('eligible_captains', {
+        p_field_id: fieldId,
+        p_service_id: svc.data!.id,
+        p_starts_at: startsAt.toISOString(),
+      });
+      expect(error).toBeNull();
+      return (data as Array<{ captain_id: string }>).map((r) => r.captain_id);
+    };
+    expect(await who(new Date())).toContain(captainUid);
+    expect(await who(new Date(Date.now() + 7 * 86400_000))).not.toContain(captainUid);
+  });
+
   it('a phone that lost its local copy gets everything back, cursors notwithstanding', async () => {
     await signInAs(FARMER_PHONE, FARMER_CODE);
     const restored = await app.sync.syncJobs([], farmer);

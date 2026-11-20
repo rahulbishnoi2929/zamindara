@@ -116,6 +116,8 @@ interface Props {
   onOpenFounder?: (() => void) | undefined;
   /** A captain logs a job a farmer booked with him by phone (4.3). */
   onLogPhoneJob?: (() => void) | undefined;
+  /** A travelling captain's dated stops (4.7). */
+  onOpenRoute?: (() => void) | undefined;
   onRetrace?: ((job: Job) => void) | undefined;
 }
 
@@ -149,6 +151,7 @@ export function HomeScreen({
   onVerifyCaptains,
   onOpenFounder,
   onLogPhoneJob,
+  onOpenRoute,
   onRetrace,
 }: Props) {
   const locale = profile.language;
@@ -289,6 +292,9 @@ export function HomeScreen({
 
             {onLogPhoneJob !== undefined && (
               <Button label={t('captainLogJob', locale)} onPress={onLogPhoneJob} variant="secondary" />
+            )}
+            {onOpenRoute !== undefined && (
+              <Button label={t('myRoute', locale)} onPress={onOpenRoute} variant="secondary" />
             )}
 
             <Text style={s.sectionTitle}>{t('yourMachines', locale)}</Text>

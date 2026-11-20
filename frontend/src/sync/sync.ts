@@ -16,6 +16,7 @@ import {
 } from '../storage';
 import {
   captainMachinesToWire,
+  routeStopsToWire,
   withMachineUuids,
   captainRatesToWire,
   fieldFromWire,
@@ -245,6 +246,18 @@ async function pushCaptainSide(profile: Profile, uid: string): Promise<boolean> 
         .eq('captain_id', uid)
         .not('service_id', 'in', `(${keep.join(',')})`);
     }
+  }
+
+  // His route (4.7). Removed stops go first, so moving a stop into the
+  // dates of one he deleted is not refused as an overlap.
+  const stops = routeStopsToWire(profile.routeStops);
+  const oldStops = supabase.from('captain_route_stops').delete().eq('captain_id', uid);
+  await (stops.length === 0 ? oldStops : oldStops.not('id', 'in', `(${stops.map((s) => s.id).join(',')})`));
+  if (stops.length > 0) {
+    const upserted = await supabase
+      .from('captain_route_stops')
+      .upsert(stops.map((s) => ({ ...s, captain_id: uid })), { onConflict: 'id' });
+    if (upserted.error !== null) return false;
   }
 
   return true;
