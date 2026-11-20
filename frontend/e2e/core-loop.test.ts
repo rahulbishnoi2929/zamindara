@@ -82,7 +82,9 @@ describe.skipIf(URL_ === '')('core loop against the database', { timeout: 60_000
   afterAll(async () => {
     globalThis.fetch = realFetch;
     if (admin === undefined) return;
-    await admin.from('jobs').delete().eq('id', jobId);
+    await admin.from('ratings').delete().in('job_id', [jobId, job2]);
+    await admin.from('jobs').delete().in('id', [jobId, job2]);
+    await admin.from('admins').delete().eq('phone', FARMER_PHONE);
     for (const id of [farmerId, captainUid]) {
       if (id !== '') await admin.auth.admin.deleteUser(id);
     }
@@ -221,38 +223,77 @@ describe.skipIf(URL_ === '')('core loop against the database', { timeout: 60_000
     expect(count).toBe(1);
   });
 
-  it('the founder offers it to a captain by hand', async () => {
+  let captain: import('../src/profile').Profile;
+
+  it('a captain onboards: his machine and his rate reach the server', async () => {
     const captainId = await signInAs(CAPTAIN_PHONE, CAPTAIN_CODE);
     captainUid = captainId;
-    const captain = {
+    captain = {
       ...app.profile.emptyProfile(),
       id: captainId,
       phone: '91' + CAPTAIN_PHONE,
       fullName: 'Jaspal Singh',
       village: 'Jalalabad',
-      role: 'captain' as const,
+      role: 'captain',
       isOnline: true,
       baseLocation: { lat: 30.404, lng: 74.03 },
       currentLocation: { lat: 30.404, lng: 74.03 },
+      machines: [
+        {
+          id: crypto.randomUUID(),
+          machineCode: 'combine',
+          ownership: 'owned',
+          leadTimeHours: 0,
+          withOperatorOnly: true,
+        },
+      ],
+      rates: [{ serviceCode: 'wheat_harvest', rate: 3500, unit: 'per_killa' }],
       onboardedAt: Date.now(),
     };
     expect(await app.sync.syncProfile(captain)).not.toBeNull();
 
-    // What the founder does in Studio: verify him, then offer the job.
-    const verified = await admin
-      .from('captains')
-      .update({ verification: 'verified', verified_by: farmerId, verified_at: new Date().toISOString() })
-      .eq('profile_id', captainId)
-      .select('profile_id');
-    expect(verified.error).toBeNull();
-    expect(verified.data).toHaveLength(1);
-    const offered = await admin.from('job_dispatch').insert({ job_id: jobId, captain_id: captainId, rank: 1 });
-    expect(offered.error).toBeNull();
+    const machines = await admin.from('captain_machines').select('*').eq('captain_id', captainId);
+    expect(machines.error).toBeNull();
+    expect(machines.data).toHaveLength(1);
+    const services = await admin.from('captain_services').select('*').eq('captain_id', captainId);
+    expect(services.error).toBeNull();
+    expect(services.data!.length).toBeGreaterThan(0);
 
+    // He is not staff, and the verify queue says nothing to him.
+    expect(await app.sync.amIAdmin()).toBe(false);
+    expect(await app.sync.fetchPendingCaptains()).toEqual([]);
+    // Registering this phone for pings.
+    expect(await app.sync.savePushToken('ExponentPushToken[e2e-test-token]')).toBe(true);
+  });
+
+  it('the founder verifies him through the app, and reads the switches', async () => {
+    // SETUP step 5, as written there: ten digits.
+    const staff = await admin.from('admins').insert({ phone: FARMER_PHONE, note: 'e2e founder' });
+    expect(staff.error).toBeNull();
+    await signInAs(FARMER_PHONE, FARMER_CODE);
+    expect(await app.sync.amIAdmin()).toBe(true);
+
+    const pending = await app.sync.fetchPendingCaptains();
+    expect(pending.map((p) => p.captainId)).toContain(captainUid);
+    expect(await app.sync.setCaptainVerification(captainUid, 'verified')).toBe(true);
+    const { data } = await admin.from('captains').select('verification').eq('profile_id', captainUid).single();
+    expect(data?.verification).toBe('verified');
+
+    const config = await app.sync.fetchAppConfig('pa');
+    expect(config).not.toBeNull();
+    expect(config!.founderCodeSignin).toBe(true);
+    expect(config!.loudPing).toBe(false);
+
+    // Automatic dispatch is off: the founder offers the job by hand.
+    const offered = await admin.from('job_dispatch').insert({ job_id: jobId, captain_id: captainUid, rank: 1 });
+    expect(offered.error).toBeNull();
+  });
+
+  it('the captain sees the offer, accepts, works it and completes it', async () => {
+    await signInAs(CAPTAIN_PHONE, CAPTAIN_CODE);
     captainJobs = await app.sync.syncJobs([], captain);
     expect(captainJobs.map((j) => [j.id, j.status])).toEqual([[jobId, 'searching']]);
 
-    // Accept, then work it through to the end, one sync per step.
     expect(await app.sync.acceptJobRemote(jobId)).toBe('accepted');
     captainJobs = await app.sync.syncJobs(captainJobs, captain);
     expect(captainJobs.find((j) => j.id === jobId)?.status).toBe('accepted');
@@ -268,21 +309,68 @@ describe.skipIf(URL_ === '')('core loop against the database', { timeout: 60_000
           : j,
       );
       captainJobs = await app.sync.syncJobs(captainJobs, captain);
-      const { data } = await admin.from('jobs').select('status, final_amount').eq('id', jobId).single();
+      const { data } = await admin.from('jobs').select('status').eq('id', jobId).single();
       expect(data?.status).toBe(status);
     }
     const { data } = await admin.from('jobs').select('final_amount, captain_id').eq('id', jobId).single();
     expect(Number(data?.final_amount)).toBe(4200);
-    expect(data?.captain_id).toBe(captainId);
+    expect(data?.captain_id).toBe(captainUid);
+
+    // He rates the farmer.
+    expect(await app.sync.pushRating(jobId, farmerId, 5)).toBe(true);
   });
 
-  it('the farmer sees it done, with his captain named', async () => {
+  it('the farmer sees it done, with his captain named, and rates him', async () => {
     await signInAs(FARMER_PHONE, FARMER_CODE);
     farmerJobs = await app.sync.syncJobs(farmerJobs, farmer);
     const done = farmerJobs.find((j) => j.id === jobId);
     expect(done?.status).toBe('completed');
     expect(done?.captainName).toBe('Jaspal Singh');
     expect(done?.finalAmount).toBe(4200);
+
+    expect(await app.sync.pushRating(jobId, captainUid, 4)).toBe(true);
+    // Rated twice (a retry) is still a success, not a second vote.
+    expect(await app.sync.pushRating(jobId, captainUid, 4)).toBe(true);
+    const { count } = await admin.from('ratings').select('*', { count: 'exact', head: true }).eq('job_id', jobId);
+    expect(count).toBe(2);
+
+    // Rate guidance: the RPC answers (it may decline to guess from one job).
+    const { supabase } = await import('../src/supabase');
+    const maps = await app.sync.loadCatalog();
+    const g = await supabase.rpc('rate_guidance', {
+      p_service_id: maps!.serviceId('wheat_harvest'),
+      p_lat: 30.4028,
+      p_lng: 74.0286,
+    });
+    expect(g.error).toBeNull();
+  });
+
+  const job2 = crypto.randomUUID();
+
+  it('a combine breaks: the captain hands a job back, the farmer withdraws it', async () => {
+    farmerJobs = await app.sync.syncJobs(
+      [...farmerJobs, { ...farmerJobs.find((j) => j.id === jobId)!, id: job2, status: 'searching',
+        captainId: null, captainName: null, finalAmount: null, paymentMode: null, myRating: null,
+        acceptedAt: null, startedAt: null, completedAt: null }],
+      farmer,
+    );
+    expect((await admin.from('jobs').select('status').eq('id', job2).single()).data?.status).toBe('searching');
+    expect((await admin.from('job_dispatch').insert({ job_id: job2, captain_id: captainUid, rank: 1 })).error).toBeNull();
+
+    await signInAs(CAPTAIN_PHONE, CAPTAIN_CODE);
+    captainJobs = await app.sync.syncJobs(captainJobs, captain);
+    expect(await app.sync.acceptJobRemote(job2)).toBe('accepted');
+    expect(await app.sync.releaseJobRemote(job2)).toBe('done');
+    expect((await admin.from('jobs').select('status, captain_id').eq('id', job2).single()).data).toEqual({
+      status: 'searching',
+      captain_id: null,
+    });
+
+    await signInAs(FARMER_PHONE, FARMER_CODE);
+    expect(await app.sync.cancelJobRemote(job2)).toBe('done');
+    expect((await admin.from('jobs').select('status').eq('id', job2).single()).data?.status).toBe('cancelled');
+    farmerJobs = await app.sync.syncJobs(farmerJobs, farmer);
+    expect(farmerJobs.find((j) => j.id === job2)?.status).toBe('cancelled');
   });
 
   it('a phone that lost its local copy gets everything back, cursors notwithstanding', async () => {

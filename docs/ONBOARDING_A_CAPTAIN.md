@@ -106,7 +106,7 @@ job, and from his side the app simply looks dead.
 You need to be staff for this. Once, ever:
 
 ```sql
-insert into public.admins (phone) values ('<your ten-digit number>');
+insert into public.admins (phone) values ('<your number>');  -- ten digits or with 91; both match
 ```
 
 Then in the app: your home screen shows a **Verify captains** entry. Open

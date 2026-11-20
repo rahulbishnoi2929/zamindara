@@ -8,7 +8,7 @@ import { t } from './i18n';
 import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
 import { CaptainJobCard, EmptyJobs, FarmerJobCard } from './JobList';
-import { isLive, sortForCaptain, type Job } from './jobs';
+import { isLive, sortForCaptain, splitJobs, type Job } from './jobs';
 import { isCaptain, isFarmer, type Profile } from './profile';
 import type { SavedField } from './storage';
 import { updateState, type AppConfig } from './version';
@@ -141,14 +141,14 @@ export function HomeScreen({
   const farmer = isFarmer(profile);
 
   // What a captain can pick up, versus what he already holds.
-  const captainQueue = sortForCaptain(
-    jobs.filter((j) => j.captainName === profile.fullName && isLive(j)),
+  const split = splitJobs(
+    jobs,
+    { id: profile.id, fullName: profile.fullName, isOnline: profile.isOnline, captain },
+    new Set(fields.map((f) => f.id)),
   );
-  const incoming = profile.isOnline
-    ? jobs.filter((j) => j.status === 'searching')
-    : [];
-
-  const myJobs = jobs.filter((j) => j.captainName !== profile.fullName || !captain);
+  const captainQueue = sortForCaptain(split.captainQueue);
+  const incoming = split.incoming;
+  const myJobs = split.myJobs;
 
   /**
    * When does the machine reach each farmer?

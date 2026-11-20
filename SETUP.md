@@ -16,7 +16,7 @@ Everything here needs your accounts, your phone, or your legs. I cannot do any o
 | **3** | **Walk one known-area field** | ₹0, one hour | 🚦 Showing the app to any captain |
 | **4** | Create a Supabase project | ₹0, no card | Two phones seeing each other |
 | **5** | Add your phone to `admins` — one SQL row | ₹0 | **Any captain ever getting work** |
-| **6** | `eas init` + deploy the push function | ₹0 | A captain hearing about work without opening the app |
+| **6** | Firebase project + `eas init` + deploy the push function + rebuild | ₹0, no card | A captain hearing about work without opening the app |
 | **7** | Google Maps key | needs a card | Drawing a field. Walking works without it. |
 | **8** | Onboard 10–15 captains | your legs | November |
 
@@ -259,6 +259,28 @@ The app computes the error against your tape and shows a **gate card** — pass 
 
 ---
 
+## The first phone test — 15 minutes, after step 5
+
+Everything below was broken until 20 Nov 2026 and would have shown up on the first morning with real captains (BUILDLOG entry 48). CI now proves each one against a real database. These checks prove the same things on a real phone and a real network.
+
+Two phones: yours as the **farmer**, a second as the **captain** (a borrowed one is fine). Both signed in with test numbers (step 4), and your number in `admins` (step 5).
+
+| # | Do | You should see | If not |
+|---|---|---|---|
+| 1 | Farmer: sign in with your test number and code | Home screen, no "code sent" wait | Step 4: provider enabled? Number written with `91`? |
+| 2 | Farmer: **Add field → Draw**, trace a field, save | The field shows its area. In Supabase **Table Editor → fields**, a row appears within seconds, with the same area | Tell me: field push |
+| 3 | Uninstall the app, reinstall, sign in again | The field comes back with its outline | Tell me: field pull |
+| 4 | Captain: sign in, complete onboarding with a machine, go **online** | Supabase **captains** shows his row | — |
+| 5 | You, in Supabase SQL: verify him (step 5), then post a job from the farmer phone | **jobs** gets a row with `status = searching` | Tell me: job push |
+| 6 | Offer it by hand (automatic dispatch is off): **Table Editor → job_dispatch → Insert**: `job_id`, `captain_id` = his id, `rank` = 1 | Captain phone, after reopening the app: the job under **Work nearby** | Tell me: offers pull |
+| 7 | Captain: **Accept** | Farmer phone, after reopening: the job shows his name | Tell me: farmer pull |
+| 8 | Captain: On my way → Start → Complete, enter an amount | Farmer phone: **completed**, with that amount | — |
+| 9 | Farmer phone: post a second job, and look at **Work nearby** on the farmer phone | His own job is **not** offered back to him | Tell me: home lists |
+
+Steps 2, 3, 5 and 7 are the ones that had never worked before today. If all nine pass, the marketplace works end to end on real phones, and the remaining risks are the device-only ones: GPS walking, the satellite map, and the lock-screen ping (step 6).
+
+---
+
 ## 4 · Supabase project — 20 minutes, free, no card
 
 Without this the app is offline-only: measuring and the on-device job loop work, but **two phones cannot see each other.** No marketplace.
@@ -294,7 +316,10 @@ SUPABASE_ANON_KEY=eyJ...
 
 ### Give yourself a login code
 
-Real SMS waits on step 0. For now: **Authentication → Providers → Phone** → add your own number under **test OTP** with a fixed code. Enough to sign in and run everything.
+Real SMS waits on step 0. Until then, everyone signs in with a fixed code that you assign. Two things are needed, and both were measured on 20 Nov 2026 (BUILDLOG entry 48):
+
+1. **Authentication → Sign In / Providers → Phone → enable it, choose Twilio, and type placeholder values** (for example `ACplaceholder`, `MGplaceholder`, `placeholder`). Supabase refuses *every* phone sign-in while no SMS provider is enabled, even for numbers whose code is fixed. Nothing is ever sent to a test number, so the placeholders are never used. **If the dashboard refuses to save placeholders, stop and tell me.**
+2. Same page → **Test Phone Numbers and OTPs**: your number **with the country code and no `+`**, then `=` and a code, e.g. `919876543210=482913`. Without the `91` it silently fails to match, and Supabase tries to send a real SMS instead.
 
 **Done when:** Table Editor shows `machine_types` with 21 rows in Gurmukhi.
 
@@ -317,9 +342,22 @@ A captain with **no machine registered** cannot be verified: there is nothing to
 
 ---
 
-## 6 · Push notifications — one free signup, one deploy
+## 6 · Push notifications — two free signups, one deploy, one rebuild
 
 Without this the ping is local: a captain on a second phone finds out about work by **opening the app**, which is the opposite of the promise.
+
+### 6a · Firebase — the only way a push reaches an Android phone
+
+Expo's push service delivers to Android through Firebase Cloud Messaging. Firebase's free Spark plan says "No payment method needed" and lists FCM as no-cost ([pricing](https://firebase.google.com/pricing), read 20 Nov 2026).
+
+1. [console.firebase.google.com](https://console.firebase.google.com) → **Create a project** → name it `zamindara`. Analytics: off.
+2. In the project, **Add app → Android**. Package name **`com.zamindara.app`**, exactly. Register it.
+3. Download **`google-services.json`** and put it in `frontend/`. The app picks it up automatically, so there is nothing to edit. It holds public identifiers only, and Expo's docs say it is safe to commit.
+4. Firebase → ⚙ **Project settings → Service accounts → Generate new private key**. This JSON **is a secret**: keep it next to the keystore backup, never in the repo (`.gitignore` already blocks the usual names).
+5. Upload that key to Expo, **after `eas init` below**: expo.dev → your project → **Credentials → Android → FCM V1 service account key → Add a service account key → Upload**.
+6. **Rebuild and reinstall the APK.** `google-services.json` is a native change, so an over-the-air update cannot deliver it.
+
+### 6b · Expo and the push function
 
 ```bash
 cd frontend && npx eas init
@@ -335,7 +373,7 @@ cd backend && npx supabase functions deploy notify-dispatch
 
 Reads the service key from Supabase's own environment. Nothing to configure, no secret to store.
 
-**Done when:** you post a job on one phone and a second phone rings without being opened.
+**Done when:** you post a job on one phone and a second phone rings without being opened. If it does not, the most likely cause is a missing step in 6a: without Firebase, the server sends and Android never delivers.
 
 > Until `eas init`, the app simply does not register a device and keeps working — a setup gap, not an error. Until the deploy, no push is sent.
 

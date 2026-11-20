@@ -23,3 +23,7 @@ ios/
 *.jks
 keystore.properties
 gradle.properties
+
+# FCM service account key: a secret. (google-services.json is public and fine to commit.)
+*service-account*.json
+*firebase-adminsdk*.json

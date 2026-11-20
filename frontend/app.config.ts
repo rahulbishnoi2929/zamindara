@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import type { ExpoConfig } from 'expo/config';
 
 /**
@@ -61,6 +62,12 @@ export default ({ config }: { config: ExpoConfig }): ExpoConfig => ({
   ...updates(config.extra?.['eas']?.projectId as string | undefined),
   android: {
     ...config.android,
+    // Firebase Cloud Messaging: the only way an Expo push reaches an Android
+    // phone. Picked up when the file is there (SETUP step 6), absent
+    // otherwise, so a build without Firebase still builds. Public
+    // identifiers only, safe to commit (Expo's docs). A native change: it
+    // needs a rebuilt APK, not an over-the-air update.
+    ...(existsSync('./google-services.json') ? { googleServicesFile: './google-services.json' } : {}),
     config: {
       ...config.android?.config,
       googleMaps: {

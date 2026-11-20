@@ -288,3 +288,30 @@ export function searchState(job: Job): SearchState | null {
   if (job.offeredCount === 0) return { kind: 'nobody-yet' };
   return { kind: 'offered', count: job.offeredCount };
 }
+
+/**
+ * Which list on home each job belongs in.
+ *
+ * Two bugs lived in the inline version. Someone who is both farmer and
+ * captain saw his own posted job under "work nearby", offered back to him —
+ * and every offer he received under "my jobs" as if he had posted it. And
+ * his queue matched the captain by name, so two captains called Gurpreet
+ * Singh saw each other's work. Ownership is now by field (his job is on his
+ * field) and holding is by id, with the name only for on-device jobs that
+ * have never had one.
+ */
+export function splitJobs(
+  jobs: readonly Job[],
+  me: { id: string; fullName: string; isOnline: boolean; captain: boolean },
+  myFieldIds: ReadonlySet<string>,
+): { captainQueue: Job[]; incoming: Job[]; myJobs: Job[] } {
+  const holdsIt = (j: Job) =>
+    j.captainId !== null ? j.captainId === me.id : j.captainName === me.fullName;
+  return {
+    captainQueue: jobs.filter((j) => j.captainName !== null && holdsIt(j) && isLive(j)),
+    incoming: me.isOnline
+      ? jobs.filter((j) => j.status === 'searching' && !myFieldIds.has(j.fieldId))
+      : [],
+    myJobs: me.captain ? jobs.filter((j) => myFieldIds.has(j.fieldId)) : [...jobs],
+  };
+}

@@ -8,6 +8,7 @@ import {
   searchState,
   type Job,
 } from './jobs';
+import { splitJobs } from './jobs';
 
 const job: Job = {
   id: 'j1',
@@ -171,5 +172,41 @@ describe('a lapsed job', () => {
 
   it('stops claiming to be looking for a captain', () => {
     expect(searchState(lapsed)).toBeNull();
+  });
+});
+
+describe('splitJobs — what goes where on home', () => {
+  const me = { id: 'me', fullName: 'Gurpreet Singh', isOnline: true, captain: true };
+  const j = (over: Partial<Job>): Job =>
+    ({ id: over.id ?? 'x', fieldId: 'f-other', status: 'searching', captainId: null, captainName: null, ...over }) as Job;
+
+  it('his own posted job is not offered back to him as nearby work', () => {
+    const s = splitJobs([j({ id: 'own', fieldId: 'f-mine' }), j({ id: 'offer' })], me, new Set(['f-mine']));
+    expect(s.incoming.map((x) => x.id)).toEqual(['offer']);
+    expect(s.myJobs.map((x) => x.id)).toEqual(['own']);
+  });
+
+  it('a job he holds is in his queue, matched by id, not by name', () => {
+    const s = splitJobs(
+      [
+        j({ id: 'mine', status: 'accepted', captainId: 'me', captainName: 'Gurpreet Singh' }),
+        // Another captain with the same name — common in Punjab.
+        j({ id: 'namesake', status: 'accepted', captainId: 'other', captainName: 'Gurpreet Singh' }),
+      ],
+      me,
+      new Set(),
+    );
+    expect(s.captainQueue.map((x) => x.id)).toEqual(['mine']);
+  });
+
+  it('offline on-device jobs with no id still match by name', () => {
+    const s = splitJobs([j({ id: 'local', status: 'accepted', captainName: 'Gurpreet Singh' })], me, new Set());
+    expect(s.captainQueue.map((x) => x.id)).toEqual(['local']);
+  });
+
+  it('offline captain gets no incoming; a farmer-only user sees all his jobs', () => {
+    expect(splitJobs([j({})], { ...me, isOnline: false }, new Set()).incoming).toEqual([]);
+    const farmer = { ...me, captain: false };
+    expect(splitJobs([j({ id: 'a' })], farmer, new Set()).myJobs.map((x) => x.id)).toEqual(['a']);
   });
 });

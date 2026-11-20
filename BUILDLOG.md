@@ -13,19 +13,19 @@ Newest first, so the most recent work is always at the top. Each entry says what
 | | |
 |---|---|
 | **Phase** | Code done through 5. **Phase 1 field test never run — the gate was walked past.** See the revision at the top of BUILD_PLAN. |
-| **Brief** | Working through the 16 Nov staged brief. Stage 1 done (awaiting your phone install). **Stage 3 done; sync fixed and proven end to end.** Next: clearing what sets us back, then Stage 4. |
-| **Tests** | 251 unit (122 packages + 129 app) + **207 database assertions** (run twice in CI: before and after a backup-and-restore) + **7-step end-to-end core loop** against a real database, all green in CI |
+| **Brief** | Working through the 16 Nov staged brief. Stage 1 done (awaiting your phone install). **Server side ready and proven end to end.** Waiting on you: Supabase project, Firebase, the first-phone test (SETUP). Then Stage 4. |
+| **Tests** | 255 unit (122 packages + 133 app) + **210 database assertions** (run twice in CI: before and after a backup-and-restore) + **10-step end-to-end test** covering every server call, against a real database, all green in CI |
 | **App** | Signed release APK, **35.3 MB** (from 75.8), R8 on, ARM only. Shows `v0.1.0` on home; an `app_config` row tells old phones to update. **Install once:** JS changes reach a phone over the air. |
 | **Not yet done** | Never run on a physical device; sync never run against a hosted Supabase project |
 | **Blocking next step** | Setup: Maps key, hosted Supabase project, `expo prebuild` + APK, a phone, a 50 m tape |
 | **Repo** | [rahulbishnoi2929/zamindara](https://github.com/rahulbishnoi2929/zamindara) — private, CI green |
-| **Backend** | ✅ **Schema verified.** 29 migrations apply; all three guarantees hold. |
+| **Backend** | ✅ **Schema verified.** 30 migrations apply; all three guarantees hold. |
 
 ```
 C:\Zamidara\
 ├── docs\              16 product and engineering documents
-├── frontend\          Expo SDK 57 Android app — 129 tests + e2e
-├── backend\supabase\  29 migrations, RLS, dispatch functions — 207 assertions
+├── frontend\          Expo SDK 57 Android app — 133 tests + e2e
+├── backend\supabase\  30 migrations, RLS, dispatch functions — 210 assertions
 ├── packages\          units · geo · catalog · pricing · scheduling — 122 tests
 └── assets\            logo
 ```
@@ -56,6 +56,8 @@ The most useful part of this log. Each of these was believed, written down, then
 
 | 14 | Sync worked: 200+ unit tests on the mapping, typecheck clean, bundle builds | **No field, no job and no job update had ever travelled between a phone and the server** | Seven separate faults, each invisible to unit tests and each found by the first test that ran the app's real sync against a real database: test numbers without the country code; Auth refusing phone sign-in with no SMS provider enabled; geometry sent as GeoJSON, which a geography column cannot parse; no `owner_id`/`farmer_id` sent, so RLS refused every insert; the upsert checked against a read policy that cannot see a row not yet inserted; the farmer's job query joining through the wrong foreign key (twice); and fields read back as binary the phone cannot decode. |
 
+| 15 | Becoming staff is one SQL row: your ten-digit number in `admins` (SETUP step 5) | **That row could never match**, so no captain could ever be verified, and so none could ever be offered work | `profiles.phone` comes from Auth with the `91`; both docs said to enter ten digits; `is_admin()` compared them exactly. Now compared on the last ten digits, and proven by the end-to-end test signing in as the founder and verifying a captain through the app. |
+
 | 10 | The distance surcharge was built — pricing library, schema columns, server function, twenty tests | **It was applied to nothing.** `travel_charge` was 0 on every job ever created | The app priced a job at *posting* time, when there is no captain and so no distance, and nothing ever priced it again. A combine 25 km out earned exactly what one in the next village earned. `accept_job` now prices the job at the one moment all three unknowns — whose rate, how far, which machine — are known. |
 
 **Rule that came out of this:** when a measurement contradicts a plan, the measurement wins. It is written into [BUILD_PLAN](docs/BUILD_PLAN.md#standing-rules).
@@ -63,6 +65,28 @@ The most useful part of this log. Each of these was believed, written down, then
 ---
 
 # Entries
+
+## 49 · Getting ready: every server call proven, three more blockers removed
+
+**Asked:** "we can do fast, don't wait for April — we have to get ready."
+
+**Fixed:**
+- **The founder could never have become staff (reversal 15).** `admins` holds your number as the docs said, ten digits; profiles hold it with `91`; `is_admin()` compared them exactly. So nobody could verify a captain, and an unverified captain is never offered work. Now compared on the last ten digits (migration 0030, 3 assertions).
+- **Home lists, two bugs.** A user who is both farmer and captain saw his own posted job under *Work nearby*, offered back to him, and every offer he received under *My jobs*. And *my queue* matched the captain **by name**, so two captains called Gurpreet Singh would have seen each other's jobs. Now ownership is by field and holding is by id (`splitJobs`, 4 tests).
+- **Firebase is picked up automatically.** Drop `google-services.json` into `frontend/` and the build uses it, with nothing to edit. Without it, the app still builds. Checked both ways with `expo config`. The secret service-account key is gitignored.
+
+**SETUP.md:**
+- **Step 4** now says what sign-in actually needs: a placeholder SMS provider enabled, and test numbers written with `91`.
+- **Step 6** has the Firebase steps, read from Expo's and Firebase's docs today. FCM is on the free Spark plan, which says "No payment method needed".
+- **New: a 15-minute first-phone test** — nine steps, each naming what to report if it fails.
+
+**The end-to-end test now covers every server call the app makes.** In order: a captain onboards with a machine and a rate; the founder signs in, is recognised as staff, verifies him through the app's own verify calls and reads the switches; the job is offered by hand, accepted, worked and completed; both sides rate (a retried rating counts once); rate guidance answers; a second job is handed back by the captain ("combine broke") and withdrawn by the farmer; and a phone with no local copy gets everything back. **10 steps, all passing.** Every `sync.ts` call has now run against a real database.
+
+**Verified by running:** 255 unit tests, typecheck clean, bundle exports. **In CI:** the 10-step end-to-end test; 210 database assertions before and after backup-and-restore.
+
+**Not verified:** anything that only exists on a phone: GPS walking, the satellite map, notifications and the lock screen. That is what the first-phone test in SETUP is for.
+
+---
 
 ## 48 · Sync pulls only what changed — and the first real run of sync found it had never worked
 
