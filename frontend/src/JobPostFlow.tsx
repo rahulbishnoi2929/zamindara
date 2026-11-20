@@ -3,13 +3,23 @@ import { quote, rateGuidance, type RateGuidance } from '@zamindara/pricing';
 import type { Locale } from '@zamindara/units';
 import { centroidOf } from '@zamindara/geo';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { BackHandler, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { draftStillValid, prevStep, type BookingStep } from './navigation';
 import { AreaDisplay, Button, Card } from './components';
 import { t } from './i18n';
 import { completedRates, type Job, type JobWindow } from './jobs';
 import { uuid } from './sync/mapping';
-import type { SavedField } from './storage';
+import { loadUi, saveUi, type SavedField } from './storage';
 import { colors, radius, space, type } from './theme';
+
+interface Draft {
+  step: Step;
+  fieldId: string | null;
+  serviceCode: string | null;
+  timing: 'now' | 'today' | 'tomorrow';
+  window: JobWindow;
+  savedAt: number;
+}
 
 interface Props {
   locale: Locale;
@@ -28,7 +38,7 @@ interface Props {
   onCancel: () => void;
 }
 
-type Step = 'field' | 'service' | 'when' | 'review';
+type Step = BookingStep;
 
 const WINDOWS: Array<{
   value: JobWindow;
@@ -63,6 +73,46 @@ export function JobPostFlow({
   const [serviceCode, setServiceCode] = useState<string | null>(null);
   const [timing, setTiming] = useState<'now' | 'today' | 'tomorrow'>('today');
   const [window, setWindow] = useState<JobWindow>('any');
+  const [draftRead, setDraftRead] = useState(false);
+
+  // A half-booked job survives a phone call that kills the app. Restored
+  // only on the day it was made: "today" yesterday is not today.
+  useEffect(() => {
+    void loadUi('jobDraft').then((saved) => {
+      const d = saved as Draft | null;
+      if (
+        d !== null &&
+        draftStillValid(d.savedAt, Date.now()) &&
+        (d.fieldId === null || fields.some((f) => f.id === d.fieldId))
+      ) {
+        setStep(d.step);
+        setFieldId(d.fieldId);
+        setServiceCode(d.serviceCode);
+        setTiming(d.timing);
+        setWindow(d.window);
+      }
+      setDraftRead(true);
+    });
+    // Once, on opening the booking.
+  }, []);
+
+  useEffect(() => {
+    if (!draftRead) return;
+    const draft: Draft = { step, fieldId, serviceCode, timing, window, savedAt: Date.now() };
+    void saveUi('jobDraft', draft);
+  }, [draftRead, step, fieldId, serviceCode, timing, window]);
+
+  // Back walks the steps before it leaves the booking. Registered after
+  // App's listener, so Android asks this one first.
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      const prev = prevStep(step, fields.length);
+      if (prev === null) return false;
+      setStep(prev);
+      return true;
+    });
+    return () => sub.remove();
+  }, [step, fields.length]);
 
   const field = fields.find((f) => f.id === fieldId) ?? null;
   const service = serviceCode === null ? null : SERVICE_BY_CODE.get(serviceCode) ?? null;

@@ -173,3 +173,24 @@ export async function loadCachedAppConfig<T>(): Promise<T | null> {
     return null;
   }
 }
+
+/**
+ * Where he was, and anything half-done: the screen, a job being booked, the
+ * corners drawn so far. A cheap phone kills a backgrounded app during a
+ * phone call; this is what brings him back to the same place. Null clears.
+ */
+export async function saveUi(name: string, value: unknown): Promise<void> {
+  const key = `zamindara/ui/${name}`;
+  if (value === null) await AsyncStorage.removeItem(key);
+  else await AsyncStorage.setItem(key, JSON.stringify(value));
+}
+
+export async function loadUi(name: string): Promise<unknown> {
+  const raw = await AsyncStorage.getItem(`zamindara/ui/${name}`);
+  if (raw === null) return null;
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch {
+    return null;
+  }
+}

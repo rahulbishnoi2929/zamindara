@@ -13,8 +13,8 @@ Newest first, so the most recent work is always at the top. Each entry says what
 | | |
 |---|---|
 | **Phase** | Code done through 5. **Phase 1 field test never run — the gate was walked past.** See the revision at the top of BUILD_PLAN. |
-| **Brief** | Working through the 16 Nov staged brief. Stage 1 done (awaiting your phone install). Stage 2: 2.1–2.7, 2.9, 2.10 done; **2.8 open** (design sketch first). |
-| **Tests** | 231 unit (122 packages + 109 app) + **177 database assertions**, all green in CI |
+| **Brief** | Working through the 16 Nov staged brief. Stage 1 done (awaiting your phone install). **Stage 2 done** — stopped to report. Next: Stage 3 (free nightly backup, switches, metrics, cost ledger). |
+| **Tests** | 240 unit (122 packages + 118 app) + **177 database assertions**, all green in CI |
 | **App** | Signed release APK, **35.3 MB** (from 75.8), R8 on, ARM only. Shows `v0.1.0` on home; an `app_config` row tells old phones to update. **Install once:** JS changes reach a phone over the air. |
 | **Not yet done** | Never run on a physical device; sync never run against a hosted Supabase project |
 | **Blocking next step** | Setup: Maps key, hosted Supabase project, `expo prebuild` + APK, a phone, a 50 m tape |
@@ -24,7 +24,7 @@ Newest first, so the most recent work is always at the top. Each entry says what
 ```
 C:\Zamidara\
 ├── docs\              16 product and engineering documents
-├── frontend\          Expo SDK 57 Android app — 109 tests
+├── frontend\          Expo SDK 57 Android app — 118 tests
 ├── backend\supabase\  23 migrations, RLS, dispatch functions — 177 assertions
 ├── packages\          units · geo · catalog · pricing · scheduling — 122 tests
 └── assets\            logo
@@ -58,6 +58,23 @@ The most useful part of this log. Each of these was believed, written down, then
 ---
 
 # Entries
+
+## 46 · 2.8 — back goes back, and a phone call no longer costs him his place
+
+**Asked:** persist the current screen and any draft job so leaving for a phone call and returning restores the same place; check the Android back button on every screen. Sketch approved ("next step").
+
+**What I found:** the app never handled Android back. From **every** screen — mid-drawing, mid-booking — back left the app. And the screen, the half-booked job and the drawn corners lived only in memory, so a cheap phone that killed the app in the background brought him back to home with the work gone. A farmer without an account also landed back on sign-in, because "carry on without signing in" was not remembered either.
+
+**Built (no new dependency, no new screen, no new strings):**
+- `src/navigation.ts` — the back table and the restore rules as pure functions. draw/walk → choose (or the test plot, matching their own Cancel); confirm → the walk, which is still checkpointed, so it is "walk again", not a discard and needs no confirmation; testPlot → test; everything else → home; home → Android's default.
+- One `BackHandler` in App reading state through a ref; the booking registers its own after it, so back walks *when → service → field* before leaving. Sign-in and first onboarding keep Android's default — there is nothing to go back to. The completion sheet is a `Modal`, which already handles back.
+- Saved on every change and restored at start: the screen (the walk result is not stored — confirm restores as the recovered walk), the booking draft (only on the day it was made, since it says "today"), the drawn corners (keyed by field vs test plot, and the map re-centres on them), and the no-account choice. Stale data falls back somewhere safe: a deleted test plot goes to the test list, anything unreadable to home.
+
+**Verified by running:** 240 unit tests (9 new: every back target, restore fallbacks, booking steps, the draft day rule), typecheck clean, Android bundle exports. **Not verified:** on a phone — the back button and process death only exist there.
+
+**Manual check:** (1) Book work, choose a field and a service, go to the time step; press back — you are on the service step, again — field step, again — home. (2) Book work again — your choices are still there; press Cancel — they are gone. (3) Draw a field, place 3 corners; force-stop the app in Android settings (simulates the phone killing it); reopen — you are on the draw screen with 3 corners, map centred on them. (4) On home, back leaves the app as normal.
+
+---
 
 ## 45 · 2.9 — walk checkpoints are appended, not rewritten
 

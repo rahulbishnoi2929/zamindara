@@ -8,12 +8,16 @@ import { MapKeyWarning } from './MapKeyWarning';
 import { googleMapsKeyMissing } from './mapsKey';
 import { AreaDisplay, Button } from './components';
 import { t } from './i18n';
+import { loadUi, saveUi } from './storage';
 import { colors, radius, space, type } from './theme';
 
 interface Props {
   locale: Locale;
   onDone: (polygon: LatLng[], areaSqm: number) => void;
   onCancel: () => void;
+  /** Which measurement the saved corners belong to, so a test plot's
+   *  corners never turn up on a farmer's field or the other way round. */
+  draftKey: string;
 }
 
 /** Fazilka town, used only if location is unavailable. */
@@ -44,16 +48,37 @@ const FALLBACK: Region = {
  * too cloudy, a field he cannot pick out, or a boundary that simply is not
  * visible from above.
  */
-export function DrawScreen({ locale, onDone, onCancel }: Props) {
+export function DrawScreen({ locale, onDone, onCancel, draftKey }: Props) {
   const [region, setRegion] = useState<Region | null>(null);
   const [corners, setCorners] = useState<LatLng[]>([]);
   const [showLabels, setShowLabels] = useState(false);
+  const [restored, setRestored] = useState(false);
+
+  // Every corner, as he places it. Small: a field has a handful of corners.
+  useEffect(() => {
+    if (restored) void saveUi('drawCorners', { key: draftKey, corners });
+  }, [restored, corners, draftKey]);
 
   // Centre on where he is standing. He is almost certainly in or beside the
   // field he wants to measure, so this removes the hardest part of the task —
   // finding your own field on a satellite map.
   useEffect(() => {
     void (async () => {
+      // Corners from before a phone call killed the app: put them back and
+      // centre on them, rather than on wherever he is standing now.
+      const saved = (await loadUi('drawCorners')) as { key: string; corners: LatLng[] } | null;
+      if (saved?.key === draftKey && saved.corners.length > 0) {
+        setCorners(saved.corners);
+        setRegion({
+          latitude: saved.corners[0]!.lat,
+          longitude: saved.corners[0]!.lng,
+          latitudeDelta: 0.0022,
+          longitudeDelta: 0.0022,
+        });
+        setRestored(true);
+        return;
+      }
+      setRestored(true);
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {

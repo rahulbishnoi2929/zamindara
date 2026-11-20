@@ -1,8 +1,9 @@
 import type { LatLng, WalkResult } from '@zamindara/geo';
+import { backFrom, persistable, restoreScreen, type Intent, type Screen } from './src/navigation';
 import type { Locale } from '@zamindara/units';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, BackHandler, Linking, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { ChooseMethodScreen } from './src/ChooseMethodScreen';
 import { ConfirmScreen } from './src/ConfirmScreen';
@@ -62,6 +63,8 @@ import type { AppConfig } from './src/version';
 import {
   clearActiveWalk,
   loadFields,
+  loadUi,
+  saveUi,
   saveField,
   type SavedField,
 } from './src/storage';
@@ -75,19 +78,6 @@ import { WalkScreen } from './src/WalkScreen';
  * founder recording a Phase 1 test reading. Sharing them is the point — the
  * field test has to exercise the code that actually ships, not a copy of it.
  */
-type Intent = { kind: 'field' } | { kind: 'test'; plotId: string };
-
-type Screen =
-  | { name: 'home' }
-  | { name: 'onboarding' }
-  | { name: 'choose'; intent: Intent }
-  | { name: 'draw'; intent: Intent }
-  | { name: 'walk'; intent: Intent }
-  | { name: 'confirm'; intent: Intent; result: WalkResult }
-  | { name: 'book' }
-  | { name: 'verify' }
-  | { name: 'test' }
-  | { name: 'testPlot'; plotId: string };
 
 export default function App() {
   const [ready, setReady] = useState(false);
@@ -100,6 +90,21 @@ export default function App() {
   const sendingRef = useRef(new Set<string>());
   const [sendingAccepts, setSendingAccepts] = useState<ReadonlySet<string>>(new Set());
   const [completing, setCompleting] = useState<Job | null>(null);
+
+  // Android back. One listener for the app's lifetime, reading the latest
+  // state through a ref; screens with steps of their own (booking) register
+  // after it, and Android asks the newest listener first.
+  const backRef = useRef<() => boolean>(() => false);
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => backRef.current());
+    return () => sub.remove();
+  }, []);
+
+  // Not before the saved screen has been read back, or the initial 'home'
+  // would overwrite it.
+  useEffect(() => {
+    if (ready) void saveUi('screen', persistable(screen));
+  }, [screen, ready]);
   /**
    * What the server says about versions. Null until read, and null forever
    * with no backend — a version check never stops the app working.
@@ -123,7 +128,12 @@ export default function App() {
       setProfile(stored);
       setFields(storedFields);
       setJobs(storedJobs);
-      setPlots(await testStore.loadPlots());
+      const storedPlots = await testStore.loadPlots();
+      setPlots(storedPlots);
+      // Back where he was before the phone killed the app — mid-draw,
+      // mid-booking — rather than at home with the work gone.
+      setScreen(restoreScreen(await loadUi('screen'), storedPlots.map((p) => p.id)));
+      setSkippedAuth((await loadUi('skippedAuth')) === true);
       setMeasurements(await testStore.loadMeasurements());
       const session = await currentSession();
       setSignedIn(session !== null);
@@ -544,6 +554,16 @@ export default function App() {
   // Onboarding gates everything. Until we know who this is and — for a
   // captain — what he has, the rest of the app has nothing to work with.
   const needsOnboarding = profile === null || profile.onboardedAt === null;
+  const gated = !signedIn && !skippedAuth ? true : needsOnboarding;
+  backRef.current = () => {
+    // On the sign-in or first onboarding screen there is nowhere to go back
+    // to; Android's default is right. A sheet (Modal) handles its own back.
+    if (!ready || gated) return false;
+    const to = backFrom(screen);
+    if (to === null) return false;
+    setScreen(to);
+    return true;
+  };
 
   return (
     <SafeAreaProvider>
@@ -572,7 +592,10 @@ export default function App() {
             }}
             // Measuring a field works with no account and no signal. Only
             // booking and taking work needs one.
-            onSkip={() => setSkippedAuth(true)}
+            onSkip={() => {
+              setSkippedAuth(true);
+              void saveUi('skippedAuth', true);
+            }}
           />
         ) : needsOnboarding || screen.name === 'onboarding' ? (
           <OnboardingFlow
@@ -636,9 +659,11 @@ export default function App() {
             {screen.name === 'draw' && (
               <DrawScreen
                 locale={locale}
-                onDone={(polygon, areaSqm) =>
-                  void record(screen.intent, 'drawn', polygon, areaSqm, null, null)
-                }
+                draftKey={screen.intent.kind === 'test' ? `test:${screen.intent.plotId}` : 'field'}
+                onDone={(polygon, areaSqm) => {
+                  void saveUi('drawCorners', null);
+                  void record(screen.intent, 'drawn', polygon, areaSqm, null, null);
+                }}
                 onCancel={() =>
                   screen.intent.kind === 'test'
                     ? openPlot(screen.intent.plotId)
@@ -689,6 +714,7 @@ export default function App() {
                 village={profile.village}
                 fetchGuidance={signedIn ? fetchRateGuidance : undefined}
                 onPost={(job) => {
+                  void saveUi('jobDraft', null);
                   void addJob(job).then((added) => {
                     setJobs(added);
                     // The pass that follows inserts the job and offers it
@@ -708,7 +734,10 @@ export default function App() {
                   }
                   setScreen({ name: 'home' });
                 }}
-                onCancel={() => setScreen({ name: 'home' })}
+                onCancel={() => {
+                  void saveUi('jobDraft', null);
+                  setScreen({ name: 'home' });
+                }}
               />
             )}
 
