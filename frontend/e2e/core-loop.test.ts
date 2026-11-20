@@ -345,6 +345,25 @@ describe.skipIf(URL_ === '')('core loop against the database', { timeout: 60_000
     expect(g.error).toBeNull();
   });
 
+  it('4.4: the farmer says the area is wrong, and records his papers', async () => {
+    // Still signed in as the farmer. The tap is saved locally, then synced.
+    farmerJobs = farmerJobs.map((j) => (j.id === jobId ? { ...j, areaDisputedAt: Date.now() } : j));
+    farmerJobs = await app.sync.syncJobs(farmerJobs, farmer);
+    const { data } = await admin.from('jobs').select('area_disputed_at, area_disputed_by').eq('id', jobId).single();
+    expect(data?.area_disputed_at).not.toBeNull();
+    expect(data?.area_disputed_by).toBe(farmerId);
+    // A second pass does not send it again: the server already holds it.
+    const before = await admin.from('jobs').select('area_disputed_at').eq('id', jobId).single();
+    farmerJobs = await app.sync.syncJobs(farmerJobs, farmer);
+    const after = await admin.from('jobs').select('area_disputed_at').eq('id', jobId).single();
+    expect(after.data?.area_disputed_at).toBe(before.data?.area_disputed_at);
+
+    fields = await app.sync.syncFields(fields.map((f) => ({ ...f, papersAreaSqm: 5000, synced: false })));
+    const papers = await admin.from('fields').select('papers_area_sqm, area_sqm').eq('id', fieldId).single();
+    expect(papers.data?.papers_area_sqm).toBe(5000);
+    expect(Math.abs((papers.data?.area_sqm ?? 0) - 5000)).toBeGreaterThan(500);
+  });
+
   const job2 = crypto.randomUUID();
 
   it('a combine breaks: the captain hands a job back, the farmer withdraws it', async () => {

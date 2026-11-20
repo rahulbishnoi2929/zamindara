@@ -1,9 +1,10 @@
 import { MACHINE_BY_CODE, SERVICE_BY_CODE } from '@zamindara/catalog';
-import type { Locale } from '@zamindara/units';
+import { formatAreaShort, type Locale } from '@zamindara/units';
 import { buildSchedule, findInSchedule, type QueueJob } from '@zamindara/scheduling';
-import { useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { AreaDisplay, Banner, Button, Card } from './components';
+import { areaFromKillaKanal } from './founder';
 import { t } from './i18n';
 import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
@@ -102,6 +103,10 @@ interface Props {
   onGetUpdate?: ((url: string) => void) | undefined;
   /** The captain hands a job back, so it can reach someone else. */
   onReleaseJob: (job: Job) => void;
+  /** Either party: "the area is wrong" (4.4). */
+  onDisputeArea?: ((job: Job) => void) | undefined;
+  /** The farmer records the area on his papers; null clears it. */
+  onSetPapersArea?: ((field: SavedField, sqm: number | null) => void) | undefined;
   onEditProfile: () => void;
   onToggleOnline: () => void;
   onOpenFieldTest: () => void;
@@ -133,6 +138,8 @@ export function HomeScreen({
   appConfig,
   onGetUpdate,
   onReleaseJob,
+  onDisputeArea,
+  onSetPapersArea,
   onEditProfile,
   onToggleOnline,
   onOpenFieldTest,
@@ -241,6 +248,7 @@ export function HomeScreen({
                     sending={sendingAccepts?.has(job.id)}
                     onAdvance={onAdvanceJob}
                     onRelease={onReleaseJob}
+                    onDisputeArea={onDisputeArea}
                   />
                 ))}
               </>
@@ -258,6 +266,7 @@ export function HomeScreen({
                     sending={sendingAccepts?.has(job.id)}
                     onAdvance={onAdvanceJob}
                     onRelease={onReleaseJob}
+                    onDisputeArea={onDisputeArea}
                   />
                 ))}
               </>
@@ -307,6 +316,7 @@ export function HomeScreen({
                     etaAt={slot?.startsAt}
                     onCancel={onCancelJob}
                     onRate={onRateJob}
+                    onDisputeArea={onDisputeArea}
                   />
                 );
               })
@@ -323,6 +333,7 @@ export function HomeScreen({
                   <Text style={s.fieldName}>{field.name}</Text>
                   <AreaDisplay sqm={field.areaSqm} locale={locale} compact />
                   {!field.synced && <Text style={s.pending}>⟳</Text>}
+                  <PapersArea field={field} locale={locale} onSet={onSetPapersArea} />
                 </Card>
               ))
             )}
@@ -441,3 +452,65 @@ const s = StyleSheet.create({
   testLink: { alignSelf: 'center', paddingVertical: space.sm },
   testLinkText: { ...type.label, fontSize: 13, color: colors.textMuted },
 });
+
+/**
+ * "The area on my papers" (4.4): shown beside the measured area so the
+ * farmer can see both, and never used for a price — the papers describe
+ * the legal parcel, often decades old, not the field being cut.
+ */
+function PapersArea({
+  field,
+  locale,
+  onSet,
+}: {
+  field: SavedField;
+  locale: Locale;
+  onSet?: ((field: SavedField, sqm: number | null) => void) | undefined;
+}) {
+  const [open, setOpen] = useState(false);
+  const [killa, setKilla] = useState('');
+  const [kanal, setKanal] = useState('');
+  if (onSet === undefined) return null;
+
+  if (field.papersAreaSqm != null && !open) {
+    return (
+      <Text style={s.empty}>
+        {t('papersArea', locale)}: {formatAreaShort(field.papersAreaSqm, { locale })}
+      </Text>
+    );
+  }
+  if (!open) {
+    return (
+      <Pressable onPress={() => setOpen(true)} style={{ minHeight: 56, justifyContent: 'center' }}>
+        <Text style={s.empty}>{t('papersAreaAdd', locale)}</Text>
+      </Pressable>
+    );
+  }
+  const sqm = areaFromKillaKanal(killa, kanal);
+  return (
+    <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+      <TextInput style={papersInput} keyboardType="number-pad" placeholder={t('founderKilla', locale)} value={killa} onChangeText={setKilla} />
+      <TextInput style={papersInput} keyboardType="number-pad" placeholder={t('founderKanal', locale)} value={kanal} onChangeText={setKanal} />
+      <Button
+        label={t('save', locale)}
+        disabled={sqm === null}
+        onPress={() => {
+          onSet(field, sqm);
+          setOpen(false);
+        }}
+      />
+    </View>
+  );
+}
+
+const papersInput = {
+  flex: 1,
+  minHeight: 56,
+  borderWidth: 1,
+  borderColor: colors.border,
+  borderRadius: radius.md,
+  paddingHorizontal: space.sm,
+  fontSize: 18,
+  color: colors.text,
+  backgroundColor: colors.surface,
+} as const;

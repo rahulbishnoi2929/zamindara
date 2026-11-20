@@ -172,6 +172,7 @@ export interface WireFieldInsert {
   /** The farmer attested to this boundary in the app, on the capture screen. */
   confirmed_by_owner: boolean;
   created_at: string;
+  papers_area_sqm: number | null;
 }
 
 export interface WireFieldRow {
@@ -182,6 +183,7 @@ export interface WireFieldRow {
   capture_method: string;
   gps_accuracy_m: number | null;
   created_at: string;
+  papers_area_sqm?: number | null;
 }
 
 /**
@@ -201,6 +203,7 @@ export function fieldToWire(field: SavedField): WireFieldInsert | null {
     gps_accuracy_m: field.meanAccuracyM > 0 ? Math.round(field.meanAccuracyM * 100) / 100 : null,
     confirmed_by_owner: true,
     created_at: toIso(field.capturedAt),
+    papers_area_sqm: field.papersAreaSqm ?? null,
   };
 }
 
@@ -220,6 +223,7 @@ export function fieldFromWire(row: WireFieldRow): SavedField | null {
     method: row.capture_method,
     meanAccuracyM: row.gps_accuracy_m ?? 0,
     synced: true,
+    papersAreaSqm: row.papers_area_sqm ?? null,
   };
 }
 
@@ -258,6 +262,7 @@ export interface WireJobInsert {
 
 export interface WireJobRow {
   id: string;
+  area_disputed_at?: string | null;
   field_id: string;
   captain_id: string | null;
   service_id: string;
@@ -285,6 +290,8 @@ export interface WireJobUpdate {
   final_amount: number | null;
   payment_mode: PaymentMode | null;
   quoted_rate: number | null;
+  /** Any non-null value marks the dispute; the server stamps the real time and who. */
+  area_disputed_at?: string;
 }
 
 /**
@@ -323,6 +330,9 @@ export function jobEditsToWire(job: Job): WireJobUpdate {
     final_amount: job.finalAmount,
     payment_mode: job.paymentMode,
     quoted_rate: job.quotedRate,
+    ...(job.areaDisputedAt !== null && job.areaDisputedAt !== undefined
+      ? { area_disputed_at: toIso(job.areaDisputedAt) }
+      : {}),
   };
 }
 
@@ -374,6 +384,7 @@ export function jobFromWire(
     acceptedAt: fromIso(row.accepted_at),
     startedAt: fromIso(row.started_at),
     completedAt: fromIso(row.completed_at),
+    areaDisputedAt: fromIso(row.area_disputed_at ?? null),
   };
 }
 
@@ -627,6 +638,8 @@ export const STATUS_RANK: Record<JobStatus, number> = {
 export interface KnownJob {
   status: string;
   hasFinal: boolean;
+  /** The server already holds an area dispute for it. */
+  hasDispute?: boolean;
 }
 
 /**
@@ -642,5 +655,7 @@ export function needsPush(job: Job, known: KnownJob | undefined): 'insert' | 'up
   const serverRank = STATUS_RANK[known.status as JobStatus] ?? 0;
   if (localRank > serverRank) return 'update';
   if (localRank === serverRank && job.finalAmount !== null && !known.hasFinal) return 'update';
+  // A dispute tapped offline goes up on the next pass, whatever the status.
+  if (job.areaDisputedAt != null && known.hasDispute !== true) return 'update';
   return null;
 }

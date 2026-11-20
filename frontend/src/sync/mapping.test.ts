@@ -585,3 +585,18 @@ describe('toEwkt — what a geography column actually accepts', () => {
     expect(toEwkt(pointToGeoJson({ lat: 30.404, lng: 74.03 }))).toBe('SRID=4326;POINT(74.03 30.404)');
   });
 });
+
+describe('area disputes (4.4)', () => {
+  const job = (over: Partial<Job>): Job => ({ status: 'accepted', finalAmount: null, ...over }) as Job;
+
+  it('a dispute tapped offline goes up on the next pass', () => {
+    expect(needsPush(job({ areaDisputedAt: 1 }), { status: 'accepted', hasFinal: false })).toBe('update');
+    expect(needsPush(job({ areaDisputedAt: 1 }), { status: 'accepted', hasFinal: false, hasDispute: true })).toBeNull();
+    expect(needsPush(job({}), { status: 'accepted', hasFinal: false })).toBeNull();
+  });
+
+  it('only a set dispute is sent; an older job without one sends nothing for it', () => {
+    expect(jobEditsToWire(job({ areaDisputedAt: Date.UTC(2027, 3, 12) })).area_disputed_at).toBe('2027-04-12T00:00:00.000Z');
+    expect('area_disputed_at' in jobEditsToWire(job({}))).toBe(false);
+  });
+});

@@ -388,6 +388,16 @@ const strings = {
   // — naming
   nameField: { pa: 'ਖੇਤ ਦਾ ਨਾਂ', hi: 'खेत का नाम', en: 'Name this field' },
   save: { pa: 'ਸੰਭਾਲੋ', hi: 'सहेजें', en: 'Save' },
+  // Area disputes (4.4): one tap, once, never undone.
+  areaWrong: { pa: 'ਰਕਬਾ ਗਲਤ ਹੈ?', hi: 'रकबा गलत है?', en: 'Area wrong?' },
+  areaWrongAsk: {
+    pa: 'ਦਰਜ ਕਰੀਏ ਕਿ ਰਕਬਾ ਗਲਤ ਹੈ? ਇਹ ਵਾਪਸ ਨਹੀਂ ਹੁੰਦਾ।',
+    hi: 'दर्ज करें कि रकबा गलत है? यह वापस नहीं होता।',
+    en: 'Record that the area is wrong? This cannot be undone.',
+  },
+  areaDisputed: { pa: 'ਰਕਬੇ ਤੇ ਇਤਰਾਜ਼ ਦਰਜ ਹੈ', hi: 'रकबे पर आपत्ति दर्ज है', en: 'Area disputed' },
+  papersArea: { pa: 'ਕਾਗਜ਼ਾਂ ਵਿੱਚ', hi: 'कागज़ों में', en: 'On papers' },
+  papersAreaAdd: { pa: '+ ਕਾਗਜ਼ਾਂ ਵਾਲਾ ਰਕਬਾ', hi: '+ कागज़ों वाला रकबा', en: '+ Area on my papers' },
 
   // — permissions and errors
   needLocation: {

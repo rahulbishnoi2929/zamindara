@@ -27,6 +27,8 @@ export interface SavedField {
   meanAccuracyM: number;
   /** False until it reaches Supabase. Nothing is lost while offline. */
   synced: boolean;
+  /** The area on his land papers (4.4). Shown beside the measured one; never priced. */
+  papersAreaSqm?: number | null;
 }
 
 export interface ActiveWalk {

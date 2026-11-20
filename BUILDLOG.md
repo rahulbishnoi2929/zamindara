@@ -13,19 +13,19 @@ Newest first, so the most recent work is always at the top. Each entry says what
 | | |
 |---|---|
 | **Phase** | Code done through 5. **Phase 1 field test never run — the gate was walked past.** See the revision at the top of BUILD_PLAN. |
-| **Brief** | Working through the 16 Nov staged brief. Stage 1 done (awaiting your phone install). **Stage 4.1 + 4.2 done: founder dispatch works.** Next: 4.4 area disputes, then 4.5, 4.6, 4.3, 4.7, 4.8. Waiting on you: Supabase project, Firebase, first-phone test. |
-| **Tests** | 261 unit (122 packages + 139 app) + **230 database assertions** (run twice in CI: before and after a backup-and-restore) + **12-step end-to-end test** covering every server call, against a real database, all green in CI |
+| **Brief** | Working through the 16 Nov staged brief. Stage 1 done (awaiting your phone install). **Stage 4.1, 4.2, 4.4 done.** Next: 4.5 minimum job size, then 4.6, 4.3, 4.7, 4.8. Waiting on you: Supabase project, Firebase, first-phone test. |
+| **Tests** | 263 unit (122 packages + 141 app) + **239 database assertions** (run twice in CI: before and after a backup-and-restore) + **13-step end-to-end test** covering every server call, against a real database, all green in CI |
 | **App** | Signed release APK, **35.3 MB** (from 75.8), R8 on, ARM only. Shows `v0.1.0` on home; an `app_config` row tells old phones to update. **Install once:** JS changes reach a phone over the air. |
 | **Not yet done** | Never run on a physical device; sync never run against a hosted Supabase project |
 | **Blocking next step** | Setup: Maps key, hosted Supabase project, `expo prebuild` + APK, a phone, a 50 m tape |
 | **Repo** | [rahulbishnoi2929/zamindara](https://github.com/rahulbishnoi2929/zamindara) — private, CI green |
-| **Backend** | ✅ **Schema verified.** 31 migrations apply; all three guarantees hold. |
+| **Backend** | ✅ **Schema verified.** 32 migrations apply; all three guarantees hold. |
 
 ```
 C:\Zamidara\
 ├── docs\              16 product and engineering documents
-├── frontend\          Expo SDK 57 Android app — 139 tests + e2e
-├── backend\supabase\  31 migrations, RLS, dispatch functions — 230 assertions
+├── frontend\          Expo SDK 57 Android app — 141 tests + e2e
+├── backend\supabase\  32 migrations, RLS, dispatch functions — 239 assertions
 ├── packages\          units · geo · catalog · pricing · scheduling — 122 tests
 └── assets\            logo
 ```
@@ -67,6 +67,23 @@ The most useful part of this log. Each of these was believed, written down, then
 ---
 
 # Entries
+
+## 51 · Stage 4.4 — "the area is wrong", and the area on the papers
+
+**Asked:** a one-tap "area is wrong" on a job, stored and countable, and an optional "area on my papers" on each field.
+
+**What "working" meant:** either party can mark a job once and nobody can undo or forge it; the count shows up in metrics; the papers area is stored and shown but never priced.
+
+**Built:**
+- **Database (migration 0032).** `jobs.area_disputed_at` and `area_disputed_by`. A trigger decides both from the server: the first mark gets the server clock and the caller's id, whatever the phone sent, and after that neither can change. A stranger cannot mark someone else's job (the existing party policy). `fields.papers_area_sqm` has a sanity check. `metrics.area_disputes` shows, per region and week, completed jobs, disputes, which side raised them, and how many were on **declared** (phoned-in) fields. That last number says whether 4.2's square-on-a-pin is good enough.
+- **Sync.** A dispute tapped with no signal is saved on the phone and sent on the next pass, and only once (the phone remembers the server already has it). The papers area travels with the field.
+- **App.** A quiet **"ਰਕਬਾ ਗਲਤ ਹੈ?"** link on both the farmer's and the captain's job card, once a captain is on the job. It asks first, because it can't be undone, and afterwards shows **⚠ ਰਕਬੇ ਤੇ ਇਤਰਾਜ਼ ਦਰਜ ਹੈ**. Each field gets **+ ਕਾਗਜ਼ਾਂ ਵਾਲਾ ਰਕਬਾ** with killa + kanal entry, shown in local units beside the measured area.
+
+**Verified by running:** 263 unit tests (2 new), typecheck clean, bundle exports. **In CI:** 239 database assertions (9 new: stranger refused, server stamps who and when whatever is sent, cannot be cleared or re-attributed, counted by side, papers stored but not priced, nonsense refused), run twice; 13 end-to-end steps, including the farmer disputing through the app's own sync, a second pass not re-sending it, and the papers area reaching the server.
+
+**Not verified on a phone:** the confirmation dialog, and the papers entry fitting at large font size in Gurmukhi.
+
+---
 
 ## 50 · Stage 4.1 + 4.2 — you can match real work by hand, from the app
 

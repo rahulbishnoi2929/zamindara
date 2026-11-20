@@ -380,6 +380,34 @@ export default function App() {
    * mis-tap in a field cancels a harvest, and never move the local job
    * unless the server agreed.
    */
+  // "The area is wrong" (4.4). Saved on the phone first so a tap with no
+  // signal is not lost; the next pass sends it, and the server stamps who
+  // and when. Asks first: it cannot be taken back.
+  const disputeArea = (job: Job) => {
+    Alert.alert(t('areaWrongAsk', locale), undefined, [
+      { text: t('cancel', locale), style: 'cancel' },
+      {
+        text: t('confirm', locale),
+        style: 'destructive',
+        onPress: () => {
+          void (async () => {
+            const updated = await updateJob({ ...job, areaDisputedAt: Date.now() });
+            setJobs(updated);
+            if (signedIn && profile !== null) void syncJobs(updated, profile).then(setJobs);
+          })();
+        },
+      },
+    ]);
+  };
+
+  const setPapersArea = (field: SavedField, sqm: number | null) => {
+    void (async () => {
+      const saved = await saveField({ ...field, papersAreaSqm: sqm, synced: false });
+      setFields(saved);
+      if (signedIn) void syncFields(saved).then((next) => next !== saved && setFields(next));
+    })();
+  };
+
   const exitJob = (job: Job, kind: 'cancel' | 'release') => {
     const cancelling = kind === 'cancel';
     Alert.alert(
@@ -620,6 +648,8 @@ export default function App() {
                 onCancelJob={(job) => exitJob(job, 'cancel')}
                 onRateJob={(job, stars) => void rateJobNow(job, stars)}
                 onReleaseJob={(job) => exitJob(job, 'release')}
+                onDisputeArea={disputeArea}
+                onSetPapersArea={setPapersArea}
                 onEditProfile={() => setScreen({ name: 'onboarding' })}
                 onToggleOnline={() => {
                   void (async () => {

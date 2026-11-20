@@ -77,6 +77,11 @@ export interface Job {
    * the app having lost his answer.
    */
   myRating: number | null;
+  /**
+   * When either party said the area is wrong (4.4). Optional so jobs saved
+   * by an older build still load. Set once; the server stamps the real time.
+   */
+  areaDisputedAt?: number | null;
 
   createdAt: number;
   acceptedAt: number | null;

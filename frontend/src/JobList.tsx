@@ -43,6 +43,7 @@ interface FarmerCardProps {
   etaAt?: Date | undefined;
   /** Withdraw the job. Absent where there is nothing to withdraw. */
   onCancel?: ((job: Job) => void) | undefined;
+  onDisputeArea?: ((job: Job) => void) | undefined;
   /** Rate the captain who did it. */
   onRate?: ((job: Job, stars: number) => void) | undefined;
 }
@@ -55,6 +56,7 @@ export function FarmerJobCard({
   etaAt,
   onCancel,
   onRate,
+  onDisputeArea,
 }: FarmerCardProps) {
   const service = SERVICE_BY_CODE.get(job.serviceCode);
   return (
@@ -130,7 +132,27 @@ export function FarmerJobCard({
           <Text style={s.exitText}>{t('cancelJob', locale)}</Text>
         </Pressable>
       )}
+      <AreaDispute job={job} locale={locale} onDispute={onDisputeArea} />
     </Card>
+  );
+}
+
+/**
+ * "The area is wrong" (4.4). Either party, once, after a captain is on it —
+ * before that there is nobody to disagree with. Never undone, so it asks
+ * first; the server stamps who and when.
+ */
+const DISPUTABLE = new Set(['accepted', 'en_route', 'in_progress', 'completed']);
+
+function AreaDispute({ job, locale, onDispute }: { job: Job; locale: Locale; onDispute?: ((job: Job) => void) | undefined }) {
+  if (job.areaDisputedAt != null) {
+    return <Text style={[s.exitText, { color: colors.fair }]}>⚠ {t('areaDisputed', locale)}</Text>;
+  }
+  if (onDispute === undefined || !DISPUTABLE.has(job.status)) return null;
+  return (
+    <Pressable onPress={() => onDispute(job)} style={s.exit}>
+      <Text style={s.exitText}>{t('areaWrong', locale)}</Text>
+    </Pressable>
   );
 }
 
@@ -160,6 +182,7 @@ interface CaptainCardProps {
   onAdvance: (job: Job) => void;
   /** Hand the job back, so it can reach another captain. */
   onRelease?: ((job: Job) => void) | undefined;
+  onDisputeArea?: ((job: Job) => void) | undefined;
 }
 
 /**
@@ -180,6 +203,7 @@ export function CaptainJobCard({
   sending = false,
   onAdvance,
   onRelease,
+  onDisputeArea,
 }: CaptainCardProps) {
   const service = SERVICE_BY_CODE.get(job.serviceCode);
   const incoming = job.status === 'searching';
@@ -237,6 +261,7 @@ export function CaptainJobCard({
           <Text style={s.exitText}>{t('releaseJob', locale)}</Text>
         </Pressable>
       )}
+      <AreaDispute job={job} locale={locale} onDispute={onDisputeArea} />
     </View>
   );
 }

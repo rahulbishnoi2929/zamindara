@@ -326,7 +326,7 @@ export async function syncFields(fields: SavedField[]): Promise<SavedField[]> {
     .from('fields')
     // boundary as GeoJSON via the computed column (0029); the raw column
     // arrives as hex EWKB, which nothing on the phone can read.
-    .select('id, name, boundary:boundary_geojson, area_sqm, capture_method, gps_accuracy_m, created_at, updated_at')
+    .select('id, name, boundary:boundary_geojson, area_sqm, papers_area_sqm, capture_method, gps_accuracy_m, created_at, updated_at')
     .eq('owner_id', uid);
   if (since !== null) query = query.gte('updated_at', since);
   const pulled = await query.order('updated_at').limit(PAGE);
@@ -377,6 +377,7 @@ interface PulledJob {
     notes: string | null;
     created_at: string;
     updated_at: string;
+    area_disputed_at?: string | null;
     accepted_at: string | null;
     started_at: string | null;
     completed_at: string | null;
@@ -593,6 +594,7 @@ export async function syncJobs(
     known[p.row.id] = {
       status: p.row.status,
       hasFinal: p.row.final_amount !== null,
+      hasDispute: (p.row.area_disputed_at ?? null) !== null,
       ...(offerIds?.has(p.row.id) ? { offer: true } : {}),
     };
   }
@@ -629,7 +631,11 @@ export async function syncJobs(
         .eq('id', job.id);
       if (updated.error === null) {
         pushed.add(job.id);
-        known[job.id] = { status: job.status, hasFinal: job.finalAmount !== null };
+        known[job.id] = {
+          status: job.status,
+          hasFinal: job.finalAmount !== null,
+          hasDispute: job.areaDisputedAt != null,
+        };
       }
     }
   }
