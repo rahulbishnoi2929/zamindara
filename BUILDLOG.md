@@ -76,7 +76,7 @@ The most useful part of this log. Each of these was believed, written down, then
 
 **Built:**
 - **`docs/CURRENT_STATE.md`.** It covers the real folder tree, the five packages with their test counts, the counts with the command that checks each, what is built (by area), what is deliberately not built, and what is not yet live. Every count on it was read from the repo or CI, not from memory. It is linked first in the README's document table.
-- **20 "Superseded" markers** across README, ARCHITECTURE, TECH_ARCHITECTURE, TECH_STACK, BUILD_PLAN, DATA_MODEL, MVP_SCOPE and USER_FLOWS. Nothing was deleted. The main corrections:
+- **18 "Superseded" markers** across README, ARCHITECTURE, TECH_ARCHITECTURE, TECH_STACK, BUILD_PLAN, DATA_MODEL, MVP_SCOPE and USER_FLOWS. Nothing was deleted. The main corrections:
   - the old `apps/`, `supabase/` and `apps/admin` folder trees;
   - the Next.js and Vercel admin console (forbidden by the brief; the founder tools are in-app screens);
   - i18next (a plain object is used), Supabase Realtime (sync polls) and MSG91 (no SMS provider yet);
