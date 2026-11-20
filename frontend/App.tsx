@@ -39,6 +39,7 @@ import {
 import { OnboardingFlow } from './src/onboarding/OnboardingFlow';
 import { SignInScreen } from './src/SignInScreen';
 import { VerifyCaptainsScreen } from './src/VerifyCaptainsScreen';
+import { FounderScreen } from './src/FounderScreen';
 import { currentSession } from './src/auth';
 import { startAutoRefresh, stopAutoRefresh } from './src/supabase';
 import { AppState } from 'react-native';
@@ -641,6 +642,7 @@ export default function App() {
                 }}
                 onOpenFieldTest={() => setScreen({ name: 'test' })}
                 onVerifyCaptains={isStaff ? () => setScreen({ name: 'verify' }) : undefined}
+                onOpenFounder={isStaff ? () => setScreen({ name: 'founder' }) : undefined}
               />
             )}
 
@@ -739,6 +741,10 @@ export default function App() {
                   setScreen({ name: 'home' });
                 }}
               />
+            )}
+
+            {screen.name === 'founder' && (
+              <FounderScreen locale={locale} onBack={() => setScreen({ name: 'home' })} />
             )}
 
             {screen.name === 'verify' && (

@@ -107,6 +107,8 @@ interface Props {
   onOpenFieldTest: () => void;
   /** Undefined for everyone who is not staff. */
   onVerifyCaptains?: (() => void) | undefined;
+  /** Founder dispatch. Undefined for everyone who is not staff. */
+  onOpenFounder?: (() => void) | undefined;
 }
 
 /**
@@ -135,6 +137,7 @@ export function HomeScreen({
   onToggleOnline,
   onOpenFieldTest,
   onVerifyCaptains,
+  onOpenFounder,
 }: Props) {
   const locale = profile.language;
   const captain = isCaptain(profile);
@@ -350,6 +353,11 @@ export function HomeScreen({
           />
         )}
         {/* Founder's tool. Removed once Phase 1 clears. */}
+        {onOpenFounder !== undefined && (
+          <Pressable onPress={onOpenFounder} hitSlop={12} style={s.testLink}>
+            <Text style={s.testLinkText}>{t('founderTitle', locale)}</Text>
+          </Pressable>
+        )}
         {onVerifyCaptains !== undefined && (
           <Pressable onPress={onVerifyCaptains} hitSlop={12} style={s.testLink}>
             <Text style={s.testLinkText}>Verify captains</Text>

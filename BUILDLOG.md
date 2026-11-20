@@ -13,19 +13,19 @@ Newest first, so the most recent work is always at the top. Each entry says what
 | | |
 |---|---|
 | **Phase** | Code done through 5. **Phase 1 field test never run — the gate was walked past.** See the revision at the top of BUILD_PLAN. |
-| **Brief** | Working through the 16 Nov staged brief. Stage 1 done (awaiting your phone install). **Server side ready and proven end to end.** Waiting on you: Supabase project, Firebase, the first-phone test (SETUP). Then Stage 4. |
-| **Tests** | 255 unit (122 packages + 133 app) + **210 database assertions** (run twice in CI: before and after a backup-and-restore) + **10-step end-to-end test** covering every server call, against a real database, all green in CI |
+| **Brief** | Working through the 16 Nov staged brief. Stage 1 done (awaiting your phone install). **Stage 4.1 + 4.2 done: founder dispatch works.** Next: 4.4 area disputes, then 4.5, 4.6, 4.3, 4.7, 4.8. Waiting on you: Supabase project, Firebase, first-phone test. |
+| **Tests** | 261 unit (122 packages + 139 app) + **230 database assertions** (run twice in CI: before and after a backup-and-restore) + **12-step end-to-end test** covering every server call, against a real database, all green in CI |
 | **App** | Signed release APK, **35.3 MB** (from 75.8), R8 on, ARM only. Shows `v0.1.0` on home; an `app_config` row tells old phones to update. **Install once:** JS changes reach a phone over the air. |
 | **Not yet done** | Never run on a physical device; sync never run against a hosted Supabase project |
 | **Blocking next step** | Setup: Maps key, hosted Supabase project, `expo prebuild` + APK, a phone, a 50 m tape |
 | **Repo** | [rahulbishnoi2929/zamindara](https://github.com/rahulbishnoi2929/zamindara) — private, CI green |
-| **Backend** | ✅ **Schema verified.** 30 migrations apply; all three guarantees hold. |
+| **Backend** | ✅ **Schema verified.** 31 migrations apply; all three guarantees hold. |
 
 ```
 C:\Zamidara\
 ├── docs\              16 product and engineering documents
-├── frontend\          Expo SDK 57 Android app — 133 tests + e2e
-├── backend\supabase\  30 migrations, RLS, dispatch functions — 210 assertions
+├── frontend\          Expo SDK 57 Android app — 139 tests + e2e
+├── backend\supabase\  31 migrations, RLS, dispatch functions — 230 assertions
 ├── packages\          units · geo · catalog · pricing · scheduling — 122 tests
 └── assets\            logo
 ```
@@ -58,6 +58,8 @@ The most useful part of this log. Each of these was believed, written down, then
 
 | 15 | Becoming staff is one SQL row: your ten-digit number in `admins` (SETUP step 5) | **That row could never match**, so no captain could ever be verified, and so none could ever be offered work | `profiles.phone` comes from Auth with the `91`; both docs said to enter ten digits; `is_admin()` compared them exactly. Now compared on the last ten digits, and proven by the end-to-end test signing in as the founder and verifying a captain through the app. |
 
+| 16 | 4.1 needs `profiles.id` decoupled from `auth.users` (the brief's own wording) | **It needs only the opposite: a placeholder re-keyed to the account id on claim** | Decoupling meant a lookup in every RLS policy and function, about 40 rewrites on the security path. Making every key to a profile `ON UPDATE CASCADE` turns a claim into one `UPDATE`, and RLS is untouched. Recorded in [STAGE_4_DESIGN](docs/STAGE_4_DESIGN.md). |
+
 | 10 | The distance surcharge was built — pricing library, schema columns, server function, twenty tests | **It was applied to nothing.** `travel_charge` was 0 on every job ever created | The app priced a job at *posting* time, when there is no captain and so no distance, and nothing ever priced it again. A combine 25 km out earned exactly what one in the next village earned. `accept_job` now prices the job at the one moment all three unknowns — whose rate, how far, which machine — are known. |
 
 **Rule that came out of this:** when a measurement contradicts a plan, the measurement wins. It is written into [BUILD_PLAN](docs/BUILD_PLAN.md#standing-rules).
@@ -65,6 +67,41 @@ The most useful part of this log. Each of these was believed, written down, then
 ---
 
 # Entries
+
+## 50 · Stage 4.1 + 4.2 — you can match real work by hand, from the app
+
+**Asked:** write all Stage 4 design notes and start building. The notes are in [STAGE_4_DESIGN.md](docs/STAGE_4_DESIGN.md), approved in one go.
+
+**What "working" meant:**
+- The founder books a job for a farmer who only phoned, assigns a captain, moves it to done and records the money.
+- Every one of those powers is refused to non-staff, by the database.
+- When that farmer later installs the app, his job and field are already his.
+
+### 4.1 Farmers before sign-up
+
+The design changed from the brief (reversal 16). A **placeholder profile** has a fresh id and no account. When the farmer first signs in, `claim_profile()` matches the phone **Auth verified by OTP**, read on the server and never sent by the phone, and re-keys the placeholder to his account id. Every foreign key to a profile now cascades on update, so his fields and jobs follow in one statement. The app calls it on every sign-in; it does nothing for anyone without a placeholder.
+
+The key from `profiles` to `auth.users` became a trigger with the same effect, because a placeholder has no account.
+
+**Found on the way:** `derive_field_geometry` and `road_km` used PostGIS types with no search path of their own, so they only worked when the caller's happened to include `extensions`. A claim re-keys fields and failed with "type geometry does not exist". Both are pinned now.
+
+### 4.2 Founder dispatch
+
+**Database:** `founder_create_farmer`, `founder_create_job`, `founder_assign`, `founder_advance` and `founder_captains`. Each refuses a non-staff caller with 42501, and that is tested. A phoned-in job's field is **declared**: a square of the stated area on a pin you drop, marked as such, within 1% of the area asked (tested). Assigning prices the job exactly as a normal accept does. Advancing goes through the same transition rules as everyone else: you cannot send an en-route job to "expired", and you cannot move a finished one. Staff can read the whole marketplace through new staff-only read policies.
+
+**App:** a **Match work** link on home, for staff only, opening one screen:
+- open jobs, newest first, with the right next action on each (choose captain → on the way → started → done with the amount)
+- a new-job form: phone, name, village, work-type chips, killa + kanal, now/today/tomorrow, and a pin set by moving the map
+- a captain picker listing verified captains nearest first, with 🟢 for online
+- **Share** opens the phone's own share sheet with a Punjabi message: work, area in local units, village, time, the farmer's name and number. No new dependency.
+
+All strings are in three languages, every touch target is 56 px, and the screen has loading, empty and failed states. Android back leaves the form before it leaves the screen.
+
+**Verified by running:** 261 unit tests (6 new: share text in local units with no decimals, killa + kanal entry, row reading), typecheck clean, bundle exports. **In CI:** 230 database assertions (20 new), twice; 12 end-to-end steps, two new ones running the app's own calls: book, list, pick a captain, assign, advance, complete with ₹8,400, then the farmer signs in with his own number and finds the job and field already his.
+
+**Not verified on a phone:** the founder screen itself, meaning the map pin, the share sheet, and how text fits at large font size in Gurmukhi. Add to the first-phone test: book a job for a made-up farmer, assign it, share it to yourself on WhatsApp.
+
+---
 
 ## 49 · Getting ready: every server call proven, three more blockers removed
 

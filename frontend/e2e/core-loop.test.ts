@@ -83,9 +83,9 @@ describe.skipIf(URL_ === '')('core loop against the database', { timeout: 60_000
     globalThis.fetch = realFetch;
     if (admin === undefined) return;
     await admin.from('ratings').delete().in('job_id', [jobId, job2]);
-    await admin.from('jobs').delete().in('id', [jobId, job2]);
+    await admin.from('jobs').delete().in('id', [jobId, job2, phonedJob].filter(Boolean));
     await admin.from('admins').delete().eq('phone', FARMER_PHONE);
-    for (const id of [farmerId, captainUid]) {
+    for (const id of [farmerId, captainUid, phonedUid]) {
       if (id !== '') await admin.auth.admin.deleteUser(id);
     }
   });
@@ -373,7 +373,64 @@ describe.skipIf(URL_ === '')('core loop against the database', { timeout: 60_000
     expect(farmerJobs.find((j) => j.id === job2)?.status).toBe('cancelled');
   });
 
+  const PHONED_PHONE = '9876500003';
+  const PHONED_CODE = '100003';
+  let phonedJob = '';
+  let phonedUid = '';
+
+  it('4.2: the founder books, assigns and completes a job for a farmer who only phoned', async () => {
+    // Signed in as the founder from the previous step.
+    const farmerId = await app.sync.founderCreateFarmer(PHONED_PHONE, 'Baldev Singh', 'Ladhuka');
+    expect(farmerId).not.toBeNull();
+    phonedJob = (await app.sync.founderCreateJob({
+      farmerId: farmerId!,
+      serviceCode: 'wheat_harvest',
+      areaSqm: 2 * 4046.8564224,
+      at: { lat: 30.41, lng: 74.02 },
+      isImmediate: true,
+      scheduledDate: null,
+      window: 'any',
+    }))!;
+    expect(phonedJob).toBeTruthy();
+
+    const listed = await app.sync.fetchFounderJobs();
+    const mine = listed!.find((j) => j.id === phonedJob);
+    expect(mine).toMatchObject({ status: 'searching', farmerName: 'Baldev Singh', village: 'Ladhuka' });
+
+    const captains = await app.sync.fetchFounderCaptains(phonedJob);
+    expect(captains.map((c) => c.captainId)).toContain(captainUid);
+    expect(await app.sync.founderAssign(phonedJob, captainUid)).toBe(true);
+    for (const step of ['en_route', 'in_progress'] as const) {
+      expect(await app.sync.founderAdvance(phonedJob, step)).toBe(true);
+    }
+    expect(await app.sync.founderAdvance(phonedJob, 'completed', 8400)).toBe(true);
+    const { data } = await admin.from('jobs').select('status, final_amount, captain_id').eq('id', phonedJob).single();
+    expect(data).toMatchObject({ status: 'completed', captain_id: captainUid });
+    expect(Number(data?.final_amount)).toBe(8400);
+  });
+
+  it('4.1: when that farmer installs the app and signs in, his job is already his', async () => {
+    phonedUid = await signInAs(PHONED_PHONE, PHONED_CODE);
+    const him = {
+      ...app.profile.emptyProfile(),
+      id: phonedUid,
+      phone: '91' + PHONED_PHONE,
+      fullName: 'Baldev Singh',
+      village: 'Ladhuka',
+      onboardedAt: Date.now(),
+    };
+    expect(await app.sync.syncProfile(him)).not.toBeNull();
+    const { data: profile } = await admin.from('profiles').select('placeholder').eq('id', phonedUid).single();
+    expect(profile?.placeholder).toBe(false);
+
+    const jobs = await app.sync.syncJobs([], him);
+    expect(jobs.find((j) => j.id === phonedJob)).toMatchObject({ status: 'completed', finalAmount: 8400 });
+    const fields = await app.sync.syncFields([]);
+    expect(fields).toHaveLength(1);
+  });
+
   it('a phone that lost its local copy gets everything back, cursors notwithstanding', async () => {
+    await signInAs(FARMER_PHONE, FARMER_CODE);
     const restored = await app.sync.syncJobs([], farmer);
     expect(restored.map((j) => j.id)).toContain(jobId);
     const refields = await app.sync.syncFields([]);

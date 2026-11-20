@@ -21,6 +21,7 @@ export type Screen =
   | { name: 'confirm'; intent: Intent; result: WalkResult }
   | { name: 'book' }
   | { name: 'verify' }
+  | { name: 'founder' }
   | { name: 'test' }
   | { name: 'testPlot'; plotId: string };
 
@@ -50,7 +51,7 @@ export function persistable(screen: Screen): Screen {
   return screen.name === 'confirm' ? { name: 'walk', intent: screen.intent } : screen;
 }
 
-const NAMES = new Set(['home', 'onboarding', 'choose', 'draw', 'walk', 'confirm', 'book', 'verify', 'test', 'testPlot']);
+const NAMES = new Set(['home', 'onboarding', 'choose', 'draw', 'walk', 'confirm', 'book', 'verify', 'founder', 'test', 'testPlot']);
 
 /** Read back what was saved, falling back to somewhere safe if it is stale. */
 export function restoreScreen(saved: unknown, plotIds: readonly string[]): Screen {

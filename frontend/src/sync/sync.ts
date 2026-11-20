@@ -2,7 +2,8 @@ import type { RateGuidance } from '@zamindara/pricing';
 import { appConfigFromRow, type AppConfig } from '../version';
 import { isBackendConfigured, supabase } from '../supabase';
 import { currentSession } from '../auth';
-import type { Job, JobStatus } from '../jobs';
+import type { Job, JobStatus, JobWindow } from '../jobs';
+import { founderJobFromWire, type FounderJob } from '../founder';
 import { isCaptain, type Profile } from '../profile';
 import {
   loadCachedAppConfig,
@@ -129,6 +130,12 @@ export async function syncProfile(profile: Profile): Promise<Profile | null> {
   const wire = profileToWire(profile);
   if (wire === null) return null;
   const uid = session.user.id;
+
+  // A farmer the founder booked work for before he had the app (4.1): his
+  // placeholder becomes this account, with its fields and jobs. The server
+  // matches on the phone Auth verified, not on anything sent from here.
+  // A no-op for everyone else, and for him after the first time.
+  await supabase.rpc('claim_profile');
 
   const existing = await supabase
     .from('profiles')
@@ -956,4 +963,113 @@ function readCount(raw: unknown): number | null {
   if (rows.length === 0) return 0;
   const n = (rows[0] as { count?: unknown }).count;
   return typeof n === 'number' ? n : null;
+}
+
+// ---------------------------------------------------------------------------
+// Founder dispatch (Stage 4.2)
+//
+// Thin calls to database functions that refuse anyone who is not staff
+// (tested in 17_founder_dispatch). Nothing here is trusted to decide who
+// may do what.
+// ---------------------------------------------------------------------------
+
+export interface FounderCaptain {
+  captainId: string;
+  fullName: string;
+  phone: string;
+  village: string;
+  isOnline: boolean;
+  distanceKm: number | null;
+}
+
+/** Open work, newest first. Staff read policy; index: jobs created_at. */
+export async function fetchFounderJobs(): Promise<FounderJob[] | null> {
+  if (!isBackendConfigured()) return null;
+  const maps = await loadCatalog();
+  if (maps === null) return null;
+  const { data, error } = await supabase
+    .from('jobs')
+    .select(
+      'id, status, service_id, area_sqm, is_immediate, scheduled_date, scheduled_window, final_amount, ' +
+        'farmer:profiles!jobs_farmer_id_fkey(full_name, phone, village), ' +
+        'captain:captains!jobs_captain_id_fkey(profile:profiles!captains_profile_id_fkey(full_name))',
+    )
+    .in('status', ['searching', 'accepted', 'en_route', 'in_progress'])
+    .order('created_at', { ascending: false })
+    .limit(50);
+  if (error !== null) {
+    console.warn('founder: jobs failed:', error.message);
+    return null;
+  }
+  return (data as unknown as Record<string, unknown>[])
+    .map((r) => founderJobFromWire(r, (id) => maps.serviceCode(id)))
+    .filter((j): j is FounderJob => j !== null);
+}
+
+/** A phoned-in farmer; the same number twice is the same farmer. */
+export async function founderCreateFarmer(phone: string, name: string, village: string): Promise<string | null> {
+  const { data, error } = await supabase.rpc('founder_create_farmer', {
+    p_phone: phone,
+    p_name: name,
+    p_village: village,
+  });
+  if (error !== null) console.warn('founder: create farmer failed:', error.message);
+  return error === null ? (data as string) : null;
+}
+
+export async function founderCreateJob(input: {
+  farmerId: string;
+  serviceCode: string;
+  areaSqm: number;
+  at: { lat: number; lng: number };
+  isImmediate: boolean;
+  scheduledDate: string | null;
+  window: JobWindow;
+}): Promise<string | null> {
+  const { data, error } = await supabase.rpc('founder_create_job', {
+    p_farmer: input.farmerId,
+    p_service_code: input.serviceCode,
+    p_area_sqm: input.areaSqm,
+    p_lat: input.at.lat,
+    p_lng: input.at.lng,
+    p_is_immediate: input.isImmediate,
+    p_scheduled_date: input.scheduledDate,
+    p_window: input.window,
+  });
+  if (error !== null) console.warn('founder: create job failed:', error.message);
+  return error === null ? (data as string) : null;
+}
+
+export async function fetchFounderCaptains(jobId: string | null): Promise<FounderCaptain[]> {
+  const { data, error } = await supabase.rpc('founder_captains', { p_job: jobId });
+  if (error !== null || !Array.isArray(data)) return [];
+  return (data as Array<Record<string, unknown>>).map((r) => ({
+    captainId: String(r['captain_id']),
+    fullName: String(r['full_name'] ?? ''),
+    phone: String(r['phone'] ?? ''),
+    village: String(r['village'] ?? ''),
+    isOnline: r['is_online'] === true,
+    distanceKm: typeof r['distance_km'] === 'number' ? r['distance_km'] : null,
+  }));
+}
+
+export async function founderAssign(jobId: string, captainId: string): Promise<boolean> {
+  const { error } = await supabase.rpc('founder_assign', { p_job: jobId, p_captain: captainId });
+  if (error !== null) console.warn('founder: assign failed:', error.message);
+  return error === null;
+}
+
+export async function founderAdvance(
+  jobId: string,
+  status: JobStatus,
+  finalAmount: number | null = null,
+): Promise<boolean> {
+  const { error } = await supabase.rpc('founder_advance', {
+    p_job: jobId,
+    p_status: status,
+    p_final_amount: finalAmount,
+    p_payment: finalAmount === null ? null : 'cash',
+  });
+  if (error !== null) console.warn('founder: advance failed:', error.message);
+  return error === null;
 }
