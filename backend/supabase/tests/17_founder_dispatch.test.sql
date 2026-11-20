@@ -84,12 +84,15 @@ create temp table t (farmer uuid, job uuid);
 grant all on t to authenticated;
 insert into t (farmer) values (public.founder_create_farmer('98765 00950', 'Gurmeet Singh', 'Arniwala'));
 
+-- Read as the server: a phone may not read numbers directly (0040).
+select tests.act_as_admin();
 select is(
   (select row(placeholder, phone, r.slug)::text from public.profiles p
    join public.regions r on r.id = p.region_id where p.id = (select farmer from t)),
   '(t,919876500950,fazilka)',
   'a phoned-in farmer is a placeholder, stored with 91, in the live region'
 );
+select tests.act_as('11111111-1111-1111-1111-111111111111');
 
 select is(public.founder_create_farmer('919876500950', 'Gurmeet'), (select farmer from t),
   'the same number again is the same farmer');

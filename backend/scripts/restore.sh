@@ -40,12 +40,21 @@ alter default privileges in schema public grant all on sequences to anon, authen
 alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
 SQL
 
+# And whatever the dump's ordering does to one function's grants (road_km
+# came back callable signed out, Nov 2026): since 0040 no function in public
+# is callable by anon or PUBLIC, so say so again after the load. A no-op for
+# every function restored exactly; tests/26 checks it on the restored copy.
+cat > "$work/anon-off.sql" <<'SQL'
+revoke execute on all functions in schema public from public, anon;
+SQL
+
 psql \
   --single-transaction \
   --variable ON_ERROR_STOP=1 \
   --file "$work/roles.sql" \
   --file "$work/defaults-off.sql" \
   --file "$work/schema.sql" \
+  --file "$work/anon-off.sql" \
   --file "$work/defaults-on.sql" \
   --command 'SET session_replication_role = replica' \
   --file "$work/data.sql" \

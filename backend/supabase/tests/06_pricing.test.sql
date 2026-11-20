@@ -132,6 +132,10 @@ values (
 -- What quote_job says, before anyone has accepted anything
 -- ===========================================================================
 
+-- quote_job is the server's (0040): accept_job and the founder's functions
+-- call it; a phone may not, since its travel charge gives away a distance.
+select tests.act_as_admin();
+
 select is(
   (select travel_charge from public.quote_job(
     (select id from public.fields where name = 'Nehar wala khet'),

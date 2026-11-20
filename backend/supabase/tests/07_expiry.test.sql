@@ -223,7 +223,8 @@ select set_config('request.jwt.claims', '', true);
 select set_config('role', 'anon', true);
 select throws_ok(
   $$ select public.expire_stale_jobs() $$,
-  '28000',
+  -- 0040: signed out, no function can be called at all.
+  '42501',
   null,
   'and a stranger who is not signed in cannot run it at all'
 );

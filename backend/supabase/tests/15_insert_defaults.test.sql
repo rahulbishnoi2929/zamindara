@@ -63,6 +63,10 @@ values ('00000000-0000-0000-0000-000000000000', '11111111-1111-1111-1111-1111111
         'authenticated', 'authenticated', 'x@test.local', '', now(), now(), now());
 
 select tests.act_as('11111111-1111-1111-1111-111111111111');
+-- A real session's token carries the number Auth verified (0040 takes it from there).
+select set_config('request.jwt.claims',
+  json_build_object('sub', '11111111-1111-1111-1111-111111111111', 'role', 'authenticated',
+                    'phone', '919876500701')::text, true);
 -- What syncProfile sends: no region.
 insert into public.profiles (id, phone, full_name) values
   ('11111111-1111-1111-1111-111111111111', '919876500701', 'Gurmeet');

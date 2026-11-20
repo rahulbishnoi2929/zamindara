@@ -14,18 +14,18 @@ Newest first, so the most recent work is always at the top. Each entry says what
 |---|---|
 | **Phase** | Code done through 5. **Phase 1 field test never run — the gate was walked past.** See the revision at the top of BUILD_PLAN. |
 | **Brief** | Working through the 16 Nov staged brief. Stage 1 done (awaiting your phone install). **All seven stages of the brief are done.** Current facts: [docs/CURRENT_STATE.md](docs/CURRENT_STATE.md). Waiting on you: Supabase project, Firebase, first-phone test. |
-| **Tests** | 292 unit (125 packages + 167 app) + **311 database assertions** (run twice in CI: before and after a backup-and-restore) + **20-step end-to-end test** covering every server call, against a real database, all green in CI |
+| **Tests** | 292 unit (125 packages + 167 app) + **334 database assertions** (run twice in CI: before and after a backup-and-restore) + **20-step end-to-end test** covering every server call, against a real database, all green in CI |
 | **App** | Signed release APK, **35.3 MB** (from 75.8), R8 on, ARM only. Shows `v0.1.0` on home; an `app_config` row tells old phones to update. **Install once:** JS changes reach a phone over the air. |
 | **Not yet done** | Never run on a physical device; sync never run against a hosted Supabase project |
 | **Blocking next step** | Setup: Maps key, hosted Supabase project, `expo prebuild` + APK, a phone, a 50 m tape |
 | **Repo** | [rahulbishnoi2929/zamindara](https://github.com/rahulbishnoi2929/zamindara) — private, CI green |
-| **Backend** | ✅ **Schema verified.** 39 migrations apply; all three guarantees hold. |
+| **Backend** | ✅ **Schema verified.** 40 migrations apply; all three guarantees hold. |
 
 ```
 C:\Zamidara\
 ├── docs\              16 product and engineering documents
 ├── frontend\          Expo SDK 57 Android app — 167 tests + e2e
-├── backend\supabase\  39 migrations, RLS, dispatch functions — 311 assertions
+├── backend\supabase\  40 migrations, RLS, dispatch functions — 334 assertions
 ├── packages\          units · geo · catalog · pricing · scheduling — 122 tests
 └── assets\            logo
 ```
@@ -67,6 +67,54 @@ The most useful part of this log. Each of these was believed, written down, then
 ---
 
 # Entries
+
+## 63 · Security pass: every endpoint checked, six holes closed
+
+**Asked:** fix the two privacy gaps, and "check every endpoint and everything".
+
+**How:**
+1. Inventoried every function, table, policy and grant from the migrations, plus the push function.
+2. Read each write policy against the columns it lets through.
+3. Wrote each hole as an attack in a new test (26) and watched it be refused.
+4. Added standing invariants that fail CI if any of this is reopened.
+
+The full map is in `docs/SECURITY.md`.
+
+**Found and fixed (migration 0040):**
+1. **A farmer could create a job already "accepted" by any captain he chose, at any area and price.** A job now starts `searching` with no captain, takes the field's measured area, and carries no price from the phone.
+2. **Either party could rewrite a shared job:** area, price, farmer or captain, since only `status` was guarded. A column-by-column guard now applies to direct writes: identity, size and money are kept as they were. The farmer can't move a status directly (cancelling goes through `cancel_job`), and the captain can only move his job forward.
+3. **A captain could move one of his offer rows onto any job, then accept it.** From the app, an offer can now only be declined.
+4. **A captain could create himself already verified, and raise his own rating.** A new captain starts pending and unrated, and his rating and job count are never his to write.
+5. **Anyone could change their own phone number to someone else's** and so receive that farmer's phoned-in bookings. The number is now the one Auth verified, and fixed.
+6. **Privacy:**
+   - Phone numbers and captains' home and live locations are no longer readable directly (column grants).
+   - Numbers come from `my_job_contacts`: the other side of a *live* job only. Offered captains no longer see the farmer's number, and nobody sees it after the job is done.
+   - The founder's job list gets numbers from `staff_job_phones`.
+7. **Signed out, no function can be called at all.** `eligible_captains`, `quote_job` and `road_km` are server-only: each would hand a captain's distance to anyone who asked, and a few fields would place him.
+8. **Push function:** it rings only for offers the server made or re-flagged in the last 2 minutes, and "booked" goes out only within 10 minutes of acceptance, so calling it in a loop rings nobody.
+
+**Found by CI on the way:**
+- **`road_km` grants didn't survive a backup.** The Supabase CLI dump drops grants on functions with extension-typed arguments. It now has no grants at all, so there's nothing to lose.
+- **Restoring now re-applies "no function signed out"** (`restore.sh`).
+
+**Older tests changed** (same guarantee, a different refusal or a server role):
+- 07: signed out is now refused with 42501 before the function runs, not 28000 inside it.
+- 06: `quote_job` is now called as the server.
+- 15: the fake token now carries a phone, like a real one.
+- 17: the stored number is now read as the server.
+- e2e: a completed job no longer shows the captain's number.
+
+**App changes:**
+- Profile reads use explicit columns.
+- The captain row is written as update-then-insert (an upsert needs read access to the hidden location columns).
+- Numbers come from the new functions.
+- The dead code that read numbers from embeds is gone.
+
+**Verified by running:** 292 unit tests, typecheck clean, bundle exports. **In CI:** 334 database assertions (23 new in test 26), twice, before and after backup-wipe-restore, and the restored database matches the original; 20 end-to-end steps.
+
+**Not verified:** the push function's new limits. It isn't deployed; redeploy it (SETUP step 11).
+
+---
 
 ## 62 · Batch C — machine pictures (dummy), "free near you now", the captain's distance
 

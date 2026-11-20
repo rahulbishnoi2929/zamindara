@@ -270,10 +270,6 @@ export interface WireJobRow {
   machine_id?: string | null;
   /** Embedded on the captain's pull. */
   field?: { capture_method?: string; access_notes?: string | null } | null;
-  /** Embedded on the captain's pulls: who to call. */
-  farmer?: { phone?: string | null } | null;
-  /** Embedded on the farmer's pull. */
-  captain?: { profile?: { phone?: string | null } | null } | null;
   search_extra_km?: number;
   search_exhausted_at?: string | null;
   field_id: string;
@@ -400,7 +396,6 @@ export function jobFromWire(
     areaDisputedAt: fromIso(row.area_disputed_at ?? null),
     machineId: row.machine_id ?? null,
     fieldDeclared: row.field?.capture_method === 'declared',
-    contactPhone: row.captain?.profile?.phone ?? row.farmer?.phone ?? null,
     accessNotes: row.field?.access_notes ?? null,
     searchExtraKm: row.search_extra_km ?? 0,
     searchExhaustedAt: fromIso(row.search_exhausted_at ?? null),
@@ -454,7 +449,9 @@ export function profileToWire(p: Profile): WireProfileUpsert | null {
 export function profileFromWire(row: WireProfileRow, local: Profile | null): Profile {
   return {
     id: row.id,
-    phone: row.phone,
+    // Not readable from the server any more (0040): the number is the one
+    // he signed in with, which the phone already holds.
+    phone: local?.phone ?? row.phone ?? null,
     fullName: row.full_name,
     village: row.village ?? '',
     role: row.role,

@@ -337,7 +337,8 @@ describe.skipIf(URL_ === '')('core loop against the database', { timeout: 60_000
     const done = farmerJobs.find((j) => j.id === jobId);
     expect(done?.status).toBe('completed');
     expect(done?.captainName).toBe('Jaspal Singh');
-    expect(done?.contactPhone).toBe('91' + CAPTAIN_PHONE);
+    // Done: numbers are for live jobs only (0040), so his captain's is gone.
+    expect(done?.contactPhone ?? null).toBeNull();
     expect(done?.finalAmount).toBe(4200);
 
     expect(await app.sync.pushRating(jobId, captainUid, 4)).toBe(true);

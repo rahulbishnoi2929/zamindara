@@ -40,6 +40,9 @@ import {
   profileToWire,
 } from './mapping';
 
+/** What a phone may read of a profile (0040): everything but the phone number. */
+const PROFILE_COLUMNS = 'id, full_name, photo_url, role, village, region_id, language, display_chain, placeholder, created_at, updated_at';
+
 /**
  * Sync: the same data, in two places, with the field between them unreliable.
  *
@@ -144,9 +147,10 @@ export async function syncProfile(given: Profile): Promise<Profile | null> {
   // A no-op for everyone else, and for him after the first time.
   await supabase.rpc('claim_profile');
 
+  // The columns a phone may read: phone numbers are not one of them (0040).
   const existing = await supabase
     .from('profiles')
-    .select('*')
+    .select(PROFILE_COLUMNS)
     .eq('id', uid)
     .maybeSingle();
 
@@ -155,7 +159,7 @@ export async function syncProfile(given: Profile): Promise<Profile | null> {
   if (existing.error !== null) return null;
 
   if (existing.data === null) {
-    const inserted = await supabase.from('profiles').insert(wire).select('*').single();
+    const inserted = await supabase.from('profiles').insert(wire).select(PROFILE_COLUMNS).single();
     if (inserted.error !== null) return null;
     merged = profileFromWire(inserted.data as never, profile);
   } else {
@@ -186,17 +190,22 @@ async function pushCaptainSide(profile: Profile, uid: string): Promise<boolean> 
   // Upsert, not update: the captains row is born the first time a located
   // captain syncs. Verification is deliberately absent from this write —
   // the policy on that column is what stops a captain approving himself.
-  const captains = await supabase.from('captains').upsert(
-    {
-      profile_id: uid,
-      base_location: base,
-      current_location: current,
-      is_online: profile.isOnline,
-      service_radius_km: profile.serviceRadiusKm,
-    },
-    { onConflict: 'profile_id' },
-  );
-  if (captains.error !== null) return false;
+  //
+  // Update, then insert if there was nothing to update. Not an upsert: ON
+  // CONFLICT DO UPDATE needs to read the columns it writes, and a phone may
+  // not read a captain's locations (0040).
+  const row = {
+    base_location: base,
+    current_location: current,
+    is_online: profile.isOnline,
+    service_radius_km: profile.serviceRadiusKm,
+  };
+  const updated = await supabase.from('captains').update(row, { count: 'exact' }).eq('profile_id', uid);
+  if (updated.error !== null) return false;
+  if (updated.count === 0) {
+    const inserted = await supabase.from('captains').insert({ profile_id: uid, ...row });
+    if (inserted.error !== null) return false;
+  }
 
   // Machines are keyed by the phone's own id and upserted; any he removed
   // is deleted. They used to be replaced wholesale every pass, which gave
@@ -457,7 +466,7 @@ async function pullJobs(
       // PostgREST refused the whole
       // query and no farmer ever saw a job change — found by the
       // end-to-end test, 20 Nov 2026.
-      '*, field:fields(name), captain:captains!jobs_captain_id_fkey(profile:profiles!captains_profile_id_fkey(full_name, phone)), job_dispatch(count), ratings(stars, rater_id)',
+      '*, field:fields(name), captain:captains!jobs_captain_id_fkey(profile:profiles!captains_profile_id_fkey(full_name)), job_dispatch(count), ratings(stars, rater_id)',
     )
     .eq('farmer_id', uid)
     // Index: jobs_farmer_updated_idx (farmer_id, updated_at). An offer
@@ -495,7 +504,7 @@ async function pullJobs(
   if (captainSide) {
     const assigned = await supabase
       .from('jobs')
-      .select('*, field:fields(name, capture_method, access_notes), farmer:profiles!jobs_farmer_id_fkey(full_name, village, phone)')
+      .select('*, field:fields(name, capture_method, access_notes), farmer:profiles!jobs_farmer_id_fkey(full_name, village)')
       .eq('captain_id', uid)
       .in('status', ['accepted', 'en_route', 'in_progress', 'completed'])
       // Index: jobs_captain_updated_idx. This was every job he had ever
@@ -746,9 +755,20 @@ export async function syncJobs(
     (j) => !gone.has(j.id) || j.status !== 'searching',
   );
 
+  // The other side's number on each live job (0040: never read directly).
+  const live = merged.some((j) => j.status === 'accepted' || j.status === 'en_route' || j.status === 'in_progress');
+  const contacts = new Map<string, string>();
+  if (live) {
+    const { data } = await supabase.rpc('my_job_contacts');
+    for (const c of (data as Array<{ job_id: string; phone: string | null }> | null) ?? []) {
+      if (c.phone !== null) contacts.set(c.job_id, c.phone);
+    }
+  }
+
   // Batch C: where his captain is, for the farmer's own live jobs.
   const out: Job[] = [];
-  for (const j of merged) {
+  for (const raw of merged) {
+    const j = { ...raw, contactPhone: contacts.get(raw.id) ?? null };
     if (j.captainId !== uid && (j.status === 'en_route' || j.status === 'in_progress') && isUuid(j.id)) {
       const { data } = await supabase.rpc('job_captain_location', { p_job_id: j.id });
       const at = (data as Array<{ km: number; seen_at: string }> | null)?.[0];
@@ -1054,7 +1074,7 @@ export async function fetchFounderJobs(): Promise<FounderJob[] | null> {
     .from('jobs')
     .select(
       'id, status, service_id, area_sqm, is_immediate, scheduled_date, scheduled_window, final_amount, ' +
-        'farmer:profiles!jobs_farmer_id_fkey(full_name, phone, village), ' +
+        'farmer:profiles!jobs_farmer_id_fkey(full_name, village), ' +
         'captain:captains!jobs_captain_id_fkey(profile:profiles!captains_profile_id_fkey(full_name))',
     )
     .in('status', ['searching', 'accepted', 'en_route', 'in_progress'])
@@ -1064,7 +1084,14 @@ export async function fetchFounderJobs(): Promise<FounderJob[] | null> {
     console.warn('founder: jobs failed:', error.message);
     return null;
   }
+  // Farmers' numbers, which the table no longer gives out (0040).
+  const phones = new Map<string, string>();
+  const staff = await supabase.rpc('staff_job_phones');
+  for (const p of (staff.data as Array<{ job_id: string; phone: string | null }> | null) ?? []) {
+    if (p.phone !== null) phones.set(p.job_id, p.phone);
+  }
   return (data as unknown as Record<string, unknown>[])
+    .map((r) => ({ ...r, farmer: { ...(r['farmer'] as object | null), phone: phones.get(String(r['id'])) ?? '' } }))
     .map((r) => founderJobFromWire(r, (id) => maps.serviceCode(id)))
     .filter((j): j is FounderJob => j !== null);
 }

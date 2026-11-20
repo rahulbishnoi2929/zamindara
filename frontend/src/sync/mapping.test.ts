@@ -644,7 +644,7 @@ describe('access notes and contact numbers (batch A)', () => {
     expect(back.accessNotes).toBe('no truck');
   });
 
-  it('a job takes the other side\'s number and the field\'s note from the embeds', () => {
+  it('a job takes the field\'s note from the embed; numbers never come from a row (0040)', () => {
     const row = {
       id: '9b2f8a10-2222-4c1c-8e2a-0d6a9c3f7a01', field_id: 'f', captain_id: 'c', service_id: 's', area_sqm: 1,
       status: 'accepted', is_immediate: true, scheduled_date: null, scheduled_window: 'any' as const,
@@ -653,17 +653,13 @@ describe('access notes and contact numbers (batch A)', () => {
       started_at: null, completed_at: null,
     };
     const forCaptain = jobFromWire(
-      { ...row, field: { capture_method: 'drawn', access_notes: 'no truck' }, farmer: { phone: '919876500001' } },
+      { ...row, field: { capture_method: 'drawn', access_notes: 'no truck' } },
       'wheat_harvest', '', '', null, null, null, null,
     )!;
-    expect(forCaptain.contactPhone).toBe('919876500001');
     expect(forCaptain.accessNotes).toBe('no truck');
-    const forFarmer = jobFromWire(
-      { ...row, captain: { profile: { phone: '919876500002' } } },
-      'wheat_harvest', '', '', null, null, null, null,
-    )!;
-    expect(forFarmer.contactPhone).toBe('919876500002');
-    expect(forFarmer.accessNotes).toBeNull();
+    expect(forCaptain.contactPhone).toBeUndefined();
+    const plain = jobFromWire(row, 'wheat_harvest', '', '', null, null, null, null)!;
+    expect(plain.accessNotes).toBeNull();
   });
 });
 

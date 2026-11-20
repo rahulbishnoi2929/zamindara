@@ -25,6 +25,9 @@ interface Body {
   to?: string;
 }
 
+/** How recent a server event must be for a push to follow it (security pass, 0040). */
+const FRESH_MS = 2 * 60_000;
+
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method !== 'POST') {
     return json({ error: 'POST only' }, 405);
@@ -61,7 +64,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   const { data: job, error: jobError } = await asCaller
     .from('jobs')
-    .select('id, farmer_id, captain_id, area_sqm, service_id, is_immediate')
+    .select('id, farmer_id, captain_id, area_sqm, service_id, is_immediate, accepted_at')
     .eq('id', jobId)
     .maybeSingle();
 
@@ -76,6 +79,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (me.user === null || me.user.id !== job.captain_id) {
       return json({ error: 'not your job' }, 403);
     }
+    // Once, around booking: not a way to ring a farmer whenever he likes.
+    const acceptedAt = job.accepted_at === null ? 0 : Date.parse(job.accepted_at as string);
+    if (Date.now() - acceptedAt > FRESH_MS * 5) return json({ sent: 0, reason: 'not just booked' });
     const svc = createClient(url, serviceKey);
     const { data: farmerTokens } = await svc
       .from('push_tokens')
@@ -112,11 +118,18 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   const { data: dispatches } = await asService
     .from('job_dispatch')
-    .select('captain_id')
+    .select('captain_id, sent_at, repinged_at')
     .eq('job_id', jobId)
     .eq('response', 'pending');
 
-  const captainIds = (dispatches ?? []).map((d) => d.captain_id as string);
+  // Only offers the server has just made or just marked to ring again. The
+  // farmer's app calls this after dispatch_job or repeat_ping_due says so;
+  // calling it in a loop must not ring anyone again.
+  const now = Date.now();
+  const fresh = (iso: unknown) => typeof iso === 'string' && now - Date.parse(iso) < FRESH_MS;
+  const captainIds = (dispatches ?? [])
+    .filter((d) => fresh(d.sent_at) || fresh(d.repinged_at))
+    .map((d) => d.captain_id as string);
   if (captainIds.length === 0) return json({ sent: 0, reason: 'nobody pending' });
 
   const { data: tokens } = await asService

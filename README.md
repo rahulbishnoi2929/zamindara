@@ -15,6 +15,7 @@ Launching in **Fazilka district, Punjab**.
 | Document | What it covers |
 |---|---|
 | **[Current State](docs/CURRENT_STATE.md)** | **What exists today: folders, packages, counts, what is built. Wins over every other document.** |
+| [Security](docs/SECURITY.md) | Every endpoint and what guards it; enforced by database test 26. |
 | [PRD](docs/PRD.md) | The anchor document. Problem, vision, users, scope, metrics, risks. |
 | **[Build Plan](docs/BUILD_PLAN.md)** | **Phase by phase: what to build, what to test, what to do. Start here to work.** |
 | [Architecture](docs/ARCHITECTURE.md) | The map of the code — folder by folder, frontend / shared logic / backend, and where new code goes. |
