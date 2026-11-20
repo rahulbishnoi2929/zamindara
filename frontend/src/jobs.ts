@@ -91,6 +91,10 @@ export interface Job {
   contactPhone?: string | null;
   /** How to reach the field, written by the farmer: shown to the captain. */
   accessNotes?: string | null;
+  /** Batch B: how far past captains' own radius this search reaches, km. */
+  searchExtraKm?: number;
+  /** Batch B: a "now" job's rounds ran out with nobody accepting. */
+  searchExhaustedAt?: number | null;
   /**
    * When nobody could be offered this job because it is smaller than the
    * captains nearby take: the smallest size they do take (4.5). Server-told.
@@ -363,3 +367,18 @@ export const canCall = (job: Job): boolean => CALLABLE.has(job.status) && (job.c
 
 /** Numbers are stored as 91XXXXXXXXXX. */
 export const telUrl = (phone: string): string => `tel:+${phone.replace(/\D/g, '')}`;
+
+/** "Ask captains farther away": an exhausted "now" search, while there is room to widen (to +30 km). */
+export const canWiden = (job: Job): boolean =>
+  job.status === 'searching' && job.isImmediate && job.searchExhaustedAt != null && (job.searchExtraKm ?? 0) < 30;
+
+/**
+ * Batch B. The farmer's app is what moves dispatch rounds on, so it syncs
+ * every 30 seconds while one of his own "now" jobs is still being searched.
+ * Not for an offer on someone else's field, a job for later, or a search that
+ * has run out (nothing to do until he widens it).
+ */
+export const searchClockNeeded = (jobs: readonly Job[], myFieldIds: ReadonlySet<string>): boolean =>
+  jobs.some(
+    (j) => j.status === 'searching' && j.isImmediate && j.searchExhaustedAt == null && myFieldIds.has(j.fieldId),
+  );

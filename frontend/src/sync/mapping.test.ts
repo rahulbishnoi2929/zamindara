@@ -666,3 +666,21 @@ describe('access notes and contact numbers (batch A)', () => {
     expect(forFarmer.accessNotes).toBeNull();
   });
 });
+
+describe('search state from the server (batch B)', () => {
+  it('carries how wide the search is and whether it ran out', () => {
+    const row = {
+      id: '9b2f8a10-3333-4c1c-8e2a-0d6a9c3f7a01', field_id: 'f', captain_id: null, service_id: 's', area_sqm: 1,
+      status: 'searching', is_immediate: true, scheduled_date: null, scheduled_window: 'any' as const,
+      quoted_rate: null, quoted_unit: null, quoted_subtotal: null, travel_charge: 0, quoted_total: null,
+      final_amount: null, payment_mode: null, notes: null, created_at: toIso(0), accepted_at: null,
+      started_at: null, completed_at: null, search_extra_km: 10, search_exhausted_at: toIso(1729437300000),
+    };
+    const j = jobFromWire(row, 'wheat_harvest', '', '', null, null, null, null)!;
+    expect(j.searchExtraKm).toBe(10);
+    expect(j.searchExhaustedAt).toBe(1729437300000);
+    const plain = jobFromWire({ ...row, search_extra_km: undefined, search_exhausted_at: undefined }, 'wheat_harvest', '', '', null, null, null, null)!;
+    expect(plain.searchExtraKm).toBe(0);
+    expect(plain.searchExhaustedAt).toBeNull();
+  });
+});

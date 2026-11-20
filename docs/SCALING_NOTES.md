@@ -29,3 +29,4 @@ fixed. The point is that the choice was seen, not that it was solved.
 | Stage 6 — draw screen | All on the phone; nothing new on the server. The snap is one rectangle fit over four points. No scaling concern. |
 | Stage 7 — current state page | Documentation only. The risk is drift, not load: the page goes stale the moment a count changes without it. If that starts happening, have CI compare its migration and test counts with the repo. |
 | Batch A — calls, access notes, radius | Two extra columns on three existing embeds; nothing new on the server. No scaling concern. |
+| Batch B — dispatch rounds | Each farmer pass on a searching "now" job calls `eligible_captains` with limit 1000 and filters out those already asked: one spatial query per job per 30 s while the farmer watches. Fine for a district. At peak, move rounds to `pg_cron` so they don't depend on open apps, and cap the candidate set. |

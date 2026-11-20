@@ -14,18 +14,18 @@ Newest first, so the most recent work is always at the top. Each entry says what
 |---|---|
 | **Phase** | Code done through 5. **Phase 1 field test never run — the gate was walked past.** See the revision at the top of BUILD_PLAN. |
 | **Brief** | Working through the 16 Nov staged brief. Stage 1 done (awaiting your phone install). **All seven stages of the brief are done.** Current facts: [docs/CURRENT_STATE.md](docs/CURRENT_STATE.md). Waiting on you: Supabase project, Firebase, first-phone test. |
-| **Tests** | 285 unit (125 packages + 160 app) + **287 database assertions** (run twice in CI: before and after a backup-and-restore) + **18-step end-to-end test** covering every server call, against a real database, all green in CI |
+| **Tests** | 288 unit (125 packages + 163 app) + **300 database assertions** (run twice in CI: before and after a backup-and-restore) + **19-step end-to-end test** covering every server call, against a real database, all green in CI |
 | **App** | Signed release APK, **35.3 MB** (from 75.8), R8 on, ARM only. Shows `v0.1.0` on home; an `app_config` row tells old phones to update. **Install once:** JS changes reach a phone over the air. |
 | **Not yet done** | Never run on a physical device; sync never run against a hosted Supabase project |
 | **Blocking next step** | Setup: Maps key, hosted Supabase project, `expo prebuild` + APK, a phone, a 50 m tape |
 | **Repo** | [rahulbishnoi2929/zamindara](https://github.com/rahulbishnoi2929/zamindara) — private, CI green |
-| **Backend** | ✅ **Schema verified.** 37 migrations apply; all three guarantees hold. |
+| **Backend** | ✅ **Schema verified.** 38 migrations apply; all three guarantees hold. |
 
 ```
 C:\Zamidara\
 ├── docs\              16 product and engineering documents
-├── frontend\          Expo SDK 57 Android app — 160 tests + e2e
-├── backend\supabase\  37 migrations, RLS, dispatch functions — 287 assertions
+├── frontend\          Expo SDK 57 Android app — 163 tests + e2e
+├── backend\supabase\  38 migrations, RLS, dispatch functions — 300 assertions
 ├── packages\          units · geo · catalog · pricing · scheduling — 122 tests
 └── assets\            logo
 ```
@@ -67,6 +67,37 @@ The most useful part of this log. Each of these was believed, written down, then
 ---
 
 # Entries
+
+## 61 · Batch B — dispatch rounds, a wider search, ringing again
+
+**Asked:** the open BUILD_PLAN dispatch items: a 90-second round then the next five, three rounds, telling the farmer and offering a wider radius when nobody takes it, and ringing an unanswered ping again at 30 seconds. Design note: `docs/BATCH_B_DESIGN.md`.
+
+**What was actually wrong:** `dispatch_job` re-asked the *same* top five on every call, and `on conflict do nothing` turned every call after the first into nothing. Nobody beyond the first five was ever asked, an offer never ended, and the 90 seconds lived only on the captain's phone.
+
+**What "working" means now** (for "now" jobs; open offers for later days are unchanged):
+- **Rounds:** a round lasts 90 seconds. The next pass closes it (`timed_out`) and asks the best five *not yet asked*. A late yes from a timed-out captain still wins if the job is still searching.
+- **Running out:** after three rounds, or once everyone eligible has been asked, `search_exhausted_at` is set. The farmer's card says "Nobody has accepted yet" and offers **Ask captains farther away**. Each tap reaches 10 km past each captain's own radius, up to +30 km, with three more rounds each time.
+- **Ringing again:** an offer unanswered at 30 seconds is rung once more.
+- **The switch:** all of it obeys `auto_dispatch`.
+
+**Built:**
+- **Migration 0038.**
+  - New columns: `jobs.search_extra_km` (0–30), `jobs.search_exhausted_at`, `job_dispatch.repinged_at`.
+  - `eligible_captains` gains `p_extra_km` (default 0). It is dropped and recreated because the signature changed; existing callers are unaffected.
+  - `dispatch_job_offer` is re-declared with the rounds. 0019's guards are unchanged. A later-day job gets one round of pings, then `claim_open_offers` lists it to everyone else.
+  - New farmer-only functions: `widen_search` and `repeat_ping_due`.
+- **App.**
+  - The farmer's app syncs every 30 seconds while it is open and one of his own "now" jobs is searching. That is the only new timer.
+  - The sync pass rings again when the server says an offer is due.
+  - The farmer's card shows the exhausted note and the widen button.
+
+**Known limit (`ponytail:` in the design note):** rounds move on only while the farmer's app is open. If he closes it, his search pauses until he reopens it. The fix is a server timer (`pg_cron` + `pg_net` calling the push function): free, but it needs a dashboard step from the founder.
+
+**Verified by running:** 288 unit tests (125 packages + 163 app; 3 new), typecheck clean, bundle exports. **In CI:** 300 database assertions (13 new: rounds, timeout, once-only re-ring, exhaustion, widening reaches a captain 18 km out, three-round cap, later jobs unaffected), twice; 19 end-to-end steps. The new step: a "now" job's round times out, the farmer's next passes report it exhausted, and he widens the search.
+
+**Not verified:** the second ring on a phone (it needs the deployed `notify-dispatch`), and the 30-second timer on a real phone.
+
+---
 
 ## 60 · Batch A — call buttons, access notes, the radius on a map
 

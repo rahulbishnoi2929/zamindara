@@ -289,8 +289,8 @@ A 50 m fibreglass tape costs about ₹500–1,000 and is accurate to roughly 0.2
 - [x] Dispatch eligibility: right service, right machine, inside radius, online, verified · *built: pgTAP 03*
 - [x] Owned vs arrangeable filtering by job timing · *built: pgTAP 03*
 - [x] Race: two captains accept simultaneously — exactly one wins · *built: pgTAP 03, 11*
-- [ ] Timeout escalates to the next five
-- [ ] No eligible captains → farmer is told, offered a wider radius
+- [x] Timeout escalates to the next five · *built: Batch B, pgTAP 24*
+- [x] No eligible captains → farmer is told, offered a wider radius · *built: Batch B, pgTAP 24*
 - [x] Travel charge: 5 km → ₹0, 9 km → 4 × rate · *built: pgTAP 06*
 
 **Do**
@@ -310,7 +310,7 @@ A 50 m fibreglass tape costs about ₹500–1,000 and is accurate to roughly 0.2
 - [ ] Push via Expo → FCM, dedicated max-importance Android channel, custom loud sound
 - [ ] **Full-screen job ping** that wakes the device and behaves like an incoming call
 - [x] Accept/decline as notification actions, no app launch needed · *built: notifications.ts*
-- [ ] Escalation: unanswered in 30 s, ring again
+- [x] Escalation: unanswered in 30 s, ring again · *built: Batch B, repeat_ping_due*
 - [x] Respect declared working hours · *built: withinWorkingHours*
 - [ ] Captain queue with reorder and distance-sorted suggestion
 - [x] Queue position and ETA visible to the farmer · *built: FarmerJobCard*

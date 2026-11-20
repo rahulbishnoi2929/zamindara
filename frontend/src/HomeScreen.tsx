@@ -105,6 +105,8 @@ interface Props {
   onReleaseJob: (job: Job) => void;
   /** Either party: "the area is wrong" (4.4). */
   onDisputeArea?: ((job: Job) => void) | undefined;
+  /** Batch B: widen an exhausted search. */
+  onWidenSearch?: ((job: Job) => void) | undefined;
   /** The farmer records the area on his papers; null clears it. */
   onSetPapersArea?: ((field: SavedField, sqm: number | null) => void) | undefined;
   /** How a machine reaches the field; shown to the captain. Empty clears it. */
@@ -150,6 +152,7 @@ export function HomeScreen({
   onGetUpdate,
   onReleaseJob,
   onDisputeArea,
+  onWidenSearch,
   onSetPapersArea,
   onSetAccessNotes,
   onEditProfile,
@@ -357,6 +360,7 @@ export function HomeScreen({
                     onCancel={onCancelJob}
                     onRate={onRateJob}
                     onDisputeArea={onDisputeArea}
+                    onWiden={onWidenSearch}
                   />
                 );
               })

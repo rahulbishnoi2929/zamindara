@@ -2,7 +2,7 @@
 
 **The single source for what exists today.** Folder names, packages, counts and what is actually built live here, and only here. Other documents describe plans and reasons. Where one of them disagrees with this page, this page wins, and the other is marked *Superseded*.
 
-**As of 20 Nov 2026: the 16 Nov brief done, plus Batch A of the open BUILD_PLAN items.** Update this page in the same commit as any change to a count or a folder.
+**As of 20 Nov 2026: the 16 Nov brief done, plus Batches A and B of the open BUILD_PLAN items.** Update this page in the same commit as any change to a count or a folder.
 
 ---
 
@@ -54,11 +54,11 @@ npm workspaces; the app imports each by name, nothing is published.
 
 | | Count | How to check |
 |---|---|---|
-| Database migrations | **37** (`…0001_extensions` to `…0037_open_offers`) | `ls backend/supabase/migrations` |
-| Database test files | **23** | `ls backend/supabase/tests` |
-| Database assertions | **287**, run twice in CI: before and after a backup, wipe and restore | CI log, "Files=23, Tests=287" |
-| Unit tests | **285**: 125 packages + 160 app | `npm test` at the root |
-| End-to-end steps | **18**, the app's own sync code against a real database | CI, "Core loop, end to end" |
+| Database migrations | **38** (`…0001_extensions` to `…0038_dispatch_rounds`) | `ls backend/supabase/migrations` |
+| Database test files | **24** | `ls backend/supabase/tests` |
+| Database assertions | **300**, run twice in CI: before and after a backup, wipe and restore | CI log, "Files=24, Tests=300" |
+| Unit tests | **288**: 125 packages + 163 app | `npm test` at the root |
+| End-to-end steps | **19**, the app's own sync code against a real database | CI, "Core loop, end to end" |
 | Edge functions | **1** (`notify-dispatch`) | `ls backend/supabase/functions` |
 
 ## What is built
@@ -77,7 +77,7 @@ npm workspaces; the app imports each by name, nothing is published.
 
 **Jobs and dispatch**
 - A farmer books work.
-  - A "now" job is offered to the top five eligible captains with a ping.
+  - A "now" job is offered in rounds of five for 90 seconds each. An unanswered ping rings again at 30 s. After three rounds the farmer is told and can widen the search (Batch B).
   - A job for a later day is an open offer, listed quietly to every eligible captain (4.8).
   - The first to accept wins. A retried accept is safe.
 - Who counts as eligible:
@@ -115,7 +115,7 @@ Per the brief's do-not-build list and MVP_SCOPE:
 
 Also not built yet:
 - a full-screen "incoming call" ping (STAGE_5_DESIGN: native code, 2–3 days, only if the first phone test shows heads-up pings being missed);
-- server-side 90-second offer rounds. The 90 seconds today only bound how long a phone retries an accept.
+- a server timer for dispatch rounds. Rounds move on while the farmer's app is open (Batch B).
 
 ## Not yet live
 

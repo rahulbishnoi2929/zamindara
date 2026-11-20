@@ -690,7 +690,14 @@ export async function syncJobs(
     // Only ring when someone new was actually offered it. Re-dispatch
     // returns 0 for captains already holding the offer, and ringing them
     // again every sync pass would teach them to ignore the sound.
-    if (typeof offered === 'number' && offered > 0) await notifyDispatch(job.id);
+    if (typeof offered === 'number' && offered > 0) {
+      await notifyDispatch(job.id);
+    } else if (job.isImmediate) {
+      // Batch B: a round's captains who have not answered in 30 seconds are
+      // rung once more. The server decides who is due, and says so once.
+      const { data: due } = await supabase.rpc('repeat_ping_due', { p_job_id: job.id });
+      if (typeof due === 'number' && due > 0) await notifyDispatch(job.id);
+    }
   }
 
   const remote: Job[] = [];
@@ -1173,4 +1180,11 @@ export async function notifyFarmerBooked(jobId: string): Promise<void> {
   } catch {
     // Swallowed on purpose: a farmer without the app is the usual case.
   }
+}
+
+/** Batch B: ask captains 10 km farther away. True if the server widened it. */
+export async function widenSearch(jobId: string): Promise<boolean> {
+  if (!isBackendConfigured()) return false;
+  const { error } = await supabase.rpc('widen_search', { p_job_id: jobId });
+  return error === null;
 }

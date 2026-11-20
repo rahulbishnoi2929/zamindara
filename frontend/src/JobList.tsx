@@ -6,6 +6,7 @@ import { t, type StringKey } from './i18n';
 import {
   canCall,
   canCancel,
+  canWiden,
   canRelease,
   canRetrace,
   ratingAsk,
@@ -49,6 +50,8 @@ interface FarmerCardProps {
   onDisputeArea?: ((job: Job) => void) | undefined;
   /** Rate the captain who did it. */
   onRate?: ((job: Job, stars: number) => void) | undefined;
+  /** Batch B: nobody took it; ask captains farther away. */
+  onWiden?: ((job: Job) => void) | undefined;
 }
 
 /** A job as the farmer who booked it sees it. */
@@ -60,6 +63,7 @@ export function FarmerJobCard({
   onCancel,
   onRate,
   onDisputeArea,
+  onWiden,
 }: FarmerCardProps) {
   const service = SERVICE_BY_CODE.get(job.serviceCode);
   return (
@@ -75,6 +79,14 @@ export function FarmerJobCard({
       </Text>
       {job.captainName !== null && <Text style={s.captain}>{job.captainName}</Text>}
       <SearchNote job={job} locale={locale} />
+      {job.searchExhaustedAt != null && job.status === 'searching' && (
+        <Text style={s.searchNote}>{t('searchExhausted', locale)}</Text>
+      )}
+      {onWiden !== undefined && canWiden(job) && (
+        <View style={s.actions}>
+          <Button label={t('askFarther', locale)} onPress={() => onWiden(job)} variant="secondary" flex />
+        </View>
+      )}
       <CallButton job={job} label={t('callCaptain', locale)} />
 
       {/* The question a farmer actually asks is never "is a machine coming"

@@ -332,6 +332,12 @@ const strings = {
     hi: 'नक्शा खिसकाएँ ताकि पिन खेत पर आए',
     en: 'Move the map so the pin sits on the field',
   },
+  searchExhausted: {
+    pa: 'ਹਾਲੇ ਕਿਸੇ ਕੈਪਟਨ ਨੇ ਕੰਮ ਨਹੀਂ ਲਿਆ।',
+    hi: 'अभी किसी कैप्टन ने काम नहीं लिया।',
+    en: 'Nobody has accepted yet.',
+  },
+  askFarther: { pa: 'ਹੋਰ ਦੂਰ ਦੇ ਕੈਪਟਨਾਂ ਨੂੰ ਪੁੱਛੋ', hi: 'और दूर के कैप्टन से पूछें', en: 'Ask captains farther away' },
   callCaptain: { pa: '📞 ਕੈਪਟਨ ਨੂੰ ਫ਼ੋਨ ਕਰੋ', hi: '📞 कैप्टन को फ़ोन करें', en: '📞 Call captain' },
   accessNotesAdd: {
     pa: '+ ਖੇਤ ਤੱਕ ਕਿਵੇਂ ਪਹੁੰਚਣਾ ਹੈ',

@@ -31,6 +31,7 @@ import {
   addJob,
   cancelJob,
   loadJobs,
+  searchClockNeeded,
   rateJob,
   releaseJob,
   updateJob,
@@ -62,6 +63,7 @@ import {
   pushRating,
   releaseJobRemote,
   syncJobs,
+  widenSearch,
   syncProfile,
 } from './src/sync/sync';
 import { uuid } from './src/sync/mapping';
@@ -197,6 +199,18 @@ export default function App() {
   // always sees the latest state without re-subscribing on every render.
   const runSyncRef = useRef(runSync);
   runSyncRef.current = runSync;
+
+  // Batch B: dispatch rounds move on when the farmer's app syncs, so while
+  // one of his "now" jobs is being searched and the app is in front of him,
+  // sync every 30 seconds. Nothing runs otherwise: no timer in a pocket.
+  const searching = searchClockNeeded(jobs, new Set(fields.map((f) => f.id)));
+  useEffect(() => {
+    if (!searching) return;
+    const timer = setInterval(() => {
+      if (AppState.currentState === 'active') void runSyncRef.current();
+    }, 30_000);
+    return () => clearInterval(timer);
+  }, [searching]);
   useEffect(() => {
     startAutoRefresh();
     const sub = AppState.addEventListener('change', (state) => {
@@ -689,6 +703,11 @@ export default function App() {
                 onRateJob={(job, stars) => void rateJobNow(job, stars)}
                 onReleaseJob={(job) => exitJob(job, 'release')}
                 onDisputeArea={disputeArea}
+                onWidenSearch={(job) => {
+                  void widenSearch(job.id).then(async (ok) => {
+                    if (ok && profile !== null) setJobs(await syncJobs(await loadJobs(), profile));
+                  });
+                }}
                 onSetPapersArea={setPapersArea}
                 onSetAccessNotes={(field, accessNotes) => editField(field, { accessNotes })}
                 onEditProfile={() => setScreen({ name: 'onboarding' })}

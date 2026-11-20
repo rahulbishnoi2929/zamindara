@@ -274,6 +274,8 @@ export interface WireJobRow {
   farmer?: { phone?: string | null } | null;
   /** Embedded on the farmer's pull. */
   captain?: { profile?: { phone?: string | null } | null } | null;
+  search_extra_km?: number;
+  search_exhausted_at?: string | null;
   field_id: string;
   captain_id: string | null;
   service_id: string;
@@ -400,6 +402,8 @@ export function jobFromWire(
     fieldDeclared: row.field?.capture_method === 'declared',
     contactPhone: row.captain?.profile?.phone ?? row.farmer?.phone ?? null,
     accessNotes: row.field?.access_notes ?? null,
+    searchExtraKm: row.search_extra_km ?? 0,
+    searchExhaustedAt: fromIso(row.search_exhausted_at ?? null),
   };
 }
 

@@ -61,6 +61,7 @@ describe.skipIf(URL_ === '')('core loop against the database', { timeout: 60_000
     sync: typeof import('../src/sync/sync');
     mapping: typeof import('../src/sync/mapping');
     profile: typeof import('../src/profile');
+    jobs: typeof import('../src/jobs');
   };
   let admin: import('@supabase/supabase-js').SupabaseClient;
 
@@ -70,6 +71,7 @@ describe.skipIf(URL_ === '')('core loop against the database', { timeout: 60_000
       sync: await import('../src/sync/sync'),
       mapping: await import('../src/sync/mapping'),
       profile: await import('../src/profile'),
+      jobs: await import('../src/jobs'),
     };
     const { createClient } = await import('@supabase/supabase-js');
     admin = createClient(URL_, SERVICE, { auth: { persistSession: false } });
@@ -83,7 +85,7 @@ describe.skipIf(URL_ === '')('core loop against the database', { timeout: 60_000
     globalThis.fetch = realFetch;
     if (admin === undefined) return;
     await admin.from('ratings').delete().in('job_id', [jobId, job2]);
-    await admin.from('jobs').delete().in('id', [jobId, job2, phonedJob, job3, ...twoCombineJobs, captainBooked, laterJob].filter(Boolean));
+    await admin.from('jobs').delete().in('id', [jobId, job2, phonedJob, job3, ...twoCombineJobs, captainBooked, laterJob, roundsJob].filter(Boolean));
     await admin.from('app_config').update({ auto_dispatch: false }).eq('id', true);
     await admin.from('admins').delete().eq('phone', FARMER_PHONE);
     await admin.from('profiles').delete().eq('phone', '919876500005');
@@ -612,6 +614,7 @@ describe.skipIf(URL_ === '')('core loop against the database', { timeout: 60_000
   });
 
   let laterJob = '';
+  let roundsJob = '';
 
   it('4.8: a job for the day after tomorrow is listed quietly, and he takes it', async () => {
     await signInAs(FARMER_PHONE, FARMER_CODE);
@@ -636,6 +639,35 @@ describe.skipIf(URL_ === '')('core loop against the database', { timeout: 60_000
     captainJobs = await app.sync.syncJobs(captainJobs, captain);
     expect(captainJobs.find((j) => j.id === laterJob)?.status).toBe('searching');
     expect(await app.sync.acceptJobRemote(laterJob)).toBe('accepted');
+    await admin.from('app_config').update({ auto_dispatch: false }).eq('id', true);
+  });
+
+  it('batch B: nobody answers in 90 seconds; the farmer is told, and asks farther away', async () => {
+    await signInAs(FARMER_PHONE, FARMER_CODE);
+    await admin.from('app_config').update({ auto_dispatch: true }).eq('id', true);
+    roundsJob = crypto.randomUUID();
+    const base = farmerJobs.find((j) => j.id === jobId)!;
+    farmerJobs = await app.sync.syncJobs(
+      [...farmerJobs, { ...base, id: roundsJob, status: 'searching', isImmediate: true, scheduledDate: null,
+        captainId: null, captainName: null, finalAmount: null, paymentMode: null, myRating: null,
+        areaDisputedAt: null, acceptedAt: null, startedAt: null, completedAt: null }],
+      farmer,
+    );
+    const asked = await admin.from('job_dispatch').select('captain_id, round').eq('job_id', roundsJob);
+    expect(asked.data).toEqual([{ captain_id: captainUid, round: 1 }]);
+
+    // A minute and a half passes with no answer.
+    const sent = new Date(Date.now() - 100_000).toISOString();
+    await admin.from('job_dispatch').update({ sent_at: sent }).eq('job_id', roundsJob);
+    farmerJobs = await app.sync.syncJobs(farmerJobs, farmer); // closes the round; nobody else is near
+    farmerJobs = await app.sync.syncJobs(farmerJobs, farmer); // and brings the news back
+    const waiting = farmerJobs.find((j) => j.id === roundsJob)!;
+    expect(waiting.searchExhaustedAt).not.toBeNull();
+    expect(app.jobs.canWiden(waiting)).toBe(true);
+
+    expect(await app.sync.widenSearch(roundsJob)).toBe(true);
+    const { data } = await admin.from('jobs').select('search_extra_km').eq('id', roundsJob).single();
+    expect(data?.search_extra_km).toBe(10);
     await admin.from('app_config').update({ auto_dispatch: false }).eq('id', true);
   });
 

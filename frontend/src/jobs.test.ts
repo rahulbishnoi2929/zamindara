@@ -8,7 +8,7 @@ import {
   searchState,
   type Job,
 } from './jobs';
-import { canCall, canRetrace, machineLabels, splitJobs, telUrl } from './jobs';
+import { canCall, canRetrace, canWiden, machineLabels, searchClockNeeded, splitJobs, telUrl } from './jobs';
 
 describe('canRetrace (4.3)', () => {
   const j = (status: Job['status'], fieldDeclared: boolean) => ({ status, fieldDeclared }) as Job;
@@ -252,5 +252,25 @@ describe('the call button (batch A)', () => {
   });
   it('dials the number as stored, with its country code', () => {
     expect(telUrl('919876500002')).toBe('tel:+919876500002');
+  });
+});
+
+describe('dispatch rounds (batch B)', () => {
+  const j = (over: Partial<Job>) => ({ status: 'searching', isImmediate: true, fieldId: 'f1', ...over }) as Job;
+  it('the farmer may widen an exhausted "now" search, up to 30 km', () => {
+    expect(canWiden(j({ searchExhaustedAt: 1, searchExtraKm: 0 }))).toBe(true);
+    expect(canWiden(j({ searchExhaustedAt: 1, searchExtraKm: 30 }))).toBe(false);
+    expect(canWiden(j({ searchExhaustedAt: null, searchExtraKm: 0 }))).toBe(false);
+    expect(canWiden(j({ searchExhaustedAt: 1, status: 'accepted' }))).toBe(false);
+  });
+  it('the 30-second clock runs only while one of his own "now" jobs is searching', () => {
+    const mine = new Set(['f1']);
+    expect(searchClockNeeded([j({})], mine)).toBe(true);
+    // An offer on someone else's field, on a captain's phone.
+    expect(searchClockNeeded([j({ fieldId: 'other' })], mine)).toBe(false);
+    expect(searchClockNeeded([j({ isImmediate: false })], mine)).toBe(false);
+    expect(searchClockNeeded([j({ status: 'accepted' })], mine)).toBe(false);
+    // Exhausted: nothing left to run until he widens it.
+    expect(searchClockNeeded([j({ searchExhaustedAt: 1 })], mine)).toBe(false);
   });
 });
