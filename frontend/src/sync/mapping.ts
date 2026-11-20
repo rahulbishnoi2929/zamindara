@@ -469,6 +469,7 @@ export interface WireRateRow {
   service_id: string;
   rate: number | null;
   rate_unit: PricingUnit;
+  min_area_sqm: number | null;
 }
 
 /**
@@ -504,7 +505,7 @@ export function captainRatesToWire(
   for (const r of rates) {
     const id = serviceId(r.serviceCode);
     if (id === undefined) continue;
-    rows.push({ service_id: id, rate: r.rate, rate_unit: r.unit });
+    rows.push({ service_id: id, rate: r.rate, rate_unit: r.unit, min_area_sqm: r.minAreaSqm ?? null });
   }
   return rows;
 }

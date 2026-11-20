@@ -682,6 +682,16 @@ export async function syncJobs(
     if (local !== null) remote.push(local);
   }
 
+  // Nobody offered his job yet? If it is because it is smaller than the
+  // captains nearby take, say so (4.5) — otherwise he waits on something
+  // that will never come. Only his own searching jobs with no offers, and
+  // only the ones this pass pulled, so it is a handful of calls at most.
+  for (const job of remote) {
+    if (job.status !== 'searching' || job.offeredCount !== 0) continue;
+    const { data } = await supabase.rpc('job_size_floor', { p_job: job.id });
+    job.sizeFloorSqm = typeof data === 'number' ? data : null;
+  }
+
   // An offer someone else took, or that lapsed, is no longer in the open
   // set. With full pulls it lingered on his screen as "searching" anyway;
   // drop it, but only when the offers were actually read this pass.

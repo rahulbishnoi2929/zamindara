@@ -82,6 +82,11 @@ export interface Job {
    * by an older build still load. Set once; the server stamps the real time.
    */
   areaDisputedAt?: number | null;
+  /**
+   * When nobody could be offered this job because it is smaller than the
+   * captains nearby take: the smallest size they do take (4.5). Server-told.
+   */
+  sizeFloorSqm?: number | null;
 
   createdAt: number;
   acceptedAt: number | null;

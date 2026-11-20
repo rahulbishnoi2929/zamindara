@@ -389,6 +389,12 @@ const strings = {
   nameField: { pa: 'ਖੇਤ ਦਾ ਨਾਂ', hi: 'खेत का नाम', en: 'Name this field' },
   save: { pa: 'ਸੰਭਾਲੋ', hi: 'सहेजें', en: 'Save' },
   // Area disputes (4.4): one tap, once, never undone.
+  sizeFloorNote: {
+    pa: 'ਨੇੜਲੇ ਕੈਪਟਨ ਸਿਰਫ਼ {area} ਜਾਂ ਵੱਡੇ ਕੰਮ ਲੈਂਦੇ ਹਨ',
+    hi: 'पास के कैप्टन सिर्फ़ {area} या बड़े काम लेते हैं',
+    en: 'Captains nearby only take {area} or more',
+  },
+  minAreaLabel: { pa: 'ਘੱਟੋ-ਘੱਟ ਕਿੱਲੇ', hi: 'कम से कम किल्ले', en: 'Smallest job (killa)' },
   areaWrong: { pa: 'ਰਕਬਾ ਗਲਤ ਹੈ?', hi: 'रकबा गलत है?', en: 'Area wrong?' },
   areaWrongAsk: {
     pa: 'ਦਰਜ ਕਰੀਏ ਕਿ ਰਕਬਾ ਗਲਤ ਹੈ? ਇਹ ਵਾਪਸ ਨਹੀਂ ਹੁੰਦਾ।',

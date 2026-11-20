@@ -13,19 +13,19 @@ Newest first, so the most recent work is always at the top. Each entry says what
 | | |
 |---|---|
 | **Phase** | Code done through 5. **Phase 1 field test never run — the gate was walked past.** See the revision at the top of BUILD_PLAN. |
-| **Brief** | Working through the 16 Nov staged brief. Stage 1 done (awaiting your phone install). **Stage 4.1, 4.2, 4.4 done.** Next: 4.5 minimum job size, then 4.6, 4.3, 4.7, 4.8. Waiting on you: Supabase project, Firebase, first-phone test. |
-| **Tests** | 263 unit (122 packages + 141 app) + **239 database assertions** (run twice in CI: before and after a backup-and-restore) + **13-step end-to-end test** covering every server call, against a real database, all green in CI |
+| **Brief** | Working through the 16 Nov staged brief. Stage 1 done (awaiting your phone install). **Stage 4.1, 4.2, 4.4, 4.5 done.** Next: 4.6 jobs on a specific machine, then 4.3, 4.7, 4.8. Waiting on you: Supabase project, Firebase, first-phone test. |
+| **Tests** | 264 unit (122 packages + 142 app) + **246 database assertions** (run twice in CI: before and after a backup-and-restore) + **14-step end-to-end test** covering every server call, against a real database, all green in CI |
 | **App** | Signed release APK, **35.3 MB** (from 75.8), R8 on, ARM only. Shows `v0.1.0` on home; an `app_config` row tells old phones to update. **Install once:** JS changes reach a phone over the air. |
 | **Not yet done** | Never run on a physical device; sync never run against a hosted Supabase project |
 | **Blocking next step** | Setup: Maps key, hosted Supabase project, `expo prebuild` + APK, a phone, a 50 m tape |
 | **Repo** | [rahulbishnoi2929/zamindara](https://github.com/rahulbishnoi2929/zamindara) — private, CI green |
-| **Backend** | ✅ **Schema verified.** 32 migrations apply; all three guarantees hold. |
+| **Backend** | ✅ **Schema verified.** 33 migrations apply; all three guarantees hold. |
 
 ```
 C:\Zamidara\
 ├── docs\              16 product and engineering documents
-├── frontend\          Expo SDK 57 Android app — 141 tests + e2e
-├── backend\supabase\  32 migrations, RLS, dispatch functions — 239 assertions
+├── frontend\          Expo SDK 57 Android app — 142 tests + e2e
+├── backend\supabase\  33 migrations, RLS, dispatch functions — 246 assertions
 ├── packages\          units · geo · catalog · pricing · scheduling — 122 tests
 └── assets\            logo
 ```
@@ -67,6 +67,22 @@ The most useful part of this log. Each of these was believed, written down, then
 ---
 
 # Entries
+
+## 52 · Stage 4.5 — a captain's smallest job, and the farmer told why
+
+**Asked:** captains can set a minimum job size per service; dispatch filters on it, and the farmer sees it.
+
+**What "working" meant:** a field below a captain's minimum is never offered to him; a farmer whose job reached nobody *because of size* is told the smallest size nearby captains take; and a captain with no minimum behaves exactly as before.
+
+**Built:**
+- **Database (migration 0033).** `captain_services.min_area_sqm`, with a sanity check. `eligible_captains` is re-declared with one added condition. It can't be wrapped like `accept_job` and `dispatch_job` were, because the filter sits inside the query, so the copy is marked line by line against 0018. `job_size_floor(job)` answers only the farmer who posted the job. It returns a size only when nobody is eligible **and** size is the reason; otherwise null, so a job that reached nobody for another reason is never blamed on size.
+- **App.** Each service in the captain's rates step gets a **ਘੱਟੋ-ਘੱਟ ਕਿੱਲੇ** box, in whole killa, sent with the rate. On the farmer's waiting job, in place of "nobody asked yet", it reads **"ਨੇੜਲੇ ਕੈਪਟਨ ਸਿਰਫ਼ 2 ਕਿੱਲਾ ਜਾਂ ਵੱਡੇ ਕੰਮ ਲੈਂਦੇ ਹਨ"**, in local units. Only his own waiting jobs with no offers are asked about, so it costs a handful of calls at most.
+
+**Verified by running:** 264 unit tests (1 new), typecheck clean, bundle exports. **In CI:** 246 database assertions (7 new), twice; 14 end-to-end steps, including a captain setting "2 killa and up" through onboarding's own sync and the farmer's app being told so about a one-killa job, on the next pass.
+
+**Not verified on a phone:** the extra box in the rates step at large font size.
+
+---
 
 ## 51 · Stage 4.4 — "the area is wrong", and the area on the papers
 

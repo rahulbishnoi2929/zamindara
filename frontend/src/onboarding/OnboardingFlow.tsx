@@ -1,5 +1,5 @@
 import { servicesForMachines, type PricingUnit } from '@zamindara/catalog';
-import { LOCALES, type Locale } from '@zamindara/units';
+import { fromSqm, LOCALES, toSqm, type Locale } from '@zamindara/units';
 import { useMemo, useState } from 'react';
 import {
   Pressable,
@@ -74,7 +74,17 @@ export function OnboardingFlow({ initial, onDone }: Props) {
     const value = Number(text.replace(/[^\d.]/g, ''));
     const rate = text.trim() === '' || !Number.isFinite(value) || value <= 0 ? null : value;
     const rest = profile.rates.filter((r) => r.serviceCode !== code);
-    patch({ rates: [...rest, { serviceCode: code, rate, unit }] });
+    const kept = rateFor(code)?.minAreaSqm ?? null;
+    patch({ rates: [...rest, { serviceCode: code, rate, unit, minAreaSqm: kept }] });
+  };
+
+  // Smallest job he takes for this work, in whole killa (4.5).
+  const setMinKilla = (code: string, unit: PricingUnit, text: string) => {
+    const n = Number(text.replace(/\D/g, ''));
+    const minAreaSqm = text.trim() === '' || !Number.isFinite(n) || n <= 0 ? null : toSqm(n, 'killa');
+    const current = rateFor(code);
+    const rest = profile.rates.filter((r) => r.serviceCode !== code);
+    patch({ rates: [...rest, { serviceCode: code, rate: current?.rate ?? null, unit, minAreaSqm }] });
   };
 
   const captain = isCaptain(profile);
@@ -207,6 +217,17 @@ export function OnboardingFlow({ initial, onDone }: Props) {
                         placeholderTextColor={colors.textMuted}
                       />
                       <Text style={s.rateUnit}>{t(UNIT_KEY[service.defaultUnit], locale)}</Text>
+                    </View>
+                    <View style={s.rateInputWrap}>
+                      <Text style={s.rateUnit}>{t('minAreaLabel', locale)}</Text>
+                      <TextInput
+                        style={s.rateInput}
+                        value={current?.minAreaSqm == null ? '' : String(Math.round(fromSqm(current.minAreaSqm, 'killa')))}
+                        onChangeText={(v) => setMinKilla(service.code, service.defaultUnit, v)}
+                        keyboardType="number-pad"
+                        placeholder="—"
+                        placeholderTextColor={colors.textMuted}
+                      />
                     </View>
                   </View>
                 );

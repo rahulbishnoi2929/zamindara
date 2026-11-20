@@ -83,7 +83,7 @@ describe.skipIf(URL_ === '')('core loop against the database', { timeout: 60_000
     globalThis.fetch = realFetch;
     if (admin === undefined) return;
     await admin.from('ratings').delete().in('job_id', [jobId, job2]);
-    await admin.from('jobs').delete().in('id', [jobId, job2, phonedJob].filter(Boolean));
+    await admin.from('jobs').delete().in('id', [jobId, job2, phonedJob, job3].filter(Boolean));
     await admin.from('admins').delete().eq('phone', FARMER_PHONE);
     for (const id of [farmerId, captainUid, phonedUid]) {
       if (id !== '') await admin.auth.admin.deleteUser(id);
@@ -446,6 +446,36 @@ describe.skipIf(URL_ === '')('core loop against the database', { timeout: 60_000
     expect(jobs.find((j) => j.id === phonedJob)).toMatchObject({ status: 'completed', finalAmount: 8400 });
     const fields = await app.sync.syncFields([]);
     expect(fields).toHaveLength(1);
+  });
+
+  let job3 = '';
+
+  it('4.5: a captain who takes two killa and up; the farmer is told why nobody came', async () => {
+    await signInAs(CAPTAIN_PHONE, CAPTAIN_CODE);
+    captain = {
+      ...captain,
+      rates: [{ serviceCode: 'wheat_harvest', rate: 3500, unit: 'per_killa', minAreaSqm: 2 * 4046.8564224 }],
+      updatedAt: Date.now(),
+    };
+    expect(await app.sync.syncProfile(captain)).not.toBeNull();
+    const svc = await admin.from('captain_services').select('min_area_sqm').eq('captain_id', captainUid).single();
+    expect(Math.round(Number(svc.data?.min_area_sqm))).toBe(8094);
+
+    await signInAs(FARMER_PHONE, FARMER_CODE);
+    job3 = crypto.randomUUID();
+    const base = farmerJobs.find((j) => j.id === jobId)!;
+    farmerJobs = await app.sync.syncJobs(
+      [...farmerJobs, { ...base, id: job3, status: 'searching', captainId: null, captainName: null,
+        finalAmount: null, paymentMode: null, myRating: null, areaDisputedAt: null,
+        acceptedAt: null, startedAt: null, completedAt: null }],
+      farmer,
+    );
+    // Sync pulls before it pushes, so the job comes back with its note on
+    // the next pass — the next time he opens the app.
+    farmerJobs = await app.sync.syncJobs(farmerJobs, farmer);
+    // The field is about one killa: smaller than he takes.
+    const note = farmerJobs.find((j) => j.id === job3)?.sizeFloorSqm;
+    expect(Math.round(note ?? 0)).toBe(8094);
   });
 
   it('a phone that lost its local copy gets everything back, cursors notwithstanding', async () => {

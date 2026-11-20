@@ -162,6 +162,13 @@ function AreaDispute({ job, locale, onDispute }: { job: Job; locale: Locale; onD
  * and the farmer is standing in a field deciding whether to ring someone.
  */
 function SearchNote({ job, locale }: { job: Job; locale: Locale }) {
+  if (job.sizeFloorSqm != null) {
+    return (
+      <Text style={s.searchNote}>
+        {t('sizeFloorNote', locale).replace('{area}', formatAreaShort(job.sizeFloorSqm, { locale }))}
+      </Text>
+    );
+  }
   const state = searchState(job);
   if (state === null || state.kind === 'unknown') return null;
   return (

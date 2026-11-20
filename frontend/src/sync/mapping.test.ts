@@ -600,3 +600,16 @@ describe('area disputes (4.4)', () => {
     expect('area_disputed_at' in jobEditsToWire(job({}))).toBe(false);
   });
 });
+
+describe('minimum job size (4.5)', () => {
+  it('travels with the rate; absent means any size', () => {
+    const rows = captainRatesToWire(
+      [
+        { serviceCode: 'a', rate: 3500, unit: 'per_killa', minAreaSqm: 8000 },
+        { serviceCode: 'b', rate: null, unit: 'per_killa' },
+      ],
+      (c) => `id-${c}`,
+    );
+    expect(rows.map((r) => r.min_area_sqm)).toEqual([8000, null]);
+  });
+});

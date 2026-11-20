@@ -38,6 +38,8 @@ export interface ServiceRate {
   /** Null means negotiable. The app shows a range from nearby jobs instead. */
   rate: number | null;
   unit: PricingUnit;
+  /** Smallest field he takes for this work (4.5). Null or absent: any size. */
+  minAreaSqm?: number | null;
 }
 
 export interface Profile {
