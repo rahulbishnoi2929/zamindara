@@ -2,8 +2,9 @@ import { SERVICE_BY_CODE } from '@zamindara/catalog';
 import { formatAreaShort, type Locale } from '@zamindara/units';
 import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
-import { Platform } from 'react-native';
+import { Linking, Platform } from 'react-native';
 import { t } from './i18n';
+import { alertOk } from './phoneSetup';
 import { savePushToken } from './sync/sync';
 import type { Job } from './jobs';
 
@@ -169,4 +170,53 @@ export async function registerPushToken(): Promise<boolean> {
     // No network, or Expo unreachable. The next sign-in tries again.
     return false;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Phone setup (Stage 5)
+// ---------------------------------------------------------------------------
+
+const PACKAGE = 'com.zamindara.app';
+const channelFor = (loud: boolean) => (loud ? JOB_CHANNEL : JOB_CHANNEL_QUIET);
+
+/** What Android will tell us: notifications allowed, and the ping's channel not turned down. */
+export async function readAlerts(loud: boolean): Promise<{ allowed: boolean; alert: boolean }> {
+  const allowed = (await Notifications.getPermissionsAsync()).granted;
+  const channel = Platform.OS === 'android' ? await Notifications.getNotificationChannelAsync(channelFor(loud)) : null;
+  return { allowed, alert: alertOk(channel?.importance ?? null) };
+}
+
+/** Ask; once Android has stopped asking, open the app's notification page instead. */
+export async function fixNotifications(): Promise<void> {
+  if (await requestNotificationPermission()) return;
+  await openSetting('android.settings.APP_NOTIFICATION_SETTINGS');
+}
+
+/** The work-request channel's own page, where he turned it down. */
+export const openAlertSetting = (loud: boolean) =>
+  openSetting('android.settings.CHANNEL_NOTIFICATION_SETTINGS', channelFor(loud));
+
+/** The battery-optimisation list. Android will not say whether we are on it. */
+export const openBatterySetting = () => openSetting('android.settings.IGNORE_BATTERY_OPTIMIZATION_SETTINGS');
+
+/** The app's info page: on Xiaomi, Vivo, Oppo and Realme, Autostart is reached from here. */
+export const openAppInfo = () => Linking.openSettings();
+
+async function openSetting(action: string, channelId?: string): Promise<void> {
+  const extras = [{ key: 'android.provider.extra.APP_PACKAGE', value: PACKAGE }];
+  if (channelId !== undefined) extras.push({ key: 'android.provider.extra.CHANNEL_ID', value: channelId });
+  // Some makers rename or remove a settings page; the app's info page always exists.
+  await Linking.sendIntent(action, extras).catch(() => Linking.openSettings());
+}
+
+/** A ping in ten seconds, on the channel real pings use now, so he can lock the phone and listen. */
+export async function testPing(locale: Locale, loud: boolean): Promise<void> {
+  await Notifications.scheduleNotificationAsync({
+    content: { title: t('testPingTitle', locale), body: t('testPingBody', locale), sound: 'default' },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+      seconds: 10,
+      channelId: channelFor(loud),
+    },
+  });
 }

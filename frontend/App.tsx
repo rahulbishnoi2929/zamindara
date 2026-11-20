@@ -18,6 +18,7 @@ import { CompleteJobSheet } from './src/CompleteJobSheet';
 import { JobPostFlow } from './src/JobPostFlow';
 import {
   pingForJob,
+  readAlerts,
   requestNotificationPermission,
   registerPushToken,
   setupNotifications,
@@ -44,7 +45,8 @@ import { RouteScreen } from './src/RouteScreen';
 import { currentSession } from './src/auth';
 import { startAutoRefresh, stopAutoRefresh } from './src/supabase';
 import { AppState } from 'react-native';
-import { loadProfile, saveProfile, type Profile } from './src/profile';
+import { isCaptain, loadProfile, saveProfile, type Profile } from './src/profile';
+import { PhoneSetupScreen } from './src/PhoneSetupScreen';
 import { currentLatLng } from './src/location';
 import {
   acceptJobRemote,
@@ -115,6 +117,8 @@ export default function App() {
    * with no backend — a version check never stops the app working.
    */
   const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
+  // Stage 5: a captain whose work pings would not be seen is told on his home screen.
+  const [alertsAtRisk, setAlertsAtRisk] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
   // He chose to carry on without an account. Field measurement works fully
   // offline, so this is a legitimate way to use the app, not an escape hatch.
@@ -220,6 +224,12 @@ export default function App() {
       await registerPushToken();
     })();
   }, []);
+
+  const loud = appConfig?.loudPing ?? false;
+  useEffect(() => {
+    if (screen.name !== 'home') return;
+    void readAlerts(loud).then((r) => setAlertsAtRisk(!r.allowed || !r.alert));
+  }, [screen.name, loud]);
 
   const locale: Locale = profile?.language ?? 'pa';
 
@@ -647,7 +657,13 @@ export default function App() {
         ) : needsOnboarding || screen.name === 'onboarding' ? (
           <OnboardingFlow
             initial={profile}
-            onDone={(next) => void persistProfile(next)}
+            onDone={(next) => {
+              // A new captain's last onboarding step is setting his phone up to hear pings.
+              const firstTime = profile === null || profile.onboardedAt === null;
+              void persistProfile(next).then(() => {
+                if (firstTime && isCaptain(next)) setScreen({ name: 'phoneSetup' });
+              });
+            }}
           />
         ) : (
           <>
@@ -693,6 +709,8 @@ export default function App() {
                 onOpenFounder={isStaff ? () => setScreen({ name: 'founder' }) : undefined}
                 onLogPhoneJob={() => setScreen({ name: 'captainBook' })}
                 onOpenRoute={() => setScreen({ name: 'route' })}
+                onPhoneSetup={() => setScreen({ name: 'phoneSetup' })}
+                alertsAtRisk={alertsAtRisk}
                 onRetrace={(job) => setScreen({ name: 'choose', intent: { kind: 'retrace', jobId: job.id } })}
               />
             )}
@@ -816,6 +834,10 @@ export default function App() {
                   void runSync();
                 }}
               />
+            )}
+
+            {screen.name === 'phoneSetup' && (
+              <PhoneSetupScreen locale={locale} loud={loud} onDone={() => setScreen({ name: 'home' })} />
             )}
 
             {screen.name === 'route' && profile !== null && (

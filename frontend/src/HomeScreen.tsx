@@ -118,6 +118,10 @@ interface Props {
   onLogPhoneJob?: (() => void) | undefined;
   /** A travelling captain's dated stops (4.7). */
   onOpenRoute?: (() => void) | undefined;
+  /** Stage 5: the settings that decide whether a ping is heard. */
+  onPhoneSetup?: (() => void) | undefined;
+  /** Notifications off, or the work alert turned down: shown at the top. */
+  alertsAtRisk?: boolean | undefined;
   onRetrace?: ((job: Job) => void) | undefined;
 }
 
@@ -152,6 +156,8 @@ export function HomeScreen({
   onOpenFounder,
   onLogPhoneJob,
   onOpenRoute,
+  onPhoneSetup,
+  alertsAtRisk,
   onRetrace,
 }: Props) {
   const locale = profile.language;
@@ -234,6 +240,9 @@ export function HomeScreen({
 
         {captain && (
           <>
+            {alertsAtRisk === true && onPhoneSetup !== undefined && (
+              <Button label={t('phoneSetupWarn', locale)} onPress={onPhoneSetup} />
+            )}
             {/* The one decision a captain makes each morning. */}
             <View style={[s.onlineCard, profile.isOnline && s.onlineCardOn]}>
               <View style={s.onlineText}>
@@ -295,6 +304,9 @@ export function HomeScreen({
             )}
             {onOpenRoute !== undefined && (
               <Button label={t('myRoute', locale)} onPress={onOpenRoute} variant="secondary" />
+            )}
+            {captain && onPhoneSetup !== undefined && (
+              <Button label={t('phoneSetup', locale)} onPress={onPhoneSetup} variant="secondary" />
             )}
 
             <Text style={s.sectionTitle}>{t('yourMachines', locale)}</Text>

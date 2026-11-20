@@ -13,8 +13,8 @@ Newest first, so the most recent work is always at the top. Each entry says what
 | | |
 |---|---|
 | **Phase** | Code done through 5. **Phase 1 field test never run — the gate was walked past.** See the revision at the top of BUILD_PLAN. |
-| **Brief** | Working through the 16 Nov staged brief. Stage 1 done (awaiting your phone install). **Stage 4 done (4.1–4.8).** Next: Stages 5–7. Waiting on you: Supabase project, Firebase, first-phone test. |
-| **Tests** | 270 unit (122 packages + 148 app) + **287 database assertions** (run twice in CI: before and after a backup-and-restore) + **18-step end-to-end test** covering every server call, against a real database, all green in CI |
+| **Brief** | Working through the 16 Nov staged brief. Stage 1 done (awaiting your phone install). **Stages 4 and 5 done.** Next: Stage 6, the draw screen, then Stage 7 docs. Waiting on you: Supabase project, Firebase, first-phone test. |
+| **Tests** | 273 unit (122 packages + 151 app) + **287 database assertions** (run twice in CI: before and after a backup-and-restore) + **18-step end-to-end test** covering every server call, against a real database, all green in CI |
 | **App** | Signed release APK, **35.3 MB** (from 75.8), R8 on, ARM only. Shows `v0.1.0` on home; an `app_config` row tells old phones to update. **Install once:** JS changes reach a phone over the air. |
 | **Not yet done** | Never run on a physical device; sync never run against a hosted Supabase project |
 | **Blocking next step** | Setup: Maps key, hosted Supabase project, `expo prebuild` + APK, a phone, a 50 m tape |
@@ -24,7 +24,7 @@ Newest first, so the most recent work is always at the top. Each entry says what
 ```
 C:\Zamidara\
 ├── docs\              16 product and engineering documents
-├── frontend\          Expo SDK 57 Android app — 148 tests + e2e
+├── frontend\          Expo SDK 57 Android app — 151 tests + e2e
 ├── backend\supabase\  37 migrations, RLS, dispatch functions — 287 assertions
 ├── packages\          units · geo · catalog · pricing · scheduling — 122 tests
 └── assets\            logo
@@ -67,6 +67,33 @@ The most useful part of this log. Each of these was believed, written down, then
 ---
 
 # Entries
+
+## 57 · Stage 5 — phone setup, so a work ping is heard
+
+**Asked:** detect whether a full-screen intent is allowed and fall back to a heads-up alert if not; a "phone setup" screen in captain onboarding (full-screen permission, battery optimisation off, autostart on, test ping); no voice or SMS provider.
+
+**Decided first (design note, `docs/STAGE_5_DESIGN.md`, OK'd by the founder):** no full-screen ping for now.
+- `expo-notifications` has no full-screen option, and server pushes arrive through Expo's own handler, which can't show one either.
+- A real call-style screen needs our own Android code and an APK rebuild per try: 2–3 days, untestable in CI.
+- Our ping is already the brief's fallback, a maximum-priority heads-up. The full-screen ping becomes its own item if the first phone test shows heads-up pings being missed.
+
+**What "working" meant:** a captain can see, in one place, every phone setting that decides whether he hears a work ping. He can fix each with one tap and prove it with a test ping. If notifications are off or the work alert is turned down, his home screen says so at the top.
+
+**Built (no new dependency, no native code, no server change):**
+- **Phone setup screen** (ਫ਼ੋਨ ਤਿਆਰ ਕਰੋ). It is the last step of a new captain's onboarding, and also a button on his home screen. Each row shows ✓ or ✗ and has a button:
+  - **Notifications allowed:** read from Android. The button asks; if Android has stopped asking, it opens the app's notification page.
+  - **Work alert at full strength:** read from the work-request channel's importance. The button opens that channel's own settings page.
+  - **Battery saver off:** Android won't report it. The button opens the battery list, and he ticks "done".
+  - **Autostart on:** there is no standard setting. The button opens the app's info page with a hint, and he ticks "done".
+  - **Test ping:** it rings in 10 seconds so he can lock the phone first. It uses the channel real pings use right now (loud or quiet, per the founder's switch). He answers "I heard it" or "I didn't"; if he didn't, he gets a hint to check the rows and the volume.
+  - The screen re-reads the settings whenever he comes back from a settings page. His ticks stay on the phone only.
+- **Home warning:** "⚠ Work alerts are off — fix" at the top of a captain's home screen when either readable check fails.
+
+**Verified by running:** 273 unit tests (3 new, for the "turned down" rule), typecheck clean, bundle exports. **In CI:** 287 database assertions twice, 18 end-to-end steps.
+
+**Not verified (needs a phone):** that each settings button opens the right page on Xiaomi, Vivo, Oppo and Samsung; the 10-second test ping on a locked phone; the home warning after turning the channel down.
+
+---
 
 ## 56 · Stage 4.8 — jobs for a later day are open offers
 
