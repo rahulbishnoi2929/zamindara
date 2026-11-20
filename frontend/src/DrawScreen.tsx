@@ -1,4 +1,4 @@
-import { closeRing, ringAreaSqm, type LatLng } from '@zamindara/geo';
+import { closeRing, ringAreaSqm, squareUp, type LatLng } from '@zamindara/geo';
 import type { Locale } from '@zamindara/units';
 import * as Location from 'expo-location';
 import { useEffect, useMemo, useState } from 'react';
@@ -7,13 +7,14 @@ import MapView, { Marker, Polygon, Polyline, PROVIDER_GOOGLE, type Region } from
 import { MapKeyWarning } from './MapKeyWarning';
 import { googleMapsKeyMissing } from './mapsKey';
 import { AreaDisplay, Button } from './components';
+import { MAX_VIEW_M, viewWidthM, type DrawAids } from './drawAids';
 import { t } from './i18n';
 import { loadUi, saveUi } from './storage';
 import { colors, radius, space, type } from './theme';
 
 interface Props {
   locale: Locale;
-  onDone: (polygon: LatLng[], areaSqm: number) => void;
+  onDone: (polygon: LatLng[], areaSqm: number, aids: DrawAids) => void;
   onCancel: () => void;
   /** Which measurement the saved corners belong to, so a test plot's
    *  corners never turn up on a farmer's field or the other way round. */
@@ -53,6 +54,12 @@ export function DrawScreen({ locale, onDone, onCancel, draftKey }: Props) {
   const [corners, setCorners] = useState<LatLng[]>([]);
   const [showLabels, setShowLabels] = useState(false);
   const [restored, setRestored] = useState(false);
+  // Stage 6. What the map shows now: the crosshair is its centre.
+  const [view, setView] = useState<Region | null>(null);
+  // His own corners from before "Make it a rectangle", so Undo gives them back.
+  const [beforeSnap, setBeforeSnap] = useState<LatLng[] | null>(null);
+  const [dragged, setDragged] = useState(false);
+  const [widestViewM, setWidestViewM] = useState<number | null>(null);
 
   // Every corner, as he places it. Small: a field has a handful of corners.
   useEffect(() => {
@@ -106,10 +113,33 @@ export function DrawScreen({ locale, onDone, onCancel, draftKey }: Props) {
     [corners],
   );
 
-  const addCorner = (point: LatLng) => setCorners((prev) => [...prev, point]);
-  const moveCorner = (index: number, next: LatLng) =>
+  const here = view ?? region;
+  const viewM = here === null ? Infinity : viewWidthM(here);
+  const closeEnough = viewM <= MAX_VIEW_M;
+
+  // Under the crosshair, never under a fingertip that hides the spot.
+  const addCorner = () => {
+    if (here === null || !closeEnough) return;
+    setCorners((prev) => [...prev, { lat: here.latitude, lng: here.longitude }]);
+    setBeforeSnap(null);
+    setWidestViewM((w) => Math.max(w ?? 0, viewM));
+  };
+  const moveCorner = (index: number, next: LatLng) => {
+    setDragged(true);
     setCorners((prev) => prev.map((p, i) => (i === index ? next : p)));
-  const undo = () => setCorners((prev) => prev.slice(0, -1));
+  };
+  const snap = () => {
+    const squared = squareUp(corners);
+    if (squared === null) return;
+    setBeforeSnap(corners);
+    setCorners(squared);
+  };
+  const undo = () => {
+    if (beforeSnap !== null) {
+      setCorners(beforeSnap);
+      setBeforeSnap(null);
+    } else setCorners((prev) => prev.slice(0, -1));
+  };
 
   if (region === null) {
     return (
@@ -135,12 +165,7 @@ export function DrawScreen({ locale, onDone, onCancel, draftKey }: Props) {
           pitchEnabled={false}
           showsUserLocation
           showsMyLocationButton
-          onPress={(e) =>
-            addCorner({
-              lat: e.nativeEvent.coordinate.latitude,
-              lng: e.nativeEvent.coordinate.longitude,
-            })
-          }
+          onRegionChangeComplete={setView}
         >
           {/* Open chain while he is still placing corners, closed shape once
               there are enough to enclose an area. */}
@@ -185,6 +210,11 @@ export function DrawScreen({ locale, onDone, onCancel, draftKey }: Props) {
           ))}
         </MapView>
 
+        {/* The fixed crosshair: he moves the map, not his finger. */}
+        <View pointerEvents="none" style={s.crosshair}>
+          <Text style={s.crosshairText}>✛</Text>
+        </View>
+
         {googleMapsKeyMissing() && <MapKeyWarning />}
 
         {/* Roads and village names help him orient before he starts tapping. */}
@@ -209,6 +239,15 @@ export function DrawScreen({ locale, onDone, onCancel, draftKey }: Props) {
           {canFinish ? t('tapCornersHint', locale) : t('needThreePoints', locale)}
         </Text>
 
+        <Button
+          label={closeEnough ? t('addCornerHere', locale) : t('zoomInCloser', locale)}
+          onPress={addCorner}
+          disabled={!closeEnough}
+        />
+        {corners.length === 4 && beforeSnap === null && (
+          <Button label={t('makeRectangle', locale)} onPress={snap} variant="secondary" />
+        )}
+
         <View style={s.row}>
           <Button
             label={t('undo', locale)}
@@ -219,7 +258,9 @@ export function DrawScreen({ locale, onDone, onCancel, draftKey }: Props) {
           />
           <Button
             label={t('done', locale)}
-            onPress={() => onDone(closeRing(corners), areaSqm)}
+            onPress={() =>
+              onDone(closeRing(corners), areaSqm, { snapped: beforeSnap !== null, dragged, widestViewM })
+            }
             disabled={!canFinish}
             flex
           />
@@ -227,7 +268,14 @@ export function DrawScreen({ locale, onDone, onCancel, draftKey }: Props) {
 
         <Button
           label={corners.length > 0 ? t('clearAll', locale) : t('cancel', locale)}
-          onPress={corners.length > 0 ? () => setCorners([]) : onCancel}
+          onPress={
+            corners.length > 0
+              ? () => {
+                  setCorners([]);
+                  setBeforeSnap(null);
+                }
+              : onCancel
+          }
           variant="ghost"
         />
       </View>
@@ -254,6 +302,22 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   handleText: { fontSize: 13, fontWeight: '800', color: colors.text },
+
+  crosshair: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  crosshairText: {
+    fontSize: 40,
+    color: '#FFFFFF',
+    textShadowColor: '#000000',
+    textShadowRadius: 3,
+  },
 
   labelToggle: {
     position: 'absolute',

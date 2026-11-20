@@ -366,3 +366,14 @@ export function projectRing(ring: readonly LatLng[]): { xy: XY[]; origin: LatLng
   const origin = centroidOf(ring);
   return { xy: ring.map((p) => project(p, origin)), origin };
 }
+
+/**
+ * Square up four drawn corners (the draw screen's rectangle snap, Stage 6):
+ * right angles, same area, oriented like what he drew. Null unless four.
+ */
+export function squareUp(ring: readonly LatLng[]): LatLng[] | null {
+  if (ring.length !== 4) return null;
+  const { xy, origin } = projectRing(ring);
+  const rect = fitRectangleToPolygon(xy);
+  return rect === null ? null : rectangleToLatLng(rect, origin);
+}

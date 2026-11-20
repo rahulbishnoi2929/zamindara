@@ -27,6 +27,8 @@ export const CSV_HEADER = [
   'pipeline_method',
   'corners_adjusted',
   'imagery_usable',
+  'snapped_to_rectangle',
+  'draw_view_m',
   'measured_at',
   'plot_notes',
 ] as const;
@@ -62,6 +64,7 @@ export function buildCsv(plots: TestPlot[], measurements: TestMeasurement[]): st
         plot.sideA,
         plot.sideB,
         plot.tapeUnit,
+        plot.referenceSource,
         tape === null ? '' : tape.toFixed(2),
         plot.jamabandiSqm === null ? '' : plot.jamabandiSqm.toFixed(2),
         m.method,
@@ -75,6 +78,8 @@ export function buildCsv(plots: TestPlot[], measurements: TestMeasurement[]): st
         m.pipelineMethod ?? '',
         m.cornersAdjusted === null ? '' : m.cornersAdjusted ? 'yes' : 'no',
         m.imageryUsable === null ? '' : m.imageryUsable ? 'yes' : 'no',
+        m.snapped == null ? '' : m.snapped ? 'yes' : 'no',
+        m.viewWidthM == null ? '' : Math.round(m.viewWidthM),
         new Date(m.createdAt).toISOString(),
         plot.notes,
       ]
@@ -90,15 +95,17 @@ export function buildCsv(plots: TestPlot[], measurements: TestMeasurement[]): st
     .map((p) => {
       const tape = referenceAreaSqm(p);
       const row = new Array<string>(CSV_HEADER.length).fill('');
-      row[0] = cell(p.label);
-      row[1] = cell(p.village);
-      row[2] = cell(p.sideA);
-      row[3] = cell(p.sideB);
-      row[4] = cell(p.tapeUnit);
-      row[5] = cell(p.referenceSource);
-      row[6] = tape === null ? '' : tape.toFixed(2);
-      row[6] = p.jamabandiSqm === null ? '' : p.jamabandiSqm.toFixed(2);
-      row[19] = cell(p.notes);
+      // By name: fixed indexes here drifted when columns were added.
+      const set = (name: (typeof CSV_HEADER)[number], v: string) => (row[CSV_HEADER.indexOf(name)] = v);
+      set('plot_label', cell(p.label));
+      set('village', cell(p.village));
+      set('tape_side_a', cell(p.sideA));
+      set('tape_side_b', cell(p.sideB));
+      set('tape_unit', cell(p.tapeUnit));
+      set('reference_source', cell(p.referenceSource));
+      set('reference_area_sqm', tape === null ? '' : tape.toFixed(2));
+      set('jamabandi_sqm', p.jamabandiSqm === null ? '' : p.jamabandiSqm.toFixed(2));
+      set('plot_notes', cell(p.notes));
       return row.join(',');
     });
 

@@ -306,3 +306,25 @@ describe('references other than a tape', () => {
     expect(summary.gateNotes.join(' ')).not.toContain('not a tape');
   });
 });
+
+describe('CSV columns line up (Stage 6 fix)', () => {
+  it('every row has one value per header column, in the right place', async () => {
+    const { CSV_HEADER } = await import('./csvBuilder');
+    const p = plot({ label: 'Gurmeet', jamabandiSqm: 4000 });
+    const lone = plot({ label: 'Untouched', jamabandiSqm: 3000 });
+    const csv = buildCsv([p, lone], [
+      measurement(p.id, 4100, { method: 'drawn', snapped: true, viewWidthM: 212.4 }),
+    ]);
+    const [header, drawn, unmeasured] = csv.trim().split('\n').map((l) => l.split(','));
+    expect(header).toEqual([...CSV_HEADER]);
+    expect(drawn).toHaveLength(CSV_HEADER.length);
+    expect(unmeasured).toHaveLength(CSV_HEADER.length);
+    const col = (row: string[], name: string) => row[CSV_HEADER.indexOf(name as never)];
+    expect(col(drawn!, 'method')).toBe('drawn');
+    expect(col(drawn!, 'measured_area_sqm')).toBe('4100.00');
+    expect(col(drawn!, 'snapped_to_rectangle')).toBe('yes');
+    expect(col(drawn!, 'draw_view_m')).toBe('212');
+    expect(col(unmeasured!, 'jamabandi_sqm')).toBe('3000.00');
+    expect(col(unmeasured!, 'plot_notes')).toBe('');
+  });
+});

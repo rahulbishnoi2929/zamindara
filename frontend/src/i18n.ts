@@ -273,15 +273,18 @@ const strings = {
 
   // — drawing
   tapCorners: {
-    pa: 'ਖੇਤ ਦੇ ਕੋਨਿਆਂ ਤੇ ਦਬਾਓ',
-    hi: 'खेत के कोनों पर दबाएँ',
-    en: 'Tap the corners of your field',
+    pa: 'ਖੇਤ ਦੇ ਕੋਨੇ ਲਗਾਓ',
+    hi: 'खेत के कोने लगाएँ',
+    en: 'Mark the corners of your field',
   },
   tapCornersHint: {
-    pa: 'ਵੱਟ ਦੇ ਨਾਲ-ਨਾਲ ਹਰ ਕੋਨੇ ਤੇ ਦਬਾਓ। ਗ਼ਲਤ ਹੋਵੇ ਤਾਂ ਖਿੱਚ ਕੇ ਠੀਕ ਕਰੋ।',
-    hi: 'मेड़ के साथ हर कोने पर दबाएँ। ग़लत हो तो खींचकर ठीक करें।',
-    en: 'Tap each corner along the bund. Drag any point to fix it.',
+    pa: 'ਨਕਸ਼ਾ ਹਿਲਾ ਕੇ ✛ ਨੂੰ ਕੋਨੇ ਤੇ ਰੱਖੋ, ਫਿਰ "ਕੋਨਾ ਲਗਾਓ" ਦਬਾਓ। ਗ਼ਲਤ ਹੋਵੇ ਤਾਂ ਖਿੱਚ ਕੇ ਠੀਕ ਕਰੋ।',
+    hi: 'नक्शा हिलाकर ✛ को कोने पर रखें, फिर "कोना लगाएँ" दबाएँ। ग़लत हो तो खींचकर ठीक करें।',
+    en: 'Move the map so ✛ sits on a corner, then tap "Add corner". Drag any point to fix it.',
   },
+  addCornerHere: { pa: '+ ਕੋਨਾ ਲਗਾਓ', hi: '+ कोना लगाएँ', en: '+ Add corner' },
+  zoomInCloser: { pa: 'ਹੋਰ ਨੇੜੇ ਕਰੋ (ਜ਼ੂਮ)', hi: 'और पास करें (ज़ूम)', en: 'Zoom in closer' },
+  makeRectangle: { pa: '⊾ ਸਿੱਧੇ ਕੋਨੇ ਕਰੋ', hi: '⊾ सीधे कोने करें', en: '⊾ Make it a rectangle' },
   needThreePoints: {
     pa: 'ਘੱਟੋ-ਘੱਟ ਤਿੰਨ ਕੋਨੇ ਚਾਹੀਦੇ ਹਨ',
     hi: 'कम से कम तीन कोने चाहिए',

@@ -13,8 +13,8 @@ Newest first, so the most recent work is always at the top. Each entry says what
 | | |
 |---|---|
 | **Phase** | Code done through 5. **Phase 1 field test never run — the gate was walked past.** See the revision at the top of BUILD_PLAN. |
-| **Brief** | Working through the 16 Nov staged brief. Stage 1 done (awaiting your phone install). **Stages 4 and 5 done.** Next: Stage 6, the draw screen, then Stage 7 docs. Waiting on you: Supabase project, Firebase, first-phone test. |
-| **Tests** | 273 unit (122 packages + 151 app) + **287 database assertions** (run twice in CI: before and after a backup-and-restore) + **18-step end-to-end test** covering every server call, against a real database, all green in CI |
+| **Brief** | Working through the 16 Nov staged brief. Stage 1 done (awaiting your phone install). **Stages 4, 5 and 6 done.** Next: Stage 7, docs. Waiting on you: Supabase project, Firebase, first-phone test. |
+| **Tests** | 279 unit (125 packages + 154 app) + **287 database assertions** (run twice in CI: before and after a backup-and-restore) + **18-step end-to-end test** covering every server call, against a real database, all green in CI |
 | **App** | Signed release APK, **35.3 MB** (from 75.8), R8 on, ARM only. Shows `v0.1.0` on home; an `app_config` row tells old phones to update. **Install once:** JS changes reach a phone over the air. |
 | **Not yet done** | Never run on a physical device; sync never run against a hosted Supabase project |
 | **Blocking next step** | Setup: Maps key, hosted Supabase project, `expo prebuild` + APK, a phone, a 50 m tape |
@@ -24,7 +24,7 @@ Newest first, so the most recent work is always at the top. Each entry says what
 ```
 C:\Zamidara\
 ├── docs\              16 product and engineering documents
-├── frontend\          Expo SDK 57 Android app — 151 tests + e2e
+├── frontend\          Expo SDK 57 Android app — 154 tests + e2e
 ├── backend\supabase\  37 migrations, RLS, dispatch functions — 287 assertions
 ├── packages\          units · geo · catalog · pricing · scheduling — 122 tests
 └── assets\            logo
@@ -67,6 +67,28 @@ The most useful part of this log. Each of these was believed, written down, then
 ---
 
 # Entries
+
+## 58 · Stage 6 — the draw screen: crosshair, zoom gate, rectangle snap
+
+**Asked:** place corners with a fixed crosshair while the map moves underneath, enforce a minimum zoom, offer a right-angle snap for rectangles, and make the field-test recorder capture which of these were used. The founder OK'd the sketch ("lets move to next stage and build").
+
+**What "working" meant:** a corner lands exactly where he aimed, never under his fingertip; no corner is placed from so far out that one tap spans twenty metres; a canal-colony rectangle can be squared in one tap without changing its area; and the field-test export says which aids each drawn measurement used.
+
+**Built:**
+- **Crosshair.** A fixed ✛ sits at the map's centre. He moves the map, then taps **+ Add corner**. Tapping the map no longer places a corner, so panning can't add one by accident. Corners can still be dragged.
+- **Zoom gate.** **Add corner** only works when the map shows 400 m across or less. Wider than that, it reads "Zoom in closer". He can still zoom out to find his field.
+- **Rectangle snap.** With exactly four corners, **⊾ Make it a rectangle** squares them: right angles, the same area, the same orientation. It reuses the walk pipeline's rectangle fit, now exported as `squareUp` from `@zamindara/geo`. **Undo** gives back his own corners.
+- **Recorder.** Each drawn test measurement now stores `snapped`, `cornersAdjusted` (whether he dragged a corner) and `viewWidthM` (the widest view any corner was placed at). The CSV export gains `snapped_to_rectangle` and `draw_view_m` columns.
+- **Fixed, found on the way:** the field-test CSV's columns were misaligned.
+  - Measurement rows had one value fewer than the header (`reference_source` was never written), so every value from the reference area onward sat under the wrong column: the measured area appeared under "method", and so on.
+  - Rows for unmeasured plots overwrote the reference area with the jamabandi value, and put the notes in the wrong column.
+  - Both are fixed. Unmeasured rows are now filled by column name, and a test checks that every row lines up with the header. **Any CSV exported before this has shifted columns.** Re-export from the phone; the stored measurements were never wrong, only the export.
+
+**Verified by running:** 279 unit tests (125 packages + 154 app; 6 new: 3 snap, 2 zoom gate, 1 CSV alignment), typecheck clean, bundle exports. **In CI:** 287 database assertions twice, 18 end-to-end steps.
+
+**Not verified (needs a phone):** the crosshair sitting exactly on the map's centre, the zoom gate's feel at 400 m, and the snap on a real field.
+
+---
 
 ## 57 · Stage 5 — phone setup, so a work ping is heard
 

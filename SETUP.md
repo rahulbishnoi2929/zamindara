@@ -22,6 +22,17 @@ Everything here needs your accounts, your phone, or your legs. I cannot do any o
 
 **1–3 cost nothing and are the only things that matter this week.** Everything from 4 onward is for when captains exist.
 
+### Added since (20 Nov 2026)
+
+| # | Do | Cost | Blocks |
+|---|---|---|---|
+| **9** | After step 4: `cd backend && npx supabase db push` (never `config push`) | ₹0 | The hosted database having Stages 2–5 |
+| **10** | Two GitHub secrets, `SUPABASE_DB_URL` and `BACKUP_PASSPHRASE`, as [BACKUP_AND_RESTORE.md](docs/BACKUP_AND_RESTORE.md) says | ₹0 | Nightly backups |
+| **11** | Deploy `notify-dispatch` again after any change to it (step 6b's command) | ₹0 | The quiet ping for later-day jobs (4.8); the "your job is booked" push (4.3) |
+| **12** | Pick a place to host the APK file for captains to download | ₹0 | Captains installing it themselves |
+| **13** | When ready to stop matching by hand: in Studio, `update app_config set auto_dispatch = true;` | ₹0 | Automatic offers, and open offers for later-day jobs (4.8) |
+| **14** | Phone checks, once the new APK is on a phone: route screen at large font (4.7); an open offer in the feed (4.8); the phone setup screen on your brand: each button, the test ping when locked, the home warning (5); the draw screen (6) | your phone | Knowing the screens work in a hand, not just in tests |
+
 ---
 
 ## 0 · DLT registration — start today, then forget it

@@ -38,6 +38,7 @@ export {
   rectangularity,
   refineRectangle,
   snapToKaramGrid,
+  squareUp,
   type GridSnapResult,
   type OrientedRectangle,
   type RefinedRectangle,

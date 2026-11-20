@@ -82,6 +82,10 @@ export interface TestMeasurement {
   // — draw only
   /** Was the field actually identifiable on the imagery? */
   imageryUsable: boolean | null;
+  /** Pressed "Make it a rectangle" and kept it (Stage 6). Absent on older records. */
+  snapped?: boolean | null;
+  /** Widest view a corner was placed at, metres across (Stage 6). */
+  viewWidthM?: number | null;
 }
 
 /**

@@ -8,6 +8,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { ChooseMethodScreen } from './src/ChooseMethodScreen';
 import { ConfirmScreen } from './src/ConfirmScreen';
 import { DrawScreen } from './src/DrawScreen';
+import type { DrawAids } from './src/drawAids';
 import { FieldTestScreen } from './src/fieldTest/FieldTestScreen';
 import { PlotDetailScreen } from './src/fieldTest/PlotDetailScreen';
 import * as testStore from './src/fieldTest/storage';
@@ -269,6 +270,7 @@ export default function App() {
     areaSqm: number,
     walk: WalkResult | null,
     cornersAdjusted: boolean | null,
+    aids: DrawAids | null = null,
   ) => {
     if (intent.kind === 'test') {
       const durationSec =
@@ -292,6 +294,8 @@ export default function App() {
         pipelineMethod: walk?.method ?? null,
         cornersAdjusted,
         imageryUsable: method === 'drawn' ? true : null,
+        snapped: aids?.snapped ?? null,
+        viewWidthM: aids?.widestViewM ?? null,
       };
 
       setMeasurements(await testStore.addMeasurement(measurement));
@@ -737,9 +741,9 @@ export default function App() {
                       ? `retrace:${screen.intent.jobId}`
                       : 'field'
                 }
-                onDone={(polygon, areaSqm) => {
+                onDone={(polygon, areaSqm, aids) => {
                   void saveUi('drawCorners', null);
-                  void record(screen.intent, 'drawn', polygon, areaSqm, null, null);
+                  void record(screen.intent, 'drawn', polygon, areaSqm, null, aids.dragged, aids);
                 }}
                 onCancel={() =>
                   screen.intent.kind === 'test'
