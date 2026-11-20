@@ -121,7 +121,11 @@ jobs:
 
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          # Pinned. "latest" asks GitHub's API which release that is, and the
+          # unauthenticated API rate-limits shared runners: it failed twice on
+          # 20 Nov 2026. Bump by hand; this is the version the restore proof
+          # was last run against.
+          version: 3.2.0
 
 
       - name: Start Postgres and apply migrations
@@ -141,6 +145,34 @@ jobs:
         run: bash ./check-plans.sh
 
       - name: Run guarantee tests
+        run: supabase test db
+
+      # A backup that has never been restored does not count. Real rows go
+      # in, get backed up and encrypted, the database is wiped back to what a
+      # new Supabase project looks like, and the backup is restored into it.
+      # Then the rows are compared, and the whole guarantee suite runs again
+      # on the restored database: data that came back without its RLS or
+      # triggers would pass a row count and fail here.
+      - name: Backup, wipe, restore
+        env:
+          DB: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+          BACKUP_PASSPHRASE: ci-only-not-a-secret
+        run: |
+          set -euo pipefail
+          psql "$DB" -v ON_ERROR_STOP=1 -q -f scripts/restore-fixture.sql
+          psql "$DB" -At -f scripts/restore-fingerprint.sql > /tmp/before.txt
+          bash scripts/backup.sh "$DB" /tmp/backup.tar.gz.gpg
+          if BACKUP_PASSPHRASE=wrong bash scripts/restore.sh /tmp/backup.tar.gz.gpg "$DB"; then
+            echo "::error::a wrong passphrase restored the backup"; exit 1
+          fi
+          psql "$DB" -v ON_ERROR_STOP=1 -q -f scripts/wipe-to-new-project.sql
+          bash scripts/restore.sh /tmp/backup.tar.gz.gpg "$DB"
+          psql "$DB" -At -f scripts/restore-fingerprint.sql > /tmp/after.txt
+          cat /tmp/before.txt
+          diff /tmp/before.txt /tmp/after.txt
+          echo "restored database matches the original"
+
+      - name: Guarantee tests again, on the restored database
         run: supabase test db
 
       - name: Show logs on failure

@@ -1,5 +1,5 @@
 import type { RateGuidance } from '@zamindara/pricing';
-import type { AppConfig } from '../version';
+import { appConfigFromRow, type AppConfig } from '../version';
 import { isBackendConfigured, supabase } from '../supabase';
 import { currentSession } from '../auth';
 import type { Job, JobStatus } from '../jobs';
@@ -753,7 +753,10 @@ export async function fetchAppConfig(locale: 'pa' | 'hi' | 'en'): Promise<AppCon
   const { data, error } = await supabase
     .from('app_config')
     .select(
-      'latest_version, latest_apk_url, minimum_supported_version, founder_code_signin, update_note_pa, update_note_hi, update_note_en',
+      // '*', not a column list: a phone asking for a column the server does
+      // not have yet gets an error and nothing. The mapping copes with
+      // missing switches; PostgREST cannot cope with unknown ones.
+      '*',
     )
     .maybeSingle();
   // The cache is the answer when the server cannot be reached. Sign-in
@@ -761,24 +764,8 @@ export async function fetchAppConfig(locale: 'pa' | 'hi' | 'en'): Promise<AppCon
   // falling back to the built-in SMS wording would be most wrong.
   if (error !== null || data === null) return loadCachedAppConfig<AppConfig>();
 
-  const row = data as Record<string, unknown>;
-  const latestVersion = String(row['latest_version'] ?? '');
-  const minimumSupportedVersion = String(row['minimum_supported_version'] ?? '');
-  if (latestVersion === '' || minimumSupportedVersion === '') {
-    return loadCachedAppConfig<AppConfig>();
-  }
-
-  const note = row[`update_note_${locale}`];
-
-  const config: AppConfig = {
-    latestVersion,
-    latestApkUrl: typeof row['latest_apk_url'] === 'string' ? row['latest_apk_url'] : null,
-    minimumSupportedVersion,
-    // An older APK reading a server that predates the column, or any shape
-    // we do not recognise, gets the honest answer: there is no SMS.
-    founderCodeSignin: row['founder_code_signin'] !== false,
-    note: typeof note === 'string' && note.length > 0 ? note : null,
-  };
+  const config = appConfigFromRow(data as Record<string, unknown>, locale);
+  if (config === null) return loadCachedAppConfig<AppConfig>();
   await saveAppConfig(config);
   return config;
 }

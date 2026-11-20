@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compareVersions, updateState } from './version';
+import { appConfigFromRow, compareVersions, updateState } from './version';
 
 describe('compareVersions', () => {
   it('orders by number, not by text', () => {
@@ -23,6 +23,7 @@ describe('updateState', () => {
     minimumSupportedVersion: '0.1.0',
     note: null,
     founderCodeSignin: true,
+    loudPing: false,
   };
 
   it('says nothing when the phone is current', () => {
@@ -61,5 +62,38 @@ describe('updateState', () => {
   it('does not nag a phone newer than the row', () => {
     // The founder's own handset, running the build he has not published.
     expect(updateState('0.3.0', cfg)).toEqual({ kind: 'current' });
+  });
+});
+
+describe('appConfigFromRow', () => {
+  const row = {
+    latest_version: '0.2.0',
+    latest_apk_url: null,
+    minimum_supported_version: '0.1.0',
+    update_note_pa: 'ਨਵਾਂ',
+  };
+
+  it('a server that predates a switch gets its safe default', () => {
+    const c = appConfigFromRow(row, 'pa')!;
+    // No SMS provider: say the code comes from the founder.
+    expect(c.founderCodeSignin).toBe(true);
+    // Not told to be loud: be quiet.
+    expect(c.loudPing).toBe(false);
+    expect(c.note).toBe('ਨਵਾਂ');
+  });
+
+  it('reads the switches when they are there', () => {
+    const c = appConfigFromRow({ ...row, founder_code_signin: false, loud_ping: true }, 'en')!;
+    expect(c.founderCodeSignin).toBe(false);
+    expect(c.loudPing).toBe(true);
+    expect(c.note).toBeNull();
+  });
+
+  it('anything but exactly true is not loud', () => {
+    expect(appConfigFromRow({ ...row, loud_ping: 'true' }, 'en')!.loudPing).toBe(false);
+  });
+
+  it('a row with no version is unusable, so the cache is used instead', () => {
+    expect(appConfigFromRow({ ...row, latest_version: '' }, 'en')).toBeNull();
   });
 });

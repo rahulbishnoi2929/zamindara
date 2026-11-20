@@ -106,6 +106,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const title = (service?.name_pa as string | undefined) ?? 'ਨਵਾਂ ਕੰਮ';
   const killa = Number(job.area_sqm) / 4046.8564224;
 
+  // app_config.loud_ping. No row, or no column on an older database, is
+  // quiet: never ring through Do Not Disturb unless told to.
+  const { data: config } = await asService.from('app_config').select('*').maybeSingle();
+  const loud = (config as { loud_ping?: unknown } | null)?.loud_ping === true;
+
   const messages = to.map((token) => ({
     to: token,
     title,
@@ -113,12 +118,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
     data: { jobId },
     // Must match the channel the app creates, or Android silently downgrades
     // it to a quiet notification and the whole point is lost.
-    channelId: 'zamindara-job-ping',
+    channelId: loud ? 'zamindara-job-ping' : 'zamindara-job-quiet',
     categoryId: 'zamindara-job',
     priority: 'high',
     sound: 'default',
-    // It has to behave like a call, not a message: stay until answered.
-    sticky: true,
+    // Loud, it has to behave like a call, not a message: stay until answered.
+    sticky: loud,
     ttl: 600,
   }));
 

@@ -79,6 +79,9 @@ grant execute on all functions in schema tests
   to postgres, anon, authenticated, service_role;
 
 select tests.act_as_admin();
+-- Automatic dispatch is off by default (0024). These tests are about what
+-- dispatch does when it runs, so they switch it on.
+update public.app_config set auto_dispatch = true;
 select tests.make_user('11111111-1111-1111-1111-111111111111', '9876500401', 'Gurmeet');
 select tests.make_user('22222222-2222-2222-2222-222222222222', '9876500402', 'Jaspal');
 

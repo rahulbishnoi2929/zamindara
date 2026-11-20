@@ -25,6 +25,40 @@ export interface AppConfig {
    * came from the founder, because no message is on its way.
    */
   founderCodeSignin: boolean;
+  /**
+   * True: a job ping is the alarm that bypasses Do Not Disturb. False, the
+   * default and the answer for any server that predates the switch: an
+   * ordinary high-priority notification.
+   */
+  loudPing: boolean;
+}
+
+/**
+ * Read the app_config row. Null if it carries no usable version, in which
+ * case the caller falls back to the cached copy.
+ *
+ * Each switch has a safe default for a row that predates it, because old
+ * phones meet new servers and new phones meet old ones for weeks.
+ */
+export function appConfigFromRow(
+  row: Record<string, unknown>,
+  locale: 'pa' | 'hi' | 'en',
+): AppConfig | null {
+  const latestVersion = String(row['latest_version'] ?? '');
+  const minimumSupportedVersion = String(row['minimum_supported_version'] ?? '');
+  if (latestVersion === '' || minimumSupportedVersion === '') return null;
+
+  const note = row[`update_note_${locale}`];
+  return {
+    latestVersion,
+    latestApkUrl: typeof row['latest_apk_url'] === 'string' ? row['latest_apk_url'] : null,
+    minimumSupportedVersion,
+    // There is no SMS provider; anything but an explicit false says so.
+    founderCodeSignin: row['founder_code_signin'] !== false,
+    // Never loud unless explicitly told.
+    loudPing: row['loud_ping'] === true,
+    note: typeof note === 'string' && note.length > 0 ? note : null,
+  };
 }
 
 export type UpdateState =

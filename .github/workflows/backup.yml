@@ -1,0 +1,70 @@
+name: Nightly backup
+
+# Supabase's free plan takes no backups of its own. This is the only copy of
+# the data that is not the live database.
+#
+# Needs two repository secrets (Settings → Secrets and variables → Actions):
+#   SUPABASE_DB_URL     the hosted project's connection string (Session
+#                       pooler — GitHub runners have no IPv6)
+#   BACKUP_PASSPHRASE   long and random; keep a copy OUTSIDE GitHub. Without
+#                       it the backups are unreadable, including to you.
+# Until both exist the job says so and stops, green: there is nothing to
+# back up before there is a hosted project.
+#
+# Restore: docs/BACKUP_AND_RESTORE.md. The restore is proven on every CI run.
+
+on:
+  schedule:
+    - cron: '30 21 * * *' # 03:00 in India, after the day's last sync
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+    steps:
+      - name: Is there anything to back up yet?
+        id: ready
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ] || [ -z "$BACKUP_PASSPHRASE" ]; then
+            echo "::notice::No SUPABASE_DB_URL / BACKUP_PASSPHRASE secret yet — nothing backed up."
+            echo "go=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          fi
+        working-directory: .
+
+      - uses: actions/checkout@v4
+        if: steps.ready.outputs.go == 'true'
+
+      - uses: supabase/setup-cli@v1
+        if: steps.ready.outputs.go == 'true'
+        with:
+          # Pinned. "latest" asks GitHub's API which release that is, and the
+          # unauthenticated API rate-limits shared runners: it failed twice on
+          # 20 Nov 2026. Bump by hand; this is the version the restore proof
+          # was last run against.
+          version: 3.2.0
+
+      - name: Dump and encrypt
+        if: steps.ready.outputs.go == 'true'
+        run: bash scripts/backup.sh "$SUPABASE_DB_URL" "zamindara-$(date -u +%Y-%m-%d).tar.gz.gpg"
+
+      # 30 nightly copies. The repository allows up to 90; 30 keeps the
+      # total well inside the free 500 MB of artifact storage, which is
+      # shared with GitHub Packages.
+      - uses: actions/upload-artifact@v4
+        if: steps.ready.outputs.go == 'true'
+        with:
+          name: backup-${{ github.run_id }}
+          path: backend/zamindara-*.tar.gz.gpg
+          retention-days: 30
+          if-no-files-found: error
+          # Already compressed and encrypted; zipping again gains nothing.
+          compression-level: 0

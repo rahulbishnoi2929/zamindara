@@ -13,19 +13,19 @@ Newest first, so the most recent work is always at the top. Each entry says what
 | | |
 |---|---|
 | **Phase** | Code done through 5. **Phase 1 field test never run — the gate was walked past.** See the revision at the top of BUILD_PLAN. |
-| **Brief** | Working through the 16 Nov staged brief. Stage 1 done (awaiting your phone install). **Stage 2 done** — stopped to report. Next: Stage 3 (free nightly backup, switches, metrics, cost ledger). |
-| **Tests** | 240 unit (122 packages + 118 app) + **177 database assertions**, all green in CI |
+| **Brief** | Working through the 16 Nov staged brief. Stage 1 done (awaiting your phone install). **Stage 3 done** — stopped to report. Next: Stage 4 (a design note per item, your OK before each). |
+| **Tests** | 244 unit (122 packages + 122 app) + **191 database assertions** (run twice in CI: before and after a backup-and-restore), all green in CI |
 | **App** | Signed release APK, **35.3 MB** (from 75.8), R8 on, ARM only. Shows `v0.1.0` on home; an `app_config` row tells old phones to update. **Install once:** JS changes reach a phone over the air. |
 | **Not yet done** | Never run on a physical device; sync never run against a hosted Supabase project |
 | **Blocking next step** | Setup: Maps key, hosted Supabase project, `expo prebuild` + APK, a phone, a 50 m tape |
 | **Repo** | [rahulbishnoi2929/zamindara](https://github.com/rahulbishnoi2929/zamindara) — private, CI green |
-| **Backend** | ✅ **Schema verified.** 23 migrations apply; all three guarantees hold. |
+| **Backend** | ✅ **Schema verified.** 25 migrations apply; all three guarantees hold. |
 
 ```
 C:\Zamidara\
 ├── docs\              16 product and engineering documents
-├── frontend\          Expo SDK 57 Android app — 118 tests
-├── backend\supabase\  23 migrations, RLS, dispatch functions — 177 assertions
+├── frontend\          Expo SDK 57 Android app — 122 tests
+├── backend\supabase\  25 migrations, RLS, dispatch functions — 191 assertions
 ├── packages\          units · geo · catalog · pricing · scheduling — 122 tests
 └── assets\            logo
 ```
@@ -51,6 +51,9 @@ The most useful part of this log. Each of these was believed, written down, then
 
 | 11 | Lock-screen accept failed because the **session token had expired** (brief item 2.7) | The token refreshes itself; the real bug was **two silent returns** — no profile on a cold start, and a job not yet in local storage | Read the installed auth-js source: `getSession` refreshes an expired token. The tap did nothing for a different reason, which fixing the token would never have touched. |
 
+| 12 | Push was wired (entry 31) and the local ping showed the real presentation | **No Android phone could receive a remote push**, and the local ping was never loud | Expo push reaches Android only through Firebase Cloud Messaging, and no FCM project exists. And `trigger: null` posts to Expo's *default* channel, not the max-importance one the comment promised. Found while building the loud-ping switch and the cost ledger. |
+| 13 | Supabase's documented backup and restore is a safe copy | **It came back with two locked functions open to anyone** | pg_dump writes grants relative to plain Postgres, so a new project's automatic grants to `anon` survive and `REVOKE … FROM anon` is never written. Every row count matched; only re-running the security tests on the restored copy caught it. |
+
 | 10 | The distance surcharge was built — pricing library, schema columns, server function, twenty tests | **It was applied to nothing.** `travel_charge` was 0 on every job ever created | The app priced a job at *posting* time, when there is no captain and so no distance, and nothing ever priced it again. A combine 25 km out earned exactly what one in the next village earned. `accept_job` now prices the job at the one moment all three unknowns — whose rate, how far, which machine — are known. |
 
 **Rule that came out of this:** when a measurement contradicts a plan, the measurement wins. It is written into [BUILD_PLAN](docs/BUILD_PLAN.md#standing-rules).
@@ -58,6 +61,49 @@ The most useful part of this log. Each of these was believed, written down, then
 ---
 
 # Entries
+
+## 47 · Stage 3 — running on nothing: backup, switches, metrics, costs
+
+**Asked:** a free nightly encrypted backup with a restore that has actually been run; remote switches for automatic dispatch, the loud ping, founder-code sign-in and the minimum version; SQL metrics views; a cost ledger. Free limits checked against each provider's own docs, not memory.
+
+**What the docs said (20 Nov 2026), which shaped everything:** Supabase Free takes **no backups at all**, pauses a project after **a week of inactivity**, and allows 500 MB. GitHub Free gives about 2,000 Actions minutes and 500 MB of artifacts, and with no card it **blocks instead of billing**. Nothing here can cost money.
+
+### 3.1 Nightly backup
+
+`backup.yml` runs at 03:00 IST. It dumps roles, schema and data with Supabase's documented commands, encrypts them with AES-256 under a `BACKUP_PASSPHRASE` secret, and keeps 30 nights as artifacts. Until `SUPABASE_DB_URL` and the passphrase exist as secrets, it says "nothing backed up" and stays green. Restoring is in [BACKUP_AND_RESTORE](docs/BACKUP_AND_RESTORE.md).
+
+**The restore is proven on every CI run, and that is where the value turned out to be.** CI inserts a real farmer, backs up, checks that a wrong passphrase fails, wipes the database to what a new Supabase project looks like, restores, compares, and then **runs every database assertion again on the restored copy**. The first run matched every row and failed the security tests: `dispatch_job` was callable signed-out, and the internal `accept_job_claim` by anyone (reversal 13). `restore.sh` now switches Supabase's automatic grants off while the schema loads. The fingerprint compares *effective* privileges on every function and table, because one trap stays live: the CLI drops every grant line that mentions `"extensions"`, so a future locked function with a PostGIS parameter would reopen. CI will catch it.
+
+I also made a mistake here. My first fix did not apply, because the edit script did not assert that it had matched. A diagnostic run showed the restore script was unchanged.
+
+Measured: 22 KB encrypted; about 75 s for the whole database job including the proof. The Supabase CLI is now **pinned to 3.2.0**: `latest` is an unauthenticated GitHub API lookup that was rate-limited twice today, and for the nightly job that would mean a silently missed night.
+
+### 3.2 Switches
+
+Two new columns on the `app_config` row, both **off by default** as you asked: `auto_dispatch` and `loud_ping`. The other two already existed.
+
+- **Automatic dispatch is enforced in the database.** Old APKs call `dispatch_job` on every sync and have never heard of the switch. The original is renamed and wrapped, as with `accept_job`, not copied. While it is off, you match by hand: in Studio, add a `job_dispatch` row (job, captain, rank 1), and that captain sees the offer on his next sync.
+- **The loud ping gets a separate quiet channel**, because Android freezes a channel's importance when it is created. Both the push function and the on-device ping choose a channel by the switch.
+- **Offline,** the last-known values come from the existing cache. A missing switch reads as its safe value: not loud, founder code on.
+- **App-side, the row mapping was untested inline code;** it is now a tested pure function. The app reads `*` instead of a column list, so a new APK talking to an older server gets an answer rather than an error.
+
+### 3.3 Metrics
+
+Views in a `metrics` schema the API does not expose and no phone is granted (tested: signed-in and signed-out both get 42501). Every view is per region: jobs per week (posted, completed, cancelled, lapsed), fields by mapping method, farmers who came back within 60 days, and verified captains active in the last 7 days. Active means he reported his location or moved a job. **Area disputes cannot be counted, because nothing records them.** Item 4.4 adds exactly that column, so I did not add it here. Open them in Studio → Table editor → schema `metrics`.
+
+### 3.4 Costs
+
+[COSTS.md](docs/COSTS.md) lists every external service the code calls, with linked limits and estimates at 10 and 100 captains. Three findings:
+
+- **Sync re-downloads everything on every pass.** Every field, every job, and for a captain every job he has ever done, with no limit. That makes Supabase's 5 GB egress the first free limit hit, at around 100 captains. The brief already names the fix (incremental, limited pulls). It is recorded, not fixed, and should be done before about 30 captains.
+- **No Firebase/FCM project exists, so no Android phone can receive a remote push** (reversal 12). It is a third-party account, so it is flagged for you rather than created.
+- **The update notice has nowhere to point.** A private GitHub repo's release files need a login. The APK host is your decision.
+
+**Verified by running:** 244 unit tests (4 new), typecheck clean, Android bundle exports. **In CI:** 191 database assertions (14 new) pass on a clean database and again on the restored one; backup, wrong-passphrase rejection, restore and fingerprint match. **Not verified:** a backup of the hosted project (there is none yet); the edit to the `notify-dispatch` edge function, which has no test harness and needs FCM before it can deliver anything; the quiet versus loud ping on a phone.
+
+**Your part:** (1) once there is a hosted project, add the `SUPABASE_DB_URL` and `BACKUP_PASSPHRASE` secrets, keep the passphrase somewhere other than GitHub, and run "Nightly backup" by hand once; (2) decide on FCM; (3) decide where APKs are downloaded from.
+
+---
 
 ## 46 · 2.8 — back goes back, and a phone call no longer costs him his place
 

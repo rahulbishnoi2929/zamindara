@@ -21,6 +21,12 @@ import type { Job } from './jobs';
  */
 
 export const JOB_CHANNEL = 'zamindara-job-ping';
+/**
+ * The same ping without the alarm: used while app_config.loud_ping is off.
+ * A separate channel, not a setting on the loud one, because Android fixes a
+ * channel's importance when it is created and ignores every later change.
+ */
+export const JOB_CHANNEL_QUIET = 'zamindara-job-quiet';
 export const JOB_CATEGORY = 'zamindara-job';
 
 export const ACTION_ACCEPT = 'accept';
@@ -56,6 +62,13 @@ export async function setupNotifications(): Promise<void> {
       sound: 'default',
       enableVibrate: true,
     });
+    await Notifications.setNotificationChannelAsync(JOB_CHANNEL_QUIET, {
+      name: 'Work requests (quiet)',
+      importance: Notifications.AndroidImportance.HIGH,
+      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+      sound: 'default',
+      enableVibrate: true,
+    });
   }
 
   // Accept and decline straight from the lock screen. Opening the app to
@@ -80,7 +93,7 @@ export async function requestNotificationPermission(): Promise<boolean> {
  * server. The presentation is the real thing though, so what a captain sees
  * and feels here is what he will see and feel in April.
  */
-export async function pingForJob(job: Job, locale: Locale): Promise<string> {
+export async function pingForJob(job: Job, locale: Locale, loud = false): Promise<string> {
   const service = SERVICE_BY_CODE.get(job.serviceCode);
 
   return Notifications.scheduleNotificationAsync({
@@ -96,14 +109,18 @@ export async function pingForJob(job: Job, locale: Locale): Promise<string> {
       data: { jobId: job.id },
       categoryIdentifier: JOB_CATEGORY,
       sound: 'default',
-      vibrate: [0, 700, 300, 700, 300, 700],
-      priority: Notifications.AndroidNotificationPriority.MAX,
-      // Stays on screen until answered. A ping he swipes away by accident
-      // is a job the farmer never hears about.
-      sticky: true,
-      autoDismiss: false,
+      ...(loud
+        ? {
+            vibrate: [0, 700, 300, 700, 300, 700],
+            priority: Notifications.AndroidNotificationPriority.MAX,
+            // Stays on screen until answered. A ping he swipes away by
+            // accident is a job the farmer never hears about.
+            sticky: true,
+            autoDismiss: false,
+          }
+        : { priority: Notifications.AndroidNotificationPriority.HIGH }),
     },
-    trigger: null,
+    trigger: { channelId: loud ? JOB_CHANNEL : JOB_CHANNEL_QUIET },
   });
 }
 

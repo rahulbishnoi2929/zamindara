@@ -730,7 +730,7 @@ export default function App() {
                     profile.isOnline &&
                     withinWorkingHours(new Date(), 7, 19)
                   ) {
-                    void pingForJob(job, locale);
+                    void pingForJob(job, locale, appConfig?.loudPing ?? false);
                   }
                   setScreen({ name: 'home' });
                 }}
