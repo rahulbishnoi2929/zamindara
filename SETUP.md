@@ -390,7 +390,7 @@ Reads the service key from Supabase's own environment. Nothing to configure, no 
 
 ---
 
-## 7 · Google Maps key — when you can put a card down
+## 7 · Google Maps key — decided 20 Nov 2026: Google, card on file only to switch it on
 
 **The only real paywall in the project.** Usage is ₹0 at your volume — a farmer maps each field once, forever — but Google requires a card on file even for the free credit.
 
@@ -401,10 +401,10 @@ When you do:
 1. [console.cloud.google.com](https://console.cloud.google.com) → new project `zamindara`
 2. **APIs & Services → Library** → **Maps SDK for Android** → Enable
 3. **Credentials → Create credentials → API key**
-4. **Restrict it before using it anywhere** — *Application restrictions → Android apps*:
-   - Package: `com.zamindara.app`
-   - SHA-1: `5E:8F:16:06:2E:A3:CD:2C:4A:0D:54:78:76:BA:A6:F3:8C:AB:F6:25`
-5. Budget alert at ₹500, and cap the daily Maps SDK quota
+4. **Restrict it before using it anywhere**, both ways:
+   - *Application restrictions → Android apps*: package `com.zamindara.app`, SHA-1 `5E:8F:16:06:2E:A3:CD:2C:4A:0D:54:78:76:BA:A6:F3:8C:AB:F6:25` (the debug key; add the release key's SHA-1 once it exists)
+   - *API restrictions → Restrict key → only **Maps SDK for Android***. This is the real protection: a key that can only load maps on Android cannot be spent on Google's paid APIs, which mobile map loads are not ("All mobile usage of the Maps SDK for Android is unlimited", Google's usage-and-billing page, read 20 Nov 2026).
+5. **Billing → Budgets & alerts**: a ₹500 budget with email alerts at 50%, 90% and 100%. An alert warns; it does not stop spending, which is why step 4's restriction matters.
 6. Into `frontend/.env`:
 
 ```
