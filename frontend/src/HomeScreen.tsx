@@ -89,6 +89,8 @@ interface Props {
   onAddField: () => void;
   onBookWork: () => void;
   onAcceptJob: (job: Job) => void;
+  /** Job ids whose accept is still on its way to the server. */
+  sendingAccepts?: ReadonlySet<string> | undefined;
   onAdvanceJob: (job: Job) => void;
   /** The farmer withdraws his own job. */
   onCancelJob: (job: Job) => void;
@@ -122,6 +124,7 @@ export function HomeScreen({
   onAddField,
   onBookWork,
   onAcceptJob,
+  sendingAccepts,
   onAdvanceJob,
   onCancelJob,
   onRateJob,
@@ -232,6 +235,7 @@ export function HomeScreen({
                     job={job}
                     locale={locale}
                     onAccept={onAcceptJob}
+                    sending={sendingAccepts?.has(job.id)}
                     onAdvance={onAdvanceJob}
                     onRelease={onReleaseJob}
                   />
@@ -248,6 +252,7 @@ export function HomeScreen({
                     job={job}
                     locale={locale}
                     onAccept={onAcceptJob}
+                    sending={sendingAccepts?.has(job.id)}
                     onAdvance={onAdvanceJob}
                     onRelease={onReleaseJob}
                   />

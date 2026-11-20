@@ -356,10 +356,13 @@ const strings = {
     en: 'Zamindara needs location access to measure your field.',
   },
   grantPermission: { pa: 'ਇਜਾਜ਼ਤ ਦਿਓ', hi: 'अनुमति दें', en: 'Allow' },
-  acceptFailed: {
-    pa: 'ਕੰਮ ਨਹੀਂ ਲਿਆ ਜਾ ਸਕਿਆ। ਸਿਗਨਲ ਵੇਖੋ ਤੇ ਮੁੜ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
-    hi: 'काम नहीं लिया जा सका। सिग्नल देखें और फिर कोशिश करें।',
-    en: 'Could not take the job. Check your signal and try again.',
+  // On a bad signal the accept keeps trying; until the server says yes he
+  // must not believe the job is his.
+  sendingAccept: { pa: 'ਭੇਜ ਰਹੇ ਹਾਂ…', hi: 'भेज रहे हैं…', en: 'Sending…' },
+  acceptDropped: {
+    pa: 'ਸਿਗਨਲ ਨਹੀਂ ਮਿਲਿਆ, ਇਹ ਕੰਮ ਹੁਣ ਤੁਹਾਡੇ ਲਈ ਨਹੀਂ ਹੈ।',
+    hi: 'सिग्नल नहीं मिला, यह काम अब आपके लिए नहीं है।',
+    en: 'No signal reached the server. This job is no longer yours to take.',
   },
   // No store, so an update is a sentence and a link, not a badge.
   updateAvailable: {

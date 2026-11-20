@@ -56,6 +56,7 @@ import {
   syncProfile,
 } from './src/sync/sync';
 import { uuid } from './src/sync/mapping';
+import { sendAccept, type SendOutcome } from './src/sendingAccept';
 import { acceptedJobId } from './src/lockScreen';
 import type { AppConfig } from './src/version';
 import {
@@ -94,6 +95,10 @@ export default function App() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [fields, setFields] = useState<SavedField[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
+  // Accepts on their way to the server. A ref guards against a second send
+  // (button and lock screen at once); the state is what the card shows.
+  const sendingRef = useRef(new Set<string>());
+  const [sendingAccepts, setSendingAccepts] = useState<ReadonlySet<string>>(new Set());
   const [completing, setCompleting] = useState<Job | null>(null);
   /**
    * What the server says about versions. Null until read, and null forever
@@ -420,25 +425,43 @@ export default function App() {
     }
   };
 
+  /**
+   * Send an accept, retrying through a dead patch until the offer ends.
+   * Shows "sending" meanwhile, never "accepted"; null if already sending.
+   */
+  const sendAcceptNow = async (jobId: string): Promise<SendOutcome | null> => {
+    if (sendingRef.current.has(jobId)) return null;
+    sendingRef.current.add(jobId);
+    setSendingAccepts(new Set(sendingRef.current));
+    try {
+      return await sendAccept(jobId, {
+        attempt: acceptJobRemote,
+        statusOf: async (id) => (await loadJobs()).find((j) => j.id === id)?.status,
+        now: Date.now,
+        sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+      });
+    } finally {
+      sendingRef.current.delete(jobId);
+      setSendingAccepts(new Set(sendingRef.current));
+    }
+  };
+
   const claimJob = async (job: Job) => {
     if (profile === null) return;
 
     // Signed in, the race is real and only the database can judge it.
     if (signedIn) {
-      const outcome = await acceptJobRemote(job.id);
-      if (outcome === 'accepted' || outcome === 'lost-race') {
-        const current = await loadJobs();
-        void syncJobs(current, profile).then(setJobs);
-        if (outcome === 'lost-race') {
-          // Someone else got there first. Not an error he caused.
-          Alert.alert(t('alreadyTaken', locale));
-        }
-        return;
+      const outcome = await sendAcceptNow(job.id);
+      if (outcome === null) return;
+      if (outcome === 'lost-race') {
+        // Someone else got there first. Not an error he caused.
+        Alert.alert(t('alreadyTaken', locale));
+      } else if (outcome === 'dropped') {
+        // Silence would read as "the tap did nothing". He must not drive out.
+        Alert.alert(t('acceptDropped', locale));
       }
-      // Signal or server trouble. The job stays as it is; the next sync
-      // pass brings the truth. But silence would read as "the tap did
-      // nothing", so say what happened and what to do about it.
-      Alert.alert(t('acceptFailed', locale));
+      const current = await loadJobs();
+      void syncJobs(current, profile).then(setJobs);
       return;
     }
 
@@ -473,13 +496,14 @@ export default function App() {
         // server-side, so none of that local state is required. The token
         // refreshes itself on the way: supabase-js asks getSession for the
         // access token, and getSession refreshes an expired one.
-        const outcome = await acceptJobRemote(jobId);
+        const outcome = await sendAcceptNow(jobId);
+        if (outcome === null) return;
 
         if (outcome === 'lost-race') {
           Alert.alert(t('alreadyTaken', locale));
-        } else if (outcome !== 'accepted') {
+        } else if (outcome === 'dropped') {
           // Never silent. He believes he has the job.
-          Alert.alert(t('acceptFailed', locale));
+          Alert.alert(t('acceptDropped', locale));
           return;
         }
 
@@ -565,6 +589,7 @@ export default function App() {
                 onAddField={() => setScreen({ name: 'choose', intent: { kind: 'field' } })}
                 onBookWork={() => setScreen({ name: 'book' })}
                 onAcceptJob={(job) => void claimJob(job)}
+                sendingAccepts={sendingAccepts}
                 onAdvanceJob={(job) => void advanceJob(job)}
                 appConfig={appConfig}
                 onGetUpdate={(url) => void Linking.openURL(url)}

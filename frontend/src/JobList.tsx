@@ -155,6 +155,8 @@ interface CaptainCardProps {
   job: Job;
   locale: Locale;
   onAccept: (job: Job) => void;
+  /** His accept has not reached the server yet. Never shown as accepted. */
+  sending?: boolean | undefined;
   onAdvance: (job: Job) => void;
   /** Hand the job back, so it can reach another captain. */
   onRelease?: ((job: Job) => void) | undefined;
@@ -175,6 +177,7 @@ export function CaptainJobCard({
   job,
   locale,
   onAccept,
+  sending = false,
   onAdvance,
   onRelease,
 }: CaptainCardProps) {
@@ -206,7 +209,12 @@ export function CaptainJobCard({
 
       {incoming ? (
         <View style={s.actions}>
-          <Button label={t('accept', locale)} onPress={() => onAccept(job)} flex />
+          <Button
+            label={t(sending ? 'sendingAccept' : 'accept', locale)}
+            onPress={() => onAccept(job)}
+            disabled={sending}
+            flex
+          />
         </View>
       ) : (
         <View style={s.actions}>

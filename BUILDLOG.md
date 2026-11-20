@@ -13,19 +13,19 @@ Newest first, so the most recent work is always at the top. Each entry says what
 | | |
 |---|---|
 | **Phase** | Code done through 5. **Phase 1 field test never run — the gate was walked past.** See the revision at the top of BUILD_PLAN. |
-| **Brief** | Working through the 16 Nov staged brief. Stage 1 done (awaiting your phone install). Stage 2: 2.1–2.4, 2.6, 2.7, 2.10 done; **2.5, 2.8, 2.9 open**. |
-| **Tests** | 220 unit (122 packages + 98 app) + **171 database assertions**, all green in CI |
+| **Brief** | Working through the 16 Nov staged brief. Stage 1 done (awaiting your phone install). Stage 2: 2.1–2.7, 2.10 done; **2.8, 2.9 open**. |
+| **Tests** | 225 unit (122 packages + 103 app) + **177 database assertions**, all green in CI |
 | **App** | Signed release APK, **35.3 MB** (from 75.8), R8 on, ARM only. Shows `v0.1.0` on home; an `app_config` row tells old phones to update. **Install once:** JS changes reach a phone over the air. |
 | **Not yet done** | Never run on a physical device; sync never run against a hosted Supabase project |
 | **Blocking next step** | Setup: Maps key, hosted Supabase project, `expo prebuild` + APK, a phone, a 50 m tape |
 | **Repo** | [rahulbishnoi2929/zamindara](https://github.com/rahulbishnoi2929/zamindara) — private, CI green |
-| **Backend** | ✅ **Schema verified.** 22 migrations apply; all three guarantees hold. |
+| **Backend** | ✅ **Schema verified.** 23 migrations apply; all three guarantees hold. |
 
 ```
 C:\Zamidara\
 ├── docs\              16 product and engineering documents
-├── frontend\          Expo SDK 57 Android app — 98 tests
-├── backend\supabase\  22 migrations, RLS, dispatch functions — 171 assertions
+├── frontend\          Expo SDK 57 Android app — 103 tests
+├── backend\supabase\  23 migrations, RLS, dispatch functions — 177 assertions
 ├── packages\          units · geo · catalog · pricing · scheduling — 122 tests
 └── assets\            logo
 ```
@@ -58,6 +58,24 @@ The most useful part of this log. Each of these was believed, written down, then
 ---
 
 # Entries
+
+## 44 · 2.5 — an accept on a bad signal says "sending", and a retry is not a lost race
+
+**Asked:** an accept that has not reached the server shows "sending", never "accepted", and is dropped when the offer window ends.
+
+**What "working" meant:** the button reads *Sending…* and cannot be tapped twice while the accept is in flight; a failure is retried while the offer stands; when the job stops searching or 90 s pass, it is dropped and he is told; a retry of an accept that already landed is reported as his, not as taken.
+
+**Built:** `sendAccept` (`frontend/src/sendingAccept.ts`) tries, waits 5 s, checks the job is still `searching`, tries again, for at most 90 s — the window in TECH_ARCHITECTURE. Both the card button and the lock-screen Accept go through it, guarded so the two cannot send at once. Nothing is persisted: if the app dies, the attempt dies with it, which is the same as dropping it. The old "Check your signal and try again" message is gone — the phone now does the trying.
+
+**The bug the retry would have created.** If the first accept commits and only the reply is lost on 2G, a retry found the job no longer `searching` and `accept_job` raised 55006. The phone would have said **"Another captain took this job" about a job that was his**, and he goes home while the farmer waits for nobody. Migration 0023 puts a thin wrapper in front: a repeat accept by the holder returns the job and writes nothing. The original is renamed `accept_job_claim` rather than copied — its body holds the race guard, the pricing and two hard-won fixes — and closed to direct calls.
+
+**Raised, not decided:** the 90 s window exists only on the phone. Nothing on the server closes an offer; it stands until someone takes it or the day ends. Building server-side rounds is the real fix and is outside 2.5.
+
+**Verified by running:** 225 unit tests (5 new: lands on first try, through a dead patch, lost race not retried, dropped at the window, dropped when the job stops searching), typecheck clean, Android bundle exports. **Verified in CI:** 6 new DB assertions — retry by the holder lives, writes nothing (same `accepted_at`, same price, one audit row), another captain still gets 55006, the inner function is not callable. **Not verified:** on a phone. Manual check below.
+
+**Manual check on a phone:** (1) signed in as a verified, online captain, have a farmer post a job; (2) when it appears, switch on airplane mode and tap Accept — the button must read *ਭੇਜ ਰਹੇ ਹਾਂ…* and be greyed; (3) within 30 s switch airplane mode off — the card becomes accepted, no alert; (4) repeat with airplane mode left on — after about 90 s an alert says no signal reached the server and the job is not shown as his.
+
+---
 
 ## 43 · 2.7 — the lock-screen Accept could silently do nothing
 
