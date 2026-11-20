@@ -22,6 +22,8 @@ Almost every choice below falls out of these. Where a decision looks odd, it is 
 
 ## At a glance
 
+> **Superseded (20 Nov 2026):** Admin (Next.js on Vercel), SMS (MSG91) and Realtime in this table are not in use. There is no admin console; there is no SMS provider yet; sync is by polling. Current facts: [CURRENT_STATE.md](CURRENT_STATE.md).
+
 | Layer | Choice | Version |
 |---|---|---|
 | Language | **TypeScript** | 5.6 / 6.0 |
@@ -203,6 +205,8 @@ Expo wraps FCM and handles token registration and channel setup.
 
 ## Admin
 
+> **Superseded (20 Nov 2026):** not built and not planned. The brief forbids a separate admin web console; verifying captains, booking and assigning jobs are screens in the app. Current facts: [CURRENT_STATE.md](CURRENT_STATE.md).
+
 ### Next.js on Vercel
 
 **Where:** the founder's ops console — verifying captains, watching live jobs, resolving disputes.
@@ -212,6 +216,8 @@ Expo wraps FCM and handles token registration and channel setup.
 **Chosen over:** Retool — faster to build, but a monthly bill and another vendor. Supabase Studio alone covers Phase 2; a real console is Phase 7.
 
 ---
+
+> **Superseded (20 Nov 2026):** the test counts below (41, 24) are from August; geo now has 27. Current facts: [CURRENT_STATE.md](CURRENT_STATE.md).
 
 ## Our own code
 
@@ -257,6 +263,8 @@ That investment already paid for itself three times — the speed filter destroy
 ---
 
 ## What season one costs
+
+> **Superseded (20 Nov 2026):** Vercel is not used. Current costs: [COSTS.md](COSTS.md).
 
 | Service | Launch | ~1,000 users |
 |---|---|---|

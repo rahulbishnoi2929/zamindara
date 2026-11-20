@@ -14,6 +14,7 @@ Launching in **Fazilka district, Punjab**.
 
 | Document | What it covers |
 |---|---|
+| **[Current State](docs/CURRENT_STATE.md)** | **What exists today: folders, packages, counts, what is built. Wins over every other document.** |
 | [PRD](docs/PRD.md) | The anchor document. Problem, vision, users, scope, metrics, risks. |
 | **[Build Plan](docs/BUILD_PLAN.md)** | **Phase by phase: what to build, what to test, what to do. Start here to work.** |
 | [Architecture](docs/ARCHITECTURE.md) | The map of the code — folder by folder, frontend / shared logic / backend, and where new code goes. |
@@ -31,6 +32,8 @@ Launching in **Fazilka district, Punjab**.
 ## Code
 
 Frontend, shared logic, backend — the full tour is in [Architecture](docs/ARCHITECTURE.md).
+
+> **Superseded (20 Nov 2026):** these counts are from Phase 2 (12 migrations, 45 app tests). Current facts: [docs/CURRENT_STATE.md](docs/CURRENT_STATE.md).
 
 ```
 frontend/           Android app — measurement, onboarding, jobs, sync       45 tests

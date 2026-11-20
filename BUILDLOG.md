@@ -13,7 +13,7 @@ Newest first, so the most recent work is always at the top. Each entry says what
 | | |
 |---|---|
 | **Phase** | Code done through 5. **Phase 1 field test never run — the gate was walked past.** See the revision at the top of BUILD_PLAN. |
-| **Brief** | Working through the 16 Nov staged brief. Stage 1 done (awaiting your phone install). **Stages 4, 5 and 6 done.** Next: Stage 7, docs. Waiting on you: Supabase project, Firebase, first-phone test. |
+| **Brief** | Working through the 16 Nov staged brief. Stage 1 done (awaiting your phone install). **All seven stages of the brief are done.** Current facts: [docs/CURRENT_STATE.md](docs/CURRENT_STATE.md). Waiting on you: Supabase project, Firebase, first-phone test. |
 | **Tests** | 279 unit (125 packages + 154 app) + **287 database assertions** (run twice in CI: before and after a backup-and-restore) + **18-step end-to-end test** covering every server call, against a real database, all green in CI |
 | **App** | Signed release APK, **35.3 MB** (from 75.8), R8 on, ARM only. Shows `v0.1.0` on home; an `app_config` row tells old phones to update. **Install once:** JS changes reach a phone over the air. |
 | **Not yet done** | Never run on a physical device; sync never run against a hosted Supabase project |
@@ -67,6 +67,28 @@ The most useful part of this log. Each of these was believed, written down, then
 ---
 
 # Entries
+
+## 59 · Stage 7 — one page for what exists today
+
+**Asked:** create `docs/CURRENT_STATE.md` as the single source for folder names, the package list, the migration count, the test count and what is actually built. Mark superseded sections in the other docs instead of deleting them.
+
+**What "working" meant:** anyone opening the repo finds one page that is true today, and every older section that says otherwise points to it rather than misleading them.
+
+**Built:**
+- **`docs/CURRENT_STATE.md`.** It covers the real folder tree, the five packages with their test counts, the counts with the command that checks each, what is built (by area), what is deliberately not built, and what is not yet live. Every count on it was read from the repo or CI, not from memory. It is linked first in the README's document table.
+- **20 "Superseded" markers** across README, ARCHITECTURE, TECH_ARCHITECTURE, TECH_STACK, BUILD_PLAN, DATA_MODEL, MVP_SCOPE and USER_FLOWS. Nothing was deleted. The main corrections:
+  - the old `apps/`, `supabase/` and `apps/admin` folder trees;
+  - the Next.js and Vercel admin console (forbidden by the brief; the founder tools are in-app screens);
+  - i18next (a plain object is used), Supabase Realtime (sync polls) and MSG91 (no SMS provider yet);
+  - the server-side 90-second dispatch rounds, which were never built;
+  - `planned_route` (now route stops);
+  - "tap the corners" (now the crosshair);
+  - old test counts.
+- A script checked that no marker sits inside a code block. Markers in tables were moved above the table, so no table is broken.
+
+**Verified by running:** the counts on the page (`ls` of migrations, tests and functions; each package's test run); the fence check. **Not applicable:** no code changed.
+
+---
 
 ## 58 · Stage 6 — the draw screen: crosshair, zoom gate, rectangle snap
 

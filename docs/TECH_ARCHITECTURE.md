@@ -8,6 +8,8 @@ Chosen under one dominant constraint: **a solo, non-specialist founder must be a
 
 ## The stack
 
+> **Superseded (20 Nov 2026):** in the table below, Admin (Next.js on Vercel) is not built and will not be: founder tools are in the app. i18n is a plain object in `frontend/src/i18n.ts`, not i18next. Realtime is not used: the app syncs by polling. SMS: none yet; sign-in uses a founder code (Stage 1.2). Current facts: [CURRENT_STATE.md](CURRENT_STATE.md).
+
 | Layer | Choice | Why |
 |---|---|---|
 | Mobile | **React Native + Expo** (Android only) | One codebase, managed builds, OTA updates, no Android Studio |
@@ -98,6 +100,8 @@ Distance dominates. A tractor moving 15 km burns diesel and an hour, so a nearby
 
 **3. Broadcast** — v1 sends to the **top 5 simultaneously**, first to accept wins. Sequential offers (Uber-style) are fairer to captains but too slow when a farmer's crop is shattering in the field. Revisit once liquidity exists.
 
+> **Superseded (20 Nov 2026):** no server-side rounds or timeout are built. A "now" job is offered to the top five in one round; 90 seconds only bounds how long a phone retries an accept. A job for a later day is an open offer instead (Stage 4.8). Current facts: [CURRENT_STATE.md](CURRENT_STATE.md).
+
 **4. Timeout** — 90 seconds, then the next 5. After three rounds with no acceptance, notify the farmer and offer to widen the radius or reschedule.
 
 **5. On acceptance** — assign, cancel other dispatches, notify everyone, compute queue position and ETA.
@@ -151,6 +155,8 @@ Uses `expo-location` background tasks, batched uploads, and a distance filter so
 
 ## Cost projection
 
+> **Superseded (20 Nov 2026):** Vercel is not used. Current costs: [COSTS.md](COSTS.md).
+
 | Service | Launch | At ~1,000 users |
 |---|---|---|
 | Supabase | Free | $25/mo (Pro) |
@@ -175,6 +181,8 @@ road_km ≈ ST_Distance(captain, field) / 1000 × 1.3
 The 1.3 factor approximates road winding and is accurate enough for a surcharge tier. Calibrate against real trips in season one; upgrade to a routing API only if disputes appear.
 
 ---
+
+> **Superseded (20 Nov 2026):** the tree in this section (`apps/mobile`, `supabase/` at the root, "11 files", "functions/ empty", `apps/admin`) is out of date. Current facts: [CURRENT_STATE.md](CURRENT_STATE.md).
 
 ## Repository layout
 
@@ -206,6 +214,8 @@ types from the schema as `packages/types`. Both are planned, neither exists yet.
 ---
 
 ## Build order
+
+> **Superseded (20 Nov 2026):** step 10, the admin console, is dropped; founder tools are in the app. Current facts: [CURRENT_STATE.md](CURRENT_STATE.md).
 
 1. Supabase schema, PostGIS enabled, RLS policies, seed data
 2. `packages/units` + its test suite

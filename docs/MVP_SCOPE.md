@@ -17,6 +17,8 @@ Everything that does not serve that sentence is deferred.
 - Profile: name, village, photo
 
 ### Field mapping ★
+> **Superseded (20 Nov 2026):** corners are placed under a fixed crosshair with "Add corner", not by tapping, and only when zoomed in (Stage 6). Current facts: [CURRENT_STATE.md](CURRENT_STATE.md).
+
 - **Draw on satellite** — trace the field, tap the corners. The default method.
 - GPS boundary walk with live accuracy indicator, for fields not visible from above
 - Offline capture for the walk, sync on reconnect

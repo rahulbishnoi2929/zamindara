@@ -55,6 +55,8 @@ model.
 
 ---
 
+> **Superseded (20 Nov 2026):** the tree below shows `apps/` and `supabase/` at the root. They are `frontend/` and `backend/supabase/`, and there is no admin console workspace. Current facts: [CURRENT_STATE.md](CURRENT_STATE.md).
+
 ## The root
 
 ```
@@ -232,6 +234,8 @@ there, waiting).
 
 The lookup table for "I'm adding X":
 
+> **Superseded (20 Nov 2026):** no admin web console will be built (the brief forbids it; the founder tools are in-app screens), and server code lives in `backend/supabase/functions/`. Current facts: [CURRENT_STATE.md](CURRENT_STATE.md).
+
 | You're adding | It goes in | And also |
 |---|---|---|
 | A screen | `frontend/src/` + a case in `App.tsx`'s screen union | strings in `i18n.ts`, **all three languages** |
@@ -243,6 +247,8 @@ The lookup table for "I'm adding X":
 | Server-side dispatch | `supabase/functions/` | — |
 
 ---
+
+> **Superseded (20 Nov 2026):** "139 tests" below is old; see the counts. Current facts: [CURRENT_STATE.md](CURRENT_STATE.md).
 
 ## The commands
 

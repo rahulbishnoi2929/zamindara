@@ -60,6 +60,8 @@ Phases 6 and 10 are the two that matter. Everything before 6 exists to make 6 po
 
 Different phases need different proof. Reaching for the wrong kind wastes time and, worse, gives false confidence.
 
+> **Superseded (20 Nov 2026):** "Already 65 tests" is from August. Current facts: [CURRENT_STATE.md](CURRENT_STATE.md).
+
 | Layer | Applies to | How |
 |---|---|---|
 | **Unit** | `packages/units`, `packages/geo` | Vitest. Every conversion, every edge case. Already 65 tests. |
@@ -275,6 +277,8 @@ A 50 m fibreglass tape costs about ₹500–1,000 and is accurate to roughly 0.2
 - [ ] Seasonally reordered service grid (harvesting first in April, sowing in November)
 - [ ] Rate guidance — a *range* from recent nearby jobs, never a single number
 - [ ] Price calculation: `(area ÷ unit) × rate + travel beyond 5 km`
+> **Superseded (20 Nov 2026):** dispatch was built as database functions (`dispatch_job`, `eligible_captains`, `accept_job`), not an edge function, with one round to the top five and open offers for later-day jobs. No server timeout or rounds. Current facts: [CURRENT_STATE.md](CURRENT_STATE.md).
+
 - [ ] **Dispatch edge function**: eligibility query, scoring, broadcast to top 5, 90-second timeout, three rounds
 - [ ] Live matching screen showing who was pinged and who replied
 - [ ] Accept/decline, assignment, cancelling the other dispatches
@@ -371,6 +375,8 @@ A 50 m fibreglass tape costs about ₹500–1,000 and is accurate to roughly 0.2
 *December 2026*
 
 **Build**
+
+> **Superseded (20 Nov 2026):** no admin web console. Verifying captains, live jobs and intervening are founder screens in the app (Stages 3 and 4.1–4.2); metrics are a database view. Current facts: [CURRENT_STATE.md](CURRENT_STATE.md).
 
 - [ ] Next.js admin console on Vercel: verify captains, view live jobs, intervene, basic metrics
 - [ ] Two-way ratings

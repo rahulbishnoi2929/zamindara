@@ -78,6 +78,8 @@ Satellite map, centred by GPS on where he is standing — he is almost certainly
         └─────────────────────┘
 ```
 
+> **Superseded (20 Nov 2026):** the sketch above and these two lines describe tapping. Corners are now placed under a fixed ✛ crosshair with "+ Add corner", only at 400 m across or closer, and four corners can be squared with "Make it a rectangle" (Stage 6). Current facts: [CURRENT_STATE.md](CURRENT_STATE.md).
+
 - Tap each corner along the bund; corners are numbered so a mistake is obvious
 - Any point can be dragged afterwards
 - Area updates live from the third corner onward

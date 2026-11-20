@@ -68,6 +68,8 @@ create table captains (
   is_travelling   boolean not null default false,
   travel_until    date,
   planned_route   text[],                    -- ordered district names
+  -- SUPERSEDED (20 Nov 2026): no longer written. Routes are dated stops in
+  -- captain_route_stops, migration 0036. See CURRENT_STATE.md.
 
   rating_avg      numeric(3,2),
   rating_count    int not null default 0,
