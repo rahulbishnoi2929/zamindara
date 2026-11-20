@@ -5,7 +5,7 @@
 # has been miscounted by hand three times. Counting is a machine's job.
 set -euo pipefail
 
-ASSERTS='^select (ok|is|isnt|is_empty|isnt_empty|throws_ok|lives_ok|results_eq|set_eq|has_table|has_column|has_extension|has_function|col_is_pk)\('
+ASSERTS='^select (ok|is|isnt|is_empty|isnt_empty|throws_ok|lives_ok|results_eq|set_eq|has_table|has_column|has_extension|has_function|has_index|col_is_pk)\('
 fail=0
 
 for f in supabase/tests/*.test.sql; do

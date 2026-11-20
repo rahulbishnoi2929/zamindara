@@ -284,11 +284,14 @@ max_frequency = "5s"
 #  (Authentication > Sign In / Providers > Phone > Test Phone Numbers and
 #  OTPs) — never in this file. See docs/ONBOARDING_A_CAPTAIN.md.
 # ========================================================================
+# With the country code: the app sends +91XXXXXXXXXX and Auth matches test
+# numbers without the "+". Written as ten digits, these never matched — Auth
+# tried to send a real SMS instead. Caught by the end-to-end test.
 [auth.sms.test_otp]
-9876500001 = "100001"
-9876500002 = "100002"
-9876500003 = "100003"
-9876500004 = "100004"
+919876500001 = "100001"
+919876500002 = "100002"
+919876500003 = "100003"
+919876500004 = "100004"
 
 # Configure logged in session timeouts.
 # [auth.sessions]
@@ -308,12 +311,18 @@ max_frequency = "5s"
 # uri = "pg-functions://<database>/<schema>/<hook_name>"
 
 # Configure one of the supported SMS providers: `twilio`, `twilio_verify`, `messagebird`, `textlocal`, `vonage`.
+# Enabled with PLACEHOLDER credentials, deliberately. Supabase Auth refuses
+# every phone sign-in ("Unsupported phone provider") unless some SMS provider
+# is enabled — even for the test numbers above, whose code is fixed and to
+# which nothing is ever sent. Measured by the end-to-end test in CI on
+# 20 Nov 2026. These values are not secrets and cannot send anything; a
+# real number would fail to get a code, which is correct while there is no
+# SMS provider. Replace with a real provider only when DLT clears.
 [auth.sms.twilio]
-enabled = false
-account_sid = ""
-message_service_sid = ""
-# DO NOT commit your Twilio auth token to git. Use environment variable substitution instead:
-auth_token = "env(SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN)"
+enabled = true
+account_sid = "ACplaceholder0000000000000000000000"
+message_service_sid = "MGplaceholder0000000000000000000000"
+auth_token = "placeholder-not-a-secret"
 
 # Multi-factor-authentication is available to Supabase Pro plan.
 [auth.mfa]

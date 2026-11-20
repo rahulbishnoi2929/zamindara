@@ -47,7 +47,7 @@ jobs:
       # provider. A real captain's number must never join them.
       - name: Only fixture numbers in test_otp
         run: |
-          real=$(git grep -hE '^[0-9]{10,15}[[:space:]]*=' -- backend/supabase/config.toml                  | grep -vE '^(9876500001|9876500002|9876500003|9876500004)[[:space:]]*=' || true)
+          real=$(git grep -hE '^[0-9]{10,15}[[:space:]]*=' -- backend/supabase/config.toml                  | grep -vE '^(919876500001|919876500002|919876500003|919876500004)[[:space:]]*=' || true)
           if [ -n "$real" ]; then
             echo "::error::A phone number outside the fixture set is in config.toml. Real numbers must never be committed: supabase config push would make them permanent backdoors on the hosted project."
             echo "$real"
@@ -146,6 +146,25 @@ jobs:
 
       - name: Run guarantee tests
         run: supabase test db
+
+      # The core loop, run by the app's own sync code against this database:
+      # sign in, field, job, founder offers it, captain accepts and
+      # completes, farmer sees it done. Also measures what a sync pass
+      # downloads, which is how incremental sync is proven.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - run: npm ci
+        working-directory: .
+
+      - name: Core loop, end to end
+        run: |
+          eval "$(cd ../backend && supabase status -o env | sed 's/^/export /')"
+          E2E_SUPABASE_URL="$API_URL"           E2E_SUPABASE_ANON_KEY="$ANON_KEY"           E2E_SUPABASE_SERVICE_KEY="$SERVICE_ROLE_KEY"             npx vitest run e2e --reporter=verbose
+        working-directory: frontend
 
       # A backup that has never been restored does not count. Real rows go
       # in, get backed up and encrypted, the database is wiped back to what a

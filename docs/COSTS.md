@@ -11,7 +11,7 @@ Usage figures marked *est.* are estimates, not measurements. They assume about 1
 | Service | What for | Free limit (source) | 10 captains | 100 captains | At the limit |
 |---|---|---|---|---|---|
 | **Supabase** — database | Every field, job and profile | 500 MB per project ([pricing](https://supabase.com/pricing)) | < 5 MB *est.* | < 50 MB *est.* | Not stated for Free on the pricing page |
-| **Supabase** — egress | Every sync pass | 5 GB / month ([pricing](https://supabase.com/pricing)) | ~1 GB *est.* | **~5–10 GB *est.* — the first limit we hit.** See [below](#the-first-thing-that-breaks) | Not stated for Free on the pricing page |
+| **Supabase** — egress | Every sync pass | 5 GB / month ([pricing](https://supabase.com/pricing)) | < 0.5 GB *est.* | ~1 GB *est.* since incremental sync (entry 48); was ~5–10 GB | Not stated for Free on the pricing page |
 | **Supabase** — auth | Phone sign-in | 50,000 monthly active users ([pricing](https://supabase.com/pricing)) | ~110 | ~1,100 | — |
 | **Supabase** — edge functions | `notify-dispatch`, one call per dispatched job | 500,000 invocations / month ([pricing](https://supabase.com/pricing)) | < 1,000 | < 10,000 | — |
 | **Supabase** — projects | One project | 2 active; **paused after 1 week of inactivity** ([pricing](https://supabase.com/pricing)) | — | — | Paused project: the app cannot sync until you unpause it in the dashboard. Out of season, check weekly. |
@@ -30,14 +30,9 @@ GitHub minutes, measured: a CI run is 4 jobs of 1–2 minutes each, billed per j
 
 ## The first thing that breaks
 
-**Supabase egress, because sync downloads everything every time.** Measured in the code (`frontend/src/sync/sync.ts`), not estimated:
+**Was:** Supabase egress, because every sync pass re-downloaded every field and job. **Fixed in entry 48:** a pass now downloads only rows changed since the last one. Measured at 879 bytes for an idle pass, against about 880 bytes *per job ever held* before.
 
-- A farmer's pass re-downloads **all** his fields, boundaries included, and **all** his jobs.
-- A captain's pass re-downloads **every job he has ever been assigned**, completed ones included, with no limit.
-
-So the cost grows with the season. A captain with 150 completed jobs by late April pulls all 150 on every app open. The estimate of 5–10 GB/month at 100 captains is wide, because it depends on how many times a day he opens the app and whether responses travel compressed. Neither is measured.
-
-The brief already names the fix: pull only rows changed since the last sync, and limit every list. It is recorded rather than fixed, per Stage 3. **It needs doing before about 30 captains**, and the first real measurement is the Supabase dashboard's egress graph after a week with real captains.
+**Now:** Expo Update's **1,000 monthly active users** is the first free limit, at around 100 captains with their farmers. Beyond it, phones simply keep the JavaScript they have. That means a plan change, or self-hosting updates. Egress is worth re-measuring in the Supabase dashboard after the first real week.
 
 ## Not verified
 

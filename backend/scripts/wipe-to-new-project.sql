@@ -10,4 +10,15 @@ grant all on schema public to postgres, service_role;
 alter default privileges in schema public grant all on tables to postgres, anon, authenticated, service_role;
 alter default privileges in schema public grant all on functions to postgres, anon, authenticated, service_role;
 alter default privileges in schema public grant all on sequences to postgres, anon, authenticated, service_role;
-truncate auth.users cascade;
+-- Every Auth table, not just users: a new project has no sign-in history
+-- either, and the end-to-end test's logins leave audit rows that would
+-- otherwise collide with the restored ones.
+do $$
+declare t text;
+begin
+  for t in select format('%I.%I', schemaname, tablename) from pg_tables
+           where schemaname = 'auth' and tablename <> 'schema_migrations'
+  loop
+    execute 'truncate ' || t || ' cascade';
+  end loop;
+end $$;

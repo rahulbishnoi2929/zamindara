@@ -110,6 +110,21 @@ export function polygonToGeoJson(points: readonly LatLng[]): GeoJsonPolygon | nu
   };
 }
 
+/**
+ * Geometry as the database will take it on write: EWKT text.
+ *
+ * Sending the GeoJSON object itself fails — PostgREST hands the column its
+ * JSON text and PostGIS's geography input parses WKT, not GeoJSON ("parse
+ * error - invalid geometry"). Unit tests of the mapping could not see that;
+ * the end-to-end test against a real database did, on 20 Nov 2026. Until
+ * then no field measured on a phone had ever reached the server.
+ */
+export function toEwkt(g: GeoJsonPolygon | GeoJsonPoint): string {
+  if (g.type === 'Point') return `SRID=4326;POINT(${g.coordinates[0]} ${g.coordinates[1]})`;
+  const ring = g.coordinates[0]!.map(([lng, lat]) => `${lng} ${lat}`).join(',');
+  return `SRID=4326;POLYGON((${ring}))`;
+}
+
 export function geoJsonToPolygon(value: unknown): LatLng[] | null {
   if (typeof value !== 'object' || value === null) return null;
   const g = value as { type?: unknown; coordinates?: unknown };
@@ -150,7 +165,8 @@ const captureMethodOf = (method: string): 'drawn' | 'walked' =>
 export interface WireFieldInsert {
   id?: string;
   name: string;
-  boundary: GeoJsonPolygon;
+  /** EWKT; see toEwkt. */
+  boundary: string;
   capture_method: 'drawn' | 'walked';
   gps_accuracy_m: number | null;
   /** The farmer attested to this boundary in the app, on the capture screen. */
@@ -180,7 +196,7 @@ export function fieldToWire(field: SavedField): WireFieldInsert | null {
   return {
     ...(isUuid(field.id) ? { id: field.id } : {}),
     name: field.name.trim().length > 0 ? field.name.trim() : 'Field',
-    boundary,
+    boundary: toEwkt(boundary),
     capture_method: captureMethodOf(field.method),
     gps_accuracy_m: field.meanAccuracyM > 0 ? Math.round(field.meanAccuracyM * 100) / 100 : null,
     confirmed_by_owner: true,
@@ -552,4 +568,79 @@ export function keepJustPushed<T extends { id: string }>(
   return merged.map((item) =>
     pushedIds.has(item.id) ? byId.get(item.id) ?? item : item,
   );
+}
+
+// ---------------------------------------------------------------------------
+// Incremental sync
+//
+// A phone asks only for rows changed since the newest updated_at it has
+// seen. The cursor is always a server timestamp, never the phone's clock.
+// ---------------------------------------------------------------------------
+
+/**
+ * How far back to ask from. Five minutes before the cursor: updated_at is
+ * stamped when a transaction starts, so one that commits late can carry a
+ * time older than rows already seen. Re-reading the overlap costs a few rows
+ * per pass and the merge is by id, so a row read twice is harmless.
+ *
+ * ponytail: five minutes is longer than any transaction here; a very slow
+ * one would need xmin-based change tracking instead.
+ */
+export function sinceCursor(cursor: string | null): string | null {
+  if (cursor === null) return null;
+  const at = Date.parse(cursor.replace(' ', 'T').replace(/(\.\d{3})\d+/, '$1'));
+  if (Number.isNaN(at)) return null;
+  return new Date(at - 5 * 60_000).toISOString();
+}
+
+/** The newest updated_at among the rows, or the cursor if none is newer. */
+export function advanceCursor(
+  cursor: string | null,
+  rows: ReadonlyArray<{ updated_at: string }>,
+): string | null {
+  let best = cursor;
+  let bestAt = cursor === null ? -Infinity : Date.parse(cursor);
+  for (const r of rows) {
+    const at = Date.parse(r.updated_at);
+    if (at > bestAt) {
+      best = r.updated_at;
+      bestAt = at;
+    }
+  }
+  return best;
+}
+
+/** How far along its life a job is. Sync may only push forward, never back. */
+export const STATUS_RANK: Record<JobStatus, number> = {
+  searching: 0,
+  accepted: 1,
+  en_route: 2,
+  in_progress: 3,
+  completed: 4,
+  cancelled: 4,
+  // An ending, like the other two: the phone must never push 'searching'
+  // back over a job the server has already let lapse.
+  expired: 4,
+};
+
+/** What the server last said about a job, remembered between passes. */
+export interface KnownJob {
+  status: string;
+  hasFinal: boolean;
+}
+
+/**
+ * Does this job need writing to the server?
+ *
+ * Decided against what the server last said, not against this pass's pull:
+ * with incremental pulls an unchanged job is simply absent, and treating
+ * "absent" as "never seen" re-inserted every job on every pass.
+ */
+export function needsPush(job: Job, known: KnownJob | undefined): 'insert' | 'update' | null {
+  if (known === undefined) return 'insert';
+  const localRank = STATUS_RANK[job.status];
+  const serverRank = STATUS_RANK[known.status as JobStatus] ?? 0;
+  if (localRank > serverRank) return 'update';
+  if (localRank === serverRank && job.finalAmount !== null && !known.hasFinal) return 'update';
+  return null;
 }

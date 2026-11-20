@@ -13,19 +13,19 @@ Newest first, so the most recent work is always at the top. Each entry says what
 | | |
 |---|---|
 | **Phase** | Code done through 5. **Phase 1 field test never run — the gate was walked past.** See the revision at the top of BUILD_PLAN. |
-| **Brief** | Working through the 16 Nov staged brief. Stage 1 done (awaiting your phone install). **Stage 3 done** — stopped to report. Next: Stage 4 (a design note per item, your OK before each). |
-| **Tests** | 244 unit (122 packages + 122 app) + **191 database assertions** (run twice in CI: before and after a backup-and-restore), all green in CI |
+| **Brief** | Working through the 16 Nov staged brief. Stage 1 done (awaiting your phone install). **Stage 3 done; sync fixed and proven end to end.** Next: clearing what sets us back, then Stage 4. |
+| **Tests** | 251 unit (122 packages + 129 app) + **207 database assertions** (run twice in CI: before and after a backup-and-restore) + **7-step end-to-end core loop** against a real database, all green in CI |
 | **App** | Signed release APK, **35.3 MB** (from 75.8), R8 on, ARM only. Shows `v0.1.0` on home; an `app_config` row tells old phones to update. **Install once:** JS changes reach a phone over the air. |
 | **Not yet done** | Never run on a physical device; sync never run against a hosted Supabase project |
 | **Blocking next step** | Setup: Maps key, hosted Supabase project, `expo prebuild` + APK, a phone, a 50 m tape |
 | **Repo** | [rahulbishnoi2929/zamindara](https://github.com/rahulbishnoi2929/zamindara) — private, CI green |
-| **Backend** | ✅ **Schema verified.** 25 migrations apply; all three guarantees hold. |
+| **Backend** | ✅ **Schema verified.** 29 migrations apply; all three guarantees hold. |
 
 ```
 C:\Zamidara\
 ├── docs\              16 product and engineering documents
-├── frontend\          Expo SDK 57 Android app — 122 tests
-├── backend\supabase\  25 migrations, RLS, dispatch functions — 191 assertions
+├── frontend\          Expo SDK 57 Android app — 129 tests + e2e
+├── backend\supabase\  29 migrations, RLS, dispatch functions — 207 assertions
 ├── packages\          units · geo · catalog · pricing · scheduling — 122 tests
 └── assets\            logo
 ```
@@ -54,6 +54,8 @@ The most useful part of this log. Each of these was believed, written down, then
 | 12 | Push was wired (entry 31) and the local ping showed the real presentation | **No Android phone could receive a remote push**, and the local ping was never loud | Expo push reaches Android only through Firebase Cloud Messaging, and no FCM project exists. And `trigger: null` posts to Expo's *default* channel, not the max-importance one the comment promised. Found while building the loud-ping switch and the cost ledger. |
 | 13 | Supabase's documented backup and restore is a safe copy | **It came back with two locked functions open to anyone** | pg_dump writes grants relative to plain Postgres, so a new project's automatic grants to `anon` survive and `REVOKE … FROM anon` is never written. Every row count matched; only re-running the security tests on the restored copy caught it. |
 
+| 14 | Sync worked: 200+ unit tests on the mapping, typecheck clean, bundle builds | **No field, no job and no job update had ever travelled between a phone and the server** | Seven separate faults, each invisible to unit tests and each found by the first test that ran the app's real sync against a real database: test numbers without the country code; Auth refusing phone sign-in with no SMS provider enabled; geometry sent as GeoJSON, which a geography column cannot parse; no `owner_id`/`farmer_id` sent, so RLS refused every insert; the upsert checked against a read policy that cannot see a row not yet inserted; the farmer's job query joining through the wrong foreign key (twice); and fields read back as binary the phone cannot decode. |
+
 | 10 | The distance surcharge was built — pricing library, schema columns, server function, twenty tests | **It was applied to nothing.** `travel_charge` was 0 on every job ever created | The app priced a job at *posting* time, when there is no captain and so no distance, and nothing ever priced it again. A combine 25 km out earned exactly what one in the next village earned. `accept_job` now prices the job at the one moment all three unknowns — whose rate, how far, which machine — are known. |
 
 **Rule that came out of this:** when a measurement contradicts a plan, the measurement wins. It is written into [BUILD_PLAN](docs/BUILD_PLAN.md#standing-rules).
@@ -61,6 +63,53 @@ The most useful part of this log. Each of these was believed, written down, then
 ---
 
 # Entries
+
+## 48 · Sync pulls only what changed — and the first real run of sync found it had never worked
+
+**Asked:** fix the sync first, then counter everything that is setting us back.
+
+**What "working" meant:** a sync pass downloads only rows changed since the last one; nothing is re-inserted or lost; and the whole core loop runs, by the app's own code, against a real database.
+
+### The fix that was asked for
+
+- **Each stream remembers the newest server timestamp it has seen.** The streams are fields, my jobs and assigned jobs. Each pass asks only for rows changed since then, oldest first, 200 at most, and re-reads a 5-minute overlap so a late-committing transaction cannot slip past. The cursor is always the server's time, never the phone's.
+- **Named indexes behind each query:** `jobs_farmer_updated_idx`, `jobs_captain_updated_idx` and `fields_owner_updated_idx`.
+- **Making or answering an offer now moves the job's `updated_at`** (a trigger, with no audit row). Without that, the farmer's "offered to N captains" would never change under incremental sync.
+- **"Absent from this pull" no longer means "the server has never seen it".** The phone remembers what the server last said about each job, and pushes from that. Under incremental pulls the old rule would have re-inserted every job on every pass.
+- **Offers are still read in full each pass** (capped at 50), so an offer another captain took disappears from this captain's screen. Before, it stayed there as "searching".
+- **If a phone holds nothing locally, it starts from the beginning**, whatever the cursors say.
+
+**Measured:** an idle pass downloads **879 bytes**, which is the one job inside the overlap. Before, every pass re-sent every job ever, about 880 bytes each.
+
+### The test that did not exist, and what it found
+
+Your brief required an end-to-end CI test of the core loop, and none had been built. `frontend/e2e/core-loop.test.ts` now runs the app's real `sync.ts` against the CI database. A farmer signs in with a fixture test number, saves a field and posts a job; the founder offers it by hand; the captain accepts, goes en route, starts and completes with ₹4,200; the farmer sees it done with the captain named; and a phone with no local copy gets everything back.
+
+**It failed at almost every step, and every failure was real (reversal 14).** Before today, no field, no job and no job update had ever travelled between a phone and the server:
+
+| # | Fault | Fix |
+|---|---|---|
+| 1 | The fixture test numbers lacked the `91`, so Auth never matched them and tried to send a real SMS | Country code added; CI whitelist updated |
+| 2 | Auth refuses any phone sign-in unless *some* SMS provider is enabled, even for test numbers | Twilio enabled locally with **placeholder** credentials, which never send anything |
+| 3 | Boundaries sent as GeoJSON; a geography column parses WKT, so "invalid geometry" | Sent as EWKT (`toEwkt`, tested) |
+| 4 | No `owner_id` or `farmer_id` was sent, and the policies require them, so every insert was refused | Server defaults them to the signed-in user (migration 0027). Naming someone else is still refused (tested) |
+| 5 | The field upsert is checked against the read policy, and `can_see_field(id)` cannot see a row not yet inserted | An owner-reads-own policy (0028). Grants nothing new |
+| 6 | The farmer's job query joined `jobs→profiles` through `captain_id`, which points at `captains`, and then `captains→profiles` ambiguously | Two named hops |
+| 7 | Fields came back as hex EWKB, which the phone cannot parse, so every pulled field was dropped | `boundary_geojson` computed column (0029) |
+
+Also fixed on the way:
+- **Profiles and fields now get a region** (the single live one, and the owner's). Nothing set one before, so every per-region number was empty.
+- **Sync now logs a failed pull instead of swallowing it.** Silence is how fault 6 survived.
+- **The restore-proof wipe now empties all of Auth**, as a new project has it.
+
+**Verified by running:** 251 unit tests (6 new), typecheck clean, bundle exports. **In CI:** the 7-step core loop passes against a real Supabase stack; 207 database assertions (16 new) pass before and after the backup-and-restore.
+
+**Not verified:**
+- **On a phone.** Every fault above would have shown on day one with real captains, which is the strongest argument for doing Stage 1's phone install now.
+- **Whether the hosted dashboard needs the same placeholder SMS provider.** Fault 2 is measured locally only. The onboarding doc now says what to do.
+- **The real egress saving at scale.** The 879-byte figure is one farmer with one job.
+
+---
 
 ## 47 · Stage 3 — running on nothing: backup, switches, metrics, costs
 

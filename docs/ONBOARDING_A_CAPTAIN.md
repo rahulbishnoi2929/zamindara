@@ -145,12 +145,14 @@ captains' accounts, and they outlive the reason they existed.
 
 ## What this does not cover
 
-- **Whether the dashboard accepts test numbers with no SMS provider
-  configured.** Supabase's own documentation says a provider must be set up
-  even though nothing is sent to test numbers, and does not say a
-  placeholder works on a hosted project — only on a local one. If the
-  dashboard refuses to save without credentials, stop and tell me: the
-  answer changes what this document says, and choosing an SMS provider is
-  not my decision to make.
+- **The hosted project needs an SMS provider enabled, even for test numbers.**
+  Measured locally on 20 Nov 2026: Supabase Auth refuses every phone
+  sign-in ("Unsupported phone provider") until *some* provider is enabled,
+  even though nothing is sent to a test number. Locally the fix is Twilio
+  with placeholder credentials (see `config.toml`). On the hosted
+  dashboard, try the same: **Authentication → Sign In / Providers → Phone**,
+  enable it, choose Twilio, and enter placeholder values. If the dashboard
+  refuses to save placeholders, stop and tell me: choosing a real SMS
+  provider is not my decision to make.
 - Farmers. They sign in the same way, but there is no verification step and
   no machines — they go straight to measuring a field.

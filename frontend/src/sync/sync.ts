@@ -4,7 +4,14 @@ import { isBackendConfigured, supabase } from '../supabase';
 import { currentSession } from '../auth';
 import type { Job, JobStatus } from '../jobs';
 import { isCaptain, type Profile } from '../profile';
-import { loadCachedAppConfig, saveAppConfig, saveField, type SavedField } from '../storage';
+import {
+  loadCachedAppConfig,
+  loadUi,
+  saveAppConfig,
+  saveField,
+  saveUi,
+  type SavedField,
+} from '../storage';
 import {
   captainMachinesToWire,
   captainRatesToWire,
@@ -14,10 +21,15 @@ import {
   jobEditsToWire,
   jobFromWire,
   jobToWire,
+  advanceCursor,
   keepJustPushed,
+  type KnownJob,
+  needsPush,
+  sinceCursor,
   localProfileIsNewer,
   mergeById,
   pointToGeoJson,
+  toEwkt,
   profileFromWire,
   profileToWire,
 } from './mapping';
@@ -153,9 +165,9 @@ export async function syncProfile(profile: Profile): Promise<Profile | null> {
 
 async function pushCaptainSide(profile: Profile, uid: string): Promise<boolean> {
   if (profile.baseLocation === null) return false;
-  const base = pointToGeoJson(profile.baseLocation);
+  const base = toEwkt(pointToGeoJson(profile.baseLocation));
   const current =
-    profile.currentLocation === null ? null : pointToGeoJson(profile.currentLocation);
+    profile.currentLocation === null ? null : toEwkt(pointToGeoJson(profile.currentLocation));
 
   // Upsert, not update: the captains row is born the first time a located
   // captain syncs. Verification is deliberately absent from this write —
@@ -225,6 +237,36 @@ async function pushCaptainSide(profile: Profile, uid: string): Promise<boolean> 
 }
 
 // ---------------------------------------------------------------------------
+// Incremental pulls
+//
+// Each stream remembers the newest server updated_at it has seen and asks
+// only for rows changed since then, oldest first, a page at a time. A full
+// page means there is more; the next pass carries on from where this one
+// stopped. Cursors are per signed-in user, so a phone handed to someone
+// else starts from nothing rather than from the last person's place.
+// ---------------------------------------------------------------------------
+
+/**
+ * Rows per stream per pass.
+ *
+ * ponytail: one page per pass. A first sync of a farmer with more than this
+ * many jobs fills in over several passes, oldest first; page in a loop if
+ * that ever shows.
+ */
+const PAGE = 200;
+
+const cursorKey = (uid: string, stream: string) => `sync/${uid}/${stream}`;
+
+async function loadCursor(uid: string, stream: string): Promise<string | null> {
+  const c = await loadUi(cursorKey(uid, stream));
+  return typeof c === 'string' ? c : null;
+}
+
+async function saveCursor(uid: string, stream: string, cursor: string | null): Promise<void> {
+  if (cursor !== null) await saveUi(cursorKey(uid, stream), cursor);
+}
+
+// ---------------------------------------------------------------------------
 // Fields
 // ---------------------------------------------------------------------------
 
@@ -267,11 +309,25 @@ export async function syncFields(fields: SavedField[]): Promise<SavedField[]> {
     next = next.map((x) => (x.id === f.id ? synced : x));
   }
 
-  const pulled = await supabase
+  const uid = session.user.id;
+  // Nothing held locally means start over, whatever the cursor says: data
+  // cleared on the phone must come back, not be "unchanged since".
+  const cursor = fields.length === 0 ? null : await loadCursor(uid, 'fields');
+  const since = sinceCursor(cursor);
+  // Index: fields_owner_updated_idx (owner_id, updated_at).
+  let query = supabase
     .from('fields')
-    .select('id, name, boundary, area_sqm, capture_method, gps_accuracy_m, created_at')
-    .eq('owner_id', session.user.id);
-  if (pulled.error !== null) return next;
+    // boundary as GeoJSON via the computed column (0029); the raw column
+    // arrives as hex EWKB, which nothing on the phone can read.
+    .select('id, name, boundary:boundary_geojson, area_sqm, capture_method, gps_accuracy_m, created_at, updated_at')
+    .eq('owner_id', uid);
+  if (since !== null) query = query.gte('updated_at', since);
+  const pulled = await query.order('updated_at').limit(PAGE);
+  if (pulled.error !== null) {
+    console.warn('sync: fields pull failed:', pulled.error.message);
+    return next;
+  }
+  await saveCursor(uid, 'fields', advanceCursor(cursor, pulled.data as Array<{ updated_at: string }>));
 
   const remote: SavedField[] = [];
   for (const row of pulled.data as never[]) {
@@ -284,19 +340,6 @@ export async function syncFields(fields: SavedField[]): Promise<SavedField[]> {
 // ---------------------------------------------------------------------------
 // Jobs
 // ---------------------------------------------------------------------------
-
-/** How far along its life a job is. Sync may only push forward, never back. */
-const STATUS_RANK: Record<JobStatus, number> = {
-  searching: 0,
-  accepted: 1,
-  en_route: 2,
-  in_progress: 3,
-  completed: 4,
-  cancelled: 4,
-  // An ending, like the other two: the phone must never push 'searching'
-  // back over a job the server has already let lapse.
-  expired: 4,
-};
 
 interface PulledJob {
   /**
@@ -326,6 +369,7 @@ interface PulledJob {
     payment_mode: 'cash' | 'upi' | 'pending' | null;
     notes: string | null;
     created_at: string;
+    updated_at: string;
     accepted_at: string | null;
     started_at: string | null;
     completed_at: string | null;
@@ -363,8 +407,14 @@ async function pullJobs(
   myName: string,
   myVillage: string,
   captainSide: boolean,
-): Promise<PulledJob[]> {
+  fresh: boolean,
+): Promise<{ pulled: PulledJob[]; offerIds: Set<string> | null }> {
+  const since = async (stream: string) => (fresh ? null : sinceFor(uid, stream));
+  const cursorOf = async (stream: string) => (fresh ? null : loadCursor(uid, stream));
   const out: PulledJob[] = [];
+  // The open offers, complete. Null when they could not be read, which
+  // must not be mistaken for "he has no offers".
+  let offerIds: Set<string> | null = null;
 
   const farmerView = await supabase
     .from('jobs')
@@ -372,20 +422,40 @@ async function pullJobs(
       // job_dispatch(count) and ratings ride along in the same round trip.
       // On a 2G connection in a field, extra queries to answer "has anyone
       // been asked yet" and "did I already rate this" are not worth the wait.
-      '*, field:fields(name), captain:profiles!jobs_captain_id_fkey(full_name), job_dispatch(count), ratings(stars, rater_id)',
+      // jobs.captain_id references captains, not profiles, so the name is
+      // two hops away — and captains links to profiles twice (profile_id,
+      // verified_by), so the second hop is named too. Written as one hop,
+      // PostgREST refused the whole
+      // query and no farmer ever saw a job change — found by the
+      // end-to-end test, 20 Nov 2026.
+      '*, field:fields(name), captain:captains!jobs_captain_id_fkey(profile:profiles!captains_profile_id_fkey(full_name)), job_dispatch(count), ratings(stars, rater_id)',
     )
-    .eq('farmer_id', uid);
+    .eq('farmer_id', uid)
+    // Index: jobs_farmer_updated_idx (farmer_id, updated_at). An offer
+    // made or answered moves updated_at too (0026), so the count he sees
+    // still changes.
+    .gte('updated_at', (await since('farmer-jobs')) ?? '-infinity')
+    .order('updated_at')
+    .limit(PAGE);
+  // Logged, not thrown: the pass carries on with what it has. But silence
+  // here is how a query that never worked went unnoticed.
+  if (farmerView.error !== null) console.warn('sync: farmer jobs pull failed:', farmerView.error.message);
   if (farmerView.error === null) {
+    await saveCursor(
+      uid,
+      'farmer-jobs',
+      advanceCursor(await cursorOf('farmer-jobs'), farmerView.data as Array<{ updated_at: string }>),
+    );
     for (const raw of farmerView.data as never[]) {
       const r = raw as {
         field?: { name?: string };
-        captain?: { full_name?: string } | null;
+        captain?: { profile?: { full_name?: string } | null } | null;
       };
       out.push({
         row: raw as PulledJob['row'],
         fieldName: (r.field?.name as string | undefined) ?? '',
         village: myVillage,
-        captainName: (r.captain?.full_name as string | undefined) ?? null,
+        captainName: (r.captain?.profile?.full_name as string | undefined) ?? null,
         distanceKm: null,
         offeredCount: readCount(raw),
         myRating: myStars(raw, uid),
@@ -398,8 +468,19 @@ async function pullJobs(
       .from('jobs')
       .select('*, field:fields(name), farmer:profiles!jobs_farmer_id_fkey(full_name, village)')
       .eq('captain_id', uid)
-      .in('status', ['accepted', 'en_route', 'in_progress', 'completed']);
+      .in('status', ['accepted', 'en_route', 'in_progress', 'completed'])
+      // Index: jobs_captain_updated_idx. This was every job he had ever
+      // done, on every pass — the stream that grew all season.
+      .gte('updated_at', (await since('captain-jobs')) ?? '-infinity')
+      .order('updated_at')
+      .limit(PAGE);
+    if (assigned.error !== null) console.warn('sync: assigned jobs pull failed:', assigned.error.message);
     if (assigned.error === null) {
+      await saveCursor(
+        uid,
+        'captain-jobs',
+        advanceCursor(await cursorOf('captain-jobs'), assigned.data as Array<{ updated_at: string }>),
+      );
       for (const raw of assigned.data as never[]) {
         const r = raw as { field?: { name?: string }; farmer?: { village?: string } | null };
         out.push({
@@ -421,8 +502,14 @@ async function pullJobs(
       )
       .eq('captain_id', uid)
       .eq('response', 'pending')
-      .eq('job.status', 'searching');
+      .eq('job.status', 'searching')
+      // Pulled whole every pass, because an offer that disappears (someone
+      // else took it) must disappear from his screen too. Small by nature:
+      // a handful of open offers, capped all the same.
+      .limit(50);
+    if (offers.error !== null) console.warn('sync: offers pull failed:', offers.error.message);
     if (offers.error === null) {
+      offerIds = new Set();
       for (const raw of offers.data as never[]) {
         const d = raw as {
           distance_km: number | null;
@@ -432,6 +519,7 @@ async function pullJobs(
           } & PulledJob['row'];
         };
         if (d.job === undefined) continue;
+        offerIds.add(d.job.id);
         out.push({
           row: d.job,
           fieldName: (d.job.field?.name as string | undefined) ?? '',
@@ -443,7 +531,11 @@ async function pullJobs(
     }
   }
 
-  return out;
+  return { pulled: out, offerIds };
+}
+
+async function sinceFor(uid: string, stream: string): Promise<string | null> {
+  return sinceCursor(await loadCursor(uid, stream));
 }
 
 /**
@@ -476,16 +568,35 @@ export async function syncJobs(
   // the pool clean, and there is no scheduler to run.
   await supabase.rpc('expire_stale_jobs');
 
-  const pulled = await pullJobs(uid, profile.fullName, profile.village, isCaptain(profile));
-  const serverById = new Map(pulled.map((p) => [p.row.id, p]));
+  const { pulled, offerIds } = await pullJobs(
+    uid,
+    profile.fullName,
+    profile.village,
+    isCaptain(profile),
+    // Nothing held locally: start over, whatever the cursors say.
+    jobs.length === 0,
+  );
+
+  // What the server last said about each job, kept between passes. With
+  // incremental pulls an unchanged job is not in this pass's pull, so the
+  // pull alone can no longer answer "has the server got this one?".
+  const knownKey = cursorKey(uid, 'known-jobs');
+  const known = ((await loadUi(knownKey)) ?? {}) as Record<string, KnownJob & { offer?: boolean }>;
+  for (const p of pulled) {
+    known[p.row.id] = {
+      status: p.row.status,
+      hasFinal: p.row.final_amount !== null,
+      ...(offerIds?.has(p.row.id) ? { offer: true } : {}),
+    };
+  }
 
   const pushed = new Set<string>();
 
   for (const job of jobs) {
     if (!isUuid(job.id)) continue;
-    const server = serverById.get(job.id);
+    const action = needsPush(job, known[job.id]);
 
-    if (server === undefined) {
+    if (action === 'insert') {
       // The server has never seen it — an offline post. Insert it and put
       // it on offer. (Its field must already be a server row; jobToWire
       // refuses otherwise and it waits for the next pass.)
@@ -499,21 +610,20 @@ export async function syncJobs(
         });
         if (typeof offered === 'number' && offered > 0) await notifyDispatch(job.id);
         pushed.add(job.id);
+        known[job.id] = { status: job.status, hasFinal: job.finalAmount !== null };
       }
       continue;
     }
 
-    const localRank = STATUS_RANK[job.status];
-    const serverRank = STATUS_RANK[server.row.status as JobStatus] ?? 0;
-    const amountsMissing =
-      job.finalAmount !== null && server.row.final_amount === null;
-
-    if (localRank > serverRank || (localRank === serverRank && amountsMissing)) {
+    if (action === 'update') {
       const updated = await supabase
         .from('jobs')
         .update(jobEditsToWire(job))
         .eq('id', job.id);
-      if (updated.error === null) pushed.add(job.id);
+      if (updated.error === null) {
+        pushed.add(job.id);
+        known[job.id] = { status: job.status, hasFinal: job.finalAmount !== null };
+      }
     }
   }
 
@@ -529,12 +639,12 @@ export async function syncJobs(
   // up captains who have come online since.
   for (const job of jobs) {
     if (job.status !== 'searching' || !isUuid(job.id)) continue;
-    const known = serverById.get(job.id);
-    if (known === undefined && !pushed.has(job.id)) continue;
+    const seen = known[job.id];
+    if (seen === undefined || seen.offer === true) continue;
     // The sweep above may have just let it lapse. The local copy still says
     // 'searching' until the merge below, and dispatching an expired job is
     // refused anyway — this skips a pointless round trip per stale job.
-    if (known !== undefined && known.row.status !== 'searching') continue;
+    if (seen.status !== 'searching') continue;
     const { data: offered } = await supabase.rpc('dispatch_job', {
       p_job_id: job.id,
     });
@@ -559,9 +669,25 @@ export async function syncJobs(
     if (local !== null) remote.push(local);
   }
 
+  // An offer someone else took, or that lapsed, is no longer in the open
+  // set. With full pulls it lingered on his screen as "searching" anyway;
+  // drop it, but only when the offers were actually read this pass.
+  const gone = new Set<string>();
+  if (offerIds !== null) {
+    for (const [id, k] of Object.entries(known)) {
+      if (k.offer === true && !offerIds.has(id)) {
+        gone.add(id);
+        delete known[id];
+      }
+    }
+  }
+  await saveUi(knownKey, known);
+
   // The pull predates this pass's writes, so anything just pushed must win
   // until the next pass confirms it.
-  return keepJustPushed(mergeById(jobs, remote), jobs, pushed);
+  return keepJustPushed(mergeById(jobs, remote), jobs, pushed).filter(
+    (j) => !gone.has(j.id) || j.status !== 'searching',
+  );
 }
 
 // ---------------------------------------------------------------------------

@@ -3,6 +3,10 @@ import type { Job } from '../jobs';
 import type { Profile } from '../profile';
 import type { SavedField } from '../storage';
 import {
+  toEwkt,
+  advanceCursor,
+  needsPush,
+  sinceCursor,
   captainMachinesToWire,
   captainRatesToWire,
   fieldFromWire,
@@ -519,5 +523,65 @@ describe('keeping what was just pushed', () => {
     const out = keepJustPushed(merged, local, new Set(['a', 'b']));
     expect(out).toHaveLength(3);
     expect(out.map((j) => j.id)).toEqual(['a', 'b', 'c']);
+  });
+});
+
+describe('incremental sync', () => {
+  it('re-reads a five-minute overlap, so a slow transaction cannot slip past', () => {
+    expect(sinceCursor(null)).toBeNull();
+    expect(sinceCursor('2026-11-20T10:05:00.000Z')).toBe('2026-11-20T10:00:00.000Z');
+    // Postgres sends microseconds and an offset; still read as an instant.
+    expect(sinceCursor('2026-11-20 15:35:00.123456+05:30')).toBe('2026-11-20T10:00:00.123Z');
+    expect(sinceCursor('not a date')).toBeNull();
+  });
+
+  it('the cursor only moves forward, to the newest row the server sent', () => {
+    const rows = [
+      { updated_at: '2026-11-20T10:00:00Z' },
+      { updated_at: '2026-11-20T11:00:00Z' },
+      { updated_at: '2026-11-20T09:00:00Z' },
+    ];
+    expect(advanceCursor(null, rows)).toBe('2026-11-20T11:00:00Z');
+    expect(advanceCursor('2026-11-20T12:00:00Z', rows)).toBe('2026-11-20T12:00:00Z');
+    expect(advanceCursor('2026-11-20T08:00:00Z', [])).toBe('2026-11-20T08:00:00Z');
+  });
+});
+
+describe('needsPush', () => {
+  const job = (over: Partial<Job>): Job => ({ status: 'searching', finalAmount: null, ...over }) as Job;
+
+  it('inserts only a job the server has never been seen to hold', () => {
+    expect(needsPush(job({}), undefined)).toBe('insert');
+    // Unchanged since the last pull is not "unknown": no second insert.
+    expect(needsPush(job({}), { status: 'searching', hasFinal: false })).toBeNull();
+  });
+
+  it('pushes a status the phone moved forward, never one backward', () => {
+    expect(needsPush(job({ status: 'en_route' }), { status: 'accepted', hasFinal: false })).toBe('update');
+    expect(needsPush(job({ status: 'accepted' }), { status: 'completed', hasFinal: true })).toBeNull();
+    expect(needsPush(job({ status: 'searching' }), { status: 'expired', hasFinal: false })).toBeNull();
+  });
+
+  it('pushes an amount typed after the status already reached the server', () => {
+    expect(
+      needsPush(job({ status: 'completed', finalAmount: 4000 }), { status: 'completed', hasFinal: false }),
+    ).toBe('update');
+    expect(
+      needsPush(job({ status: 'completed', finalAmount: 4000 }), { status: 'completed', hasFinal: true }),
+    ).toBeNull();
+  });
+});
+
+describe('toEwkt — what a geography column actually accepts', () => {
+  it('a field boundary goes up as closed-ring EWKT, longitude first', () => {
+    expect(toEwkt(polygonToGeoJson([
+      { lat: 30.4, lng: 74.0 },
+      { lat: 30.4, lng: 74.1 },
+      { lat: 30.5, lng: 74.1 },
+    ])!)).toBe('SRID=4326;POLYGON((74 30.4,74.1 30.4,74.1 30.5,74 30.4))');
+  });
+
+  it('a captain location goes up as a point', () => {
+    expect(toEwkt(pointToGeoJson({ lat: 30.404, lng: 74.03 }))).toBe('SRID=4326;POINT(74.03 30.404)');
   });
 });
