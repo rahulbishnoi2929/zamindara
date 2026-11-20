@@ -21,6 +21,8 @@ const EXPO_PUSH = 'https://exp.host/--/api/v2/push/send';
 
 interface Body {
   jobId?: string;
+  /** 'farmer': the captain logged this job for him by phone (4.3); tell him. */
+  to?: string;
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {
@@ -59,7 +61,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   const { data: job, error: jobError } = await asCaller
     .from('jobs')
-    .select('id, farmer_id, area_sqm, service_id')
+    .select('id, farmer_id, captain_id, area_sqm, service_id')
     .eq('id', jobId)
     .maybeSingle();
 
@@ -68,6 +70,36 @@ Deno.serve(async (req: Request): Promise<Response> => {
   }
 
   const { data: me } = await asCaller.auth.getUser();
+
+  if (body.to === 'farmer') {
+    // Only the captain holding the job can tell its farmer it is booked.
+    if (me.user === null || me.user.id !== job.captain_id) {
+      return json({ error: 'not your job' }, 403);
+    }
+    const svc = createClient(url, serviceKey);
+    const { data: farmerTokens } = await svc
+      .from('push_tokens')
+      .select('token')
+      .eq('profile_id', job.farmer_id);
+    const farmerTo = (farmerTokens ?? []).map((t) => t.token as string);
+    // Usually none: a farmer who phoned in has no app yet.
+    if (farmerTo.length === 0) return json({ sent: 0, reason: 'farmer has no device' });
+    const killaBooked = Number(job.area_sqm) / 4046.8564224;
+    const res = await fetch(EXPO_PUSH, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(farmerTo.map((token) => ({
+        to: token,
+        title: 'ਤੁਹਾਡਾ ਕੰਮ ਬੁੱਕ ਹੋ ਗਿਆ',
+        body: `${killaBooked.toFixed(1)} ਕਿੱਲਾ`,
+        data: { jobId },
+        channelId: 'zamindara-job-quiet',
+        ttl: 86400,
+      }))),
+    });
+    return res.ok ? json({ sent: farmerTo.length }) : json({ error: 'expo rejected the push' }, 502);
+  }
+
   if (me.user === null || me.user.id !== job.farmer_id) {
     // Only the farmer who posted it may trigger its ping. Otherwise any
     // signed-in user could ring captains at will.

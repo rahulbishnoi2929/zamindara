@@ -81,3 +81,13 @@ describe('job draft', () => {
     expect(draftStillValid(morning, new Date(2026, 10, 21, 7).getTime())).toBe(false);
   });
 });
+
+describe('re-measuring a phone booking (4.3)', () => {
+  it('survives a restart mid-walk, and goes back to choosing a method', async () => {
+    const { restoreScreen, backFrom } = await import('./navigation');
+    const walk = { name: 'walk', intent: { kind: 'retrace', jobId: 'j1' } };
+    expect(restoreScreen(walk, [])).toEqual(walk);
+    expect(backFrom(walk as never)).toEqual({ name: 'choose', intent: { kind: 'retrace', jobId: 'j1' } });
+    expect(restoreScreen({ name: 'captainBook' }, [])).toEqual({ name: 'captainBook' });
+  });
+});

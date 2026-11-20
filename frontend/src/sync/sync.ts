@@ -1,3 +1,4 @@
+import type { LatLng } from '@zamindara/geo';
 import type { RateGuidance } from '@zamindara/pricing';
 import { appConfigFromRow, type AppConfig } from '../version';
 import { isBackendConfigured, supabase } from '../supabase';
@@ -31,6 +32,7 @@ import {
   localProfileIsNewer,
   mergeById,
   pointToGeoJson,
+  polygonToGeoJson,
   toEwkt,
   profileFromWire,
   profileToWire,
@@ -479,7 +481,7 @@ async function pullJobs(
   if (captainSide) {
     const assigned = await supabase
       .from('jobs')
-      .select('*, field:fields(name), farmer:profiles!jobs_farmer_id_fkey(full_name, village)')
+      .select('*, field:fields(name, capture_method), farmer:profiles!jobs_farmer_id_fkey(full_name, village)')
       .eq('captain_id', uid)
       .in('status', ['accepted', 'en_route', 'in_progress', 'completed'])
       // Index: jobs_captain_updated_idx. This was every job he had ever
@@ -1093,4 +1095,63 @@ export async function founderAdvance(
   });
   if (error !== null) console.warn('founder: advance failed:', error.message);
   return error === null;
+}
+
+// ---------------------------------------------------------------------------
+// 4.3 A captain's own phone bookings
+// ---------------------------------------------------------------------------
+
+/** A booking taken on the phone, straight into his own queue. The server checks it is work he offers. */
+export async function captainCreateJob(input: {
+  phone: string;
+  name: string;
+  village: string;
+  serviceCode: string;
+  areaSqm: number;
+  at: { lat: number; lng: number };
+  isImmediate: boolean;
+  scheduledDate: string | null;
+  window: JobWindow;
+}): Promise<string | null> {
+  const { data, error } = await supabase.rpc('captain_create_job', {
+    p_phone: input.phone,
+    p_name: input.name,
+    p_village: input.village,
+    p_service_code: input.serviceCode,
+    p_area_sqm: input.areaSqm,
+    p_lat: input.at.lat,
+    p_lng: input.at.lng,
+    p_is_immediate: input.isImmediate,
+    p_scheduled_date: input.scheduledDate,
+    p_window: input.window,
+  });
+  if (error !== null) console.warn('captain: create job failed:', error.message);
+  return error === null ? (data as string) : null;
+}
+
+/** On arrival: the real field replaces the declared one. The server measures it and re-quotes. */
+export async function captainRetraceField(
+  jobId: string,
+  polygon: LatLng[],
+  method: 'drawn' | 'walked',
+): Promise<boolean> {
+  const shape = polygonToGeoJson(polygon);
+  if (shape === null) return false;
+  const { error } = await supabase.rpc('captain_retrace_field', {
+    p_job: jobId,
+    p_boundary: toEwkt(shape),
+    p_method: method,
+  });
+  if (error !== null) console.warn('captain: re-trace failed:', error.message);
+  return error === null;
+}
+
+/** Tell the farmer his booking is in the app, if he has it. Best effort, like notifyDispatch. */
+export async function notifyFarmerBooked(jobId: string): Promise<void> {
+  if (!isBackendConfigured()) return;
+  try {
+    await supabase.functions.invoke('notify-dispatch', { body: { jobId, to: 'farmer' } });
+  } catch {
+    // Swallowed on purpose: a farmer without the app is the usual case.
+  }
 }

@@ -85,6 +85,8 @@ export interface Job {
   areaDisputedAt?: number | null;
   /** The captain's machine this job runs on (4.6). Server-picked on accept. */
   machineId?: string | null;
+  /** The field is the farmer's word, not a measurement: booked by phone (4.2, 4.3). */
+  fieldDeclared?: boolean;
   /**
    * When nobody could be offered this job because it is smaller than the
    * captains nearby take: the smallest size they do take (4.5). Server-told.
@@ -344,3 +346,8 @@ export function machineLabels(
   }
   return out;
 }
+
+/** He can measure the real field: a phone booking, while the job is his to work (4.3). */
+export const canRetrace = (job: Job): boolean =>
+  job.fieldDeclared === true &&
+  (job.status === 'accepted' || job.status === 'en_route' || job.status === 'in_progress');

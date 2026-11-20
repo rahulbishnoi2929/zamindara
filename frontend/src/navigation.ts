@@ -10,7 +10,11 @@ import type { WalkResult } from '@zamindara/geo';
  * him back to home with his work gone.
  */
 
-export type Intent = { kind: 'field' } | { kind: 'test'; plotId: string };
+export type Intent =
+  | { kind: 'field' }
+  | { kind: 'test'; plotId: string }
+  /** The captain measuring a phone booking's field on arrival (4.3). */
+  | { kind: 'retrace'; jobId: string };
 
 export type Screen =
   | { name: 'home' }
@@ -22,6 +26,7 @@ export type Screen =
   | { name: 'book' }
   | { name: 'verify' }
   | { name: 'founder' }
+  | { name: 'captainBook' }
   | { name: 'test' }
   | { name: 'testPlot'; plotId: string };
 
@@ -51,7 +56,7 @@ export function persistable(screen: Screen): Screen {
   return screen.name === 'confirm' ? { name: 'walk', intent: screen.intent } : screen;
 }
 
-const NAMES = new Set(['home', 'onboarding', 'choose', 'draw', 'walk', 'confirm', 'book', 'verify', 'founder', 'test', 'testPlot']);
+const NAMES = new Set(['home', 'onboarding', 'choose', 'draw', 'walk', 'confirm', 'book', 'verify', 'founder', 'captainBook', 'test', 'testPlot']);
 
 /** Read back what was saved, falling back to somewhere safe if it is stale. */
 export function restoreScreen(saved: unknown, plotIds: readonly string[]): Screen {
@@ -66,7 +71,7 @@ export function restoreScreen(saved: unknown, plotIds: readonly string[]): Scree
   }
   if (s.name === 'choose' || s.name === 'draw' || s.name === 'walk' || s.name === 'confirm') {
     const intent = s.intent;
-    if (intent?.kind !== 'field' && intent?.kind !== 'test') return { name: 'home' };
+    if (intent?.kind !== 'field' && intent?.kind !== 'test' && intent?.kind !== 'retrace') return { name: 'home' };
     if (intent.kind === 'test' && !plotIds.includes(intent.plotId)) return { name: 'test' };
     return { name: s.name === 'confirm' ? 'walk' : s.name, intent };
   }

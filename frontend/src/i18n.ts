@@ -329,6 +329,8 @@ const strings = {
     hi: 'नक्शा खिसकाएँ ताकि पिन खेत पर आए',
     en: 'Move the map so the pin sits on the field',
   },
+  captainLogJob: { pa: '+ ਫ਼ੋਨ ਵਾਲਾ ਕੰਮ ਜੋੜੋ', hi: '+ फ़ोन वाला काम जोड़ें', en: '+ Add a phone booking' },
+  measureField: { pa: 'ਖੇਤ ਨਾਪੋ', hi: 'खेत नापें', en: 'Measure the field' },
   founderCreate: { pa: 'ਕੰਮ ਬਣਾਓ', hi: 'काम बनाएँ', en: 'Create job' },
   founderMissing: {
     pa: 'ਫ਼ੋਨ, ਨਾਂ, ਕੰਮ ਅਤੇ ਰਕਬਾ ਭਰੋ।',

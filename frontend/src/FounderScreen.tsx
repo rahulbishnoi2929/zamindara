@@ -99,8 +99,12 @@ export function FounderScreen({ locale, onBack }: Props) {
 
   if (mode.kind === 'new') {
     return (
-      <NewJob
+      <PhoneBookingForm
         locale={locale}
+        onCreate={async (b) => {
+          const farmerId = await founderCreateFarmer(b.phone, b.name, b.village);
+          return farmerId !== null && (await founderCreateJob({ ...b, farmerId })) !== null;
+        }}
         onDone={() => {
           setMode({ kind: 'list' });
           void load();
@@ -223,7 +227,34 @@ const isoDay = (offsetDays: number) => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
-function NewJob({ locale, onDone }: { locale: Locale; onDone: () => void }) {
+/** What a phone booking says: who, what, how big, where and when. */
+export interface PhoneBooking {
+  phone: string;
+  name: string;
+  village: string;
+  serviceCode: string;
+  areaSqm: number;
+  at: { lat: number; lng: number };
+  isImmediate: boolean;
+  scheduledDate: string | null;
+  window: JobWindow;
+}
+
+/**
+ * A job taken on the phone. The founder's (4.2) and a captain's own (4.3):
+ * the same form, a different `onCreate`. A captain sees only his own services.
+ */
+export function PhoneBookingForm({
+  locale,
+  onDone,
+  onCreate,
+  serviceCodes,
+}: {
+  locale: Locale;
+  onDone: () => void;
+  onCreate: (booking: PhoneBooking) => Promise<boolean>;
+  serviceCodes?: readonly string[];
+}) {
   const [phone, setPhone] = useState('');
   const [name, setName] = useState('');
   const [village, setVillage] = useState('');
@@ -235,7 +266,13 @@ function NewJob({ locale, onDone }: { locale: Locale; onDone: () => void }) {
   const [center, setCenter] = useState<{ lat: number; lng: number } | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const services = useMemo(() => servicesForMonth(new Date().getMonth() + 1), []);
+  const services = useMemo(
+    () =>
+      serviceCodes === undefined
+        ? servicesForMonth(new Date().getMonth() + 1)
+        : serviceCodes.flatMap((c) => SERVICE_BY_CODE.get(c) ?? []),
+    [serviceCodes],
+  );
   const area = areaFromKillaKanal(killa, kanal);
 
   useEffect(() => {
@@ -248,21 +285,19 @@ function NewJob({ locale, onDone }: { locale: Locale; onDone: () => void }) {
       return;
     }
     setSaving(true);
-    const farmerId = await founderCreateFarmer(phone, name, village);
-    const jobId =
-      farmerId === null
-        ? null
-        : await founderCreateJob({
-            farmerId,
-            serviceCode: service,
-            areaSqm: area,
-            at: center,
-            isImmediate: when === 'now',
-            scheduledDate: when === 'now' ? null : isoDay(when === 'today' ? 0 : 1),
-            window,
-          });
+    const ok = await onCreate({
+      phone,
+      name,
+      village,
+      serviceCode: service,
+      areaSqm: area,
+      at: center,
+      isImmediate: when === 'now',
+      scheduledDate: when === 'now' ? null : isoDay(when === 'today' ? 0 : 1),
+      window,
+    });
     setSaving(false);
-    if (jobId === null) {
+    if (!ok) {
       Alert.alert(t('founderFailed', locale));
       return;
     }

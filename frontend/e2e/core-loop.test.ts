@@ -83,8 +83,9 @@ describe.skipIf(URL_ === '')('core loop against the database', { timeout: 60_000
     globalThis.fetch = realFetch;
     if (admin === undefined) return;
     await admin.from('ratings').delete().in('job_id', [jobId, job2]);
-    await admin.from('jobs').delete().in('id', [jobId, job2, phonedJob, job3, ...twoCombineJobs].filter(Boolean));
+    await admin.from('jobs').delete().in('id', [jobId, job2, phonedJob, job3, ...twoCombineJobs, captainBooked].filter(Boolean));
     await admin.from('admins').delete().eq('phone', FARMER_PHONE);
+    await admin.from('profiles').delete().eq('phone', '919876500005');
     for (const id of [farmerId, captainUid, phonedUid]) {
       if (id !== '') await admin.auth.admin.deleteUser(id);
     }
@@ -521,6 +522,49 @@ describe.skipIf(URL_ === '')('core loop against the database', { timeout: 60_000
     expect(await app.sync.syncProfile(captain)).not.toBeNull();
     const { data } = await admin.from('jobs').select('machine_id').in('id', twoCombineJobs);
     expect(data!.every((j) => j.machine_id !== null)).toBe(true);
+  });
+
+  let captainBooked = '';
+
+  it('4.3: a captain logs a phone booking, then measures the real field', async () => {
+    await signInAs(CAPTAIN_PHONE, CAPTAIN_CODE);
+    captainBooked = (await app.sync.captainCreateJob({
+      phone: '98765 00005',
+      name: 'Sukhdev Singh',
+      village: 'Arniwala',
+      serviceCode: 'wheat_harvest',
+      areaSqm: 3 * 4046.8564224,
+      at: { lat: 30.44, lng: 74.02 },
+      isImmediate: true,
+      scheduledDate: null,
+      window: 'any',
+    }))!;
+    expect(captainBooked).toBeTruthy();
+    // The farmer has no app: the ping finds nobody, and nothing breaks.
+    await app.sync.notifyFarmerBooked(captainBooked);
+
+    captainJobs = await app.sync.syncJobs(captainJobs, captain);
+    const logged = captainJobs.find((j) => j.id === captainBooked);
+    expect(logged).toMatchObject({ status: 'accepted', fieldDeclared: true });
+    // A square drawn in degrees, measured on the ellipsoid: within half a percent.
+    expect(Math.abs(logged!.areaSqm - 3 * 4046.86)).toBeLessThan(60);
+
+    // On arrival he walks it: one killa, not the three he was told.
+    const side = Math.sqrt(4046.8564224);
+    const dLat = side / 111320;
+    const dLng = side / (111320 * Math.cos((30.44 * Math.PI) / 180));
+    const polygon = [
+      { lat: 30.44, lng: 74.02 },
+      { lat: 30.44, lng: 74.02 + dLng },
+      { lat: 30.44 + dLat, lng: 74.02 + dLng },
+      { lat: 30.44 + dLat, lng: 74.02 },
+    ];
+    expect(await app.sync.captainRetraceField(captainBooked, polygon, 'walked')).toBe(true);
+    captainJobs = await app.sync.syncJobs(captainJobs, captain);
+    const measured = captainJobs.find((j) => j.id === captainBooked)!;
+    expect(measured.fieldDeclared).toBe(false);
+    expect(Math.abs(measured.areaSqm - 4046.86)).toBeLessThan(60);
+    expect(measured.quotedTotal!).toBeLessThan(logged!.quotedTotal!);
   });
 
   it('a phone that lost its local copy gets everything back, cursors notwithstanding', async () => {

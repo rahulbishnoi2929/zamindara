@@ -8,7 +8,19 @@ import {
   searchState,
   type Job,
 } from './jobs';
-import { machineLabels, splitJobs } from './jobs';
+import { canRetrace, machineLabels, splitJobs } from './jobs';
+
+describe('canRetrace (4.3)', () => {
+  const j = (status: Job['status'], fieldDeclared: boolean) => ({ status, fieldDeclared }) as Job;
+  it('a declared field, while the job is his to work', () => {
+    expect(canRetrace(j('accepted', true))).toBe(true);
+    expect(canRetrace(j('in_progress', true))).toBe(true);
+  });
+  it('never a field someone already measured, nor a finished job', () => {
+    expect(canRetrace(j('accepted', false))).toBe(false);
+    expect(canRetrace(j('completed', true))).toBe(false);
+  });
+});
 
 describe('machineLabels (4.6)', () => {
   const m = (id: string, machineCode: string) =>

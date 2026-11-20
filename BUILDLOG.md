@@ -13,19 +13,19 @@ Newest first, so the most recent work is always at the top. Each entry says what
 | | |
 |---|---|
 | **Phase** | Code done through 5. **Phase 1 field test never run — the gate was walked past.** See the revision at the top of BUILD_PLAN. |
-| **Brief** | Working through the 16 Nov staged brief. Stage 1 done (awaiting your phone install). **Stage 4.1, 4.2, 4.4, 4.5, 4.6 done.** Next: 4.3 captain-created jobs, then 4.7, 4.8. Waiting on you: Supabase project, Firebase, first-phone test. |
-| **Tests** | 266 unit (122 packages + 144 app) + **255 database assertions** (run twice in CI: before and after a backup-and-restore) + **15-step end-to-end test** covering every server call, against a real database, all green in CI |
+| **Brief** | Working through the 16 Nov staged brief. Stage 1 done (awaiting your phone install). **Stage 4.1–4.6 done.** Next: 4.7 route stops, then 4.8 scheduled jobs as open offers. Waiting on you: Supabase project, Firebase, first-phone test. |
+| **Tests** | 269 unit (122 packages + 147 app) + **268 database assertions** (run twice in CI: before and after a backup-and-restore) + **16-step end-to-end test** covering every server call, against a real database, all green in CI |
 | **App** | Signed release APK, **35.3 MB** (from 75.8), R8 on, ARM only. Shows `v0.1.0` on home; an `app_config` row tells old phones to update. **Install once:** JS changes reach a phone over the air. |
 | **Not yet done** | Never run on a physical device; sync never run against a hosted Supabase project |
 | **Blocking next step** | Setup: Maps key, hosted Supabase project, `expo prebuild` + APK, a phone, a 50 m tape |
 | **Repo** | [rahulbishnoi2929/zamindara](https://github.com/rahulbishnoi2929/zamindara) — private, CI green |
-| **Backend** | ✅ **Schema verified.** 34 migrations apply; all three guarantees hold. |
+| **Backend** | ✅ **Schema verified.** 35 migrations apply; all three guarantees hold. |
 
 ```
 C:\Zamidara\
 ├── docs\              16 product and engineering documents
-├── frontend\          Expo SDK 57 Android app — 144 tests + e2e
-├── backend\supabase\  34 migrations, RLS, dispatch functions — 255 assertions
+├── frontend\          Expo SDK 57 Android app — 147 tests + e2e
+├── backend\supabase\  35 migrations, RLS, dispatch functions — 268 assertions
 ├── packages\          units · geo · catalog · pricing · scheduling — 122 tests
 └── assets\            logo
 ```
@@ -67,6 +67,30 @@ The most useful part of this log. Each of these was believed, written down, then
 ---
 
 # Entries
+
+## 54 · Stage 4.3 — a captain logs his phone bookings, and measures the field on arrival
+
+**Asked:** a captain books a job by phone and logs it himself. On arrival he re-traces the field and the server recomputes the area. The farmer is notified if he has the app.
+
+**What "working" meant:**
+- A captain's phone booking lands straight in his own queue, priced at his rate, for a farmer who may have no account. If that farmer installs the app later, the job is already his (4.1).
+- A captain can log only work he offers, and only if he is verified.
+- His measurement replaces the declared square, never a field the farmer traced himself.
+
+**Built:**
+- **Database (migration 0035).** The founder's three steps from 4.2 are moved, word for word apart from the staff check, into internal functions: `farmer_by_phone`, `create_declared_job` and `assign_job`. The founder functions keep their names and grants and now call them, so the founder and the captain share one body instead of two copies.
+- `captain_create_job()` checks that the caller is a verified captain who offers that service, and that the number isn't his own.
+- `captain_retrace_field()` checks that the caller is the job's captain, the job is in progress, and the field was declared. It replaces the boundary; the server re-measures it, and the job takes the new area and a new quote.
+- **App.** The founder's booking form is now shared. A captain gets **"+ ਫ਼ੋਨ ਵਾਲਾ ਕੰਮ ਜੋੜੋ"** on his home screen, showing only his own services. A phone-booked job in his queue gets a **ਖੇਤ ਨਾਪੋ** button. It opens the usual draw-or-walk screens, and the result goes to the server instead of his field list. That also covers jobs the founder booked (4.2).
+- **Push.** `notify-dispatch` can now tell the farmer "ਤੁਹਾਡਾ ਕੰਮ ਬੁੱਕ ਹੋ ਗਿਆ", but only when the job's own captain asks. A farmer with no app gets nothing, which is the usual case.
+
+**Known side effect:** a self-logged job is recorded as an accepted offer, as founder assignments already were. So it nudges his accept rate, which is 10% of the match score. That's harmless at this scale; exclude these from the rate if captains start gaming it.
+
+**Verified by running:** 269 unit tests (3 new), typecheck clean, bundle exports. **In CI:** 268 database assertions (13 new), twice; 16 end-to-end steps. The new step has a captain log a three-killa phone booking, find it in his queue as declared, walk one killa, and get it back measured with a lower quote.
+
+**Not verified:** the farmer push (edge function, needs a deploy and two phones); on a phone, the booking form at large font and the measure-the-field flow from a job card.
+
+---
 
 ## 53 · Stage 4.6 — a job runs on a specific machine; two combines, two queues
 

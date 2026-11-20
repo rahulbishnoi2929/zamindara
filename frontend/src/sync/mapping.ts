@@ -264,6 +264,8 @@ export interface WireJobRow {
   id: string;
   area_disputed_at?: string | null;
   machine_id?: string | null;
+  /** Embedded on the captain's pull. */
+  field?: { capture_method?: string } | null;
   field_id: string;
   captain_id: string | null;
   service_id: string;
@@ -387,6 +389,7 @@ export function jobFromWire(
     completedAt: fromIso(row.completed_at),
     areaDisputedAt: fromIso(row.area_disputed_at ?? null),
     machineId: row.machine_id ?? null,
+    fieldDeclared: row.field?.capture_method === 'declared',
   };
 }
 

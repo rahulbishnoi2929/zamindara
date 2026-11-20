@@ -39,7 +39,7 @@ import {
 import { OnboardingFlow } from './src/onboarding/OnboardingFlow';
 import { SignInScreen } from './src/SignInScreen';
 import { VerifyCaptainsScreen } from './src/VerifyCaptainsScreen';
-import { FounderScreen } from './src/FounderScreen';
+import { FounderScreen, PhoneBookingForm } from './src/FounderScreen';
 import { currentSession } from './src/auth';
 import { startAutoRefresh, stopAutoRefresh } from './src/supabase';
 import { AppState } from 'react-native';
@@ -47,6 +47,9 @@ import { loadProfile, saveProfile, type Profile } from './src/profile';
 import { currentLatLng } from './src/location';
 import {
   acceptJobRemote,
+  captainCreateJob,
+  captainRetraceField,
+  notifyFarmerBooked,
   amIAdmin,
   syncFields,
   cancelJobRemote,
@@ -283,6 +286,20 @@ export default function App() {
       setMeasurements(await testStore.addMeasurement(measurement));
       await clearActiveWalk();
       setScreen({ name: 'testPlot', plotId: intent.plotId });
+      return;
+    }
+
+    if (intent.kind === 'retrace') {
+      // The server measures it from the boundary and re-quotes the job; the
+      // next sync brings both back. Needs signal: the job is on the server.
+      const ok = await captainRetraceField(intent.jobId, polygon, method === 'walked' ? 'walked' : 'drawn');
+      if (!ok) {
+        Alert.alert(t('founderFailed', locale));
+        return;
+      }
+      await clearActiveWalk();
+      setScreen({ name: 'home' });
+      void runSync();
       return;
     }
 
@@ -673,6 +690,8 @@ export default function App() {
                 onOpenFieldTest={() => setScreen({ name: 'test' })}
                 onVerifyCaptains={isStaff ? () => setScreen({ name: 'verify' }) : undefined}
                 onOpenFounder={isStaff ? () => setScreen({ name: 'founder' }) : undefined}
+                onLogPhoneJob={() => setScreen({ name: 'captainBook' })}
+                onRetrace={(job) => setScreen({ name: 'choose', intent: { kind: 'retrace', jobId: job.id } })}
               />
             )}
 
@@ -691,7 +710,13 @@ export default function App() {
             {screen.name === 'draw' && (
               <DrawScreen
                 locale={locale}
-                draftKey={screen.intent.kind === 'test' ? `test:${screen.intent.plotId}` : 'field'}
+                draftKey={
+                  screen.intent.kind === 'test'
+                    ? `test:${screen.intent.plotId}`
+                    : screen.intent.kind === 'retrace'
+                      ? `retrace:${screen.intent.jobId}`
+                      : 'field'
+                }
                 onDone={(polygon, areaSqm) => {
                   void saveUi('drawCorners', null);
                   void record(screen.intent, 'drawn', polygon, areaSqm, null, null);
@@ -769,6 +794,23 @@ export default function App() {
                 onCancel={() => {
                   void saveUi('jobDraft', null);
                   setScreen({ name: 'home' });
+                }}
+              />
+            )}
+
+            {screen.name === 'captainBook' && profile !== null && (
+              <PhoneBookingForm
+                locale={locale}
+                serviceCodes={profile.rates.map((r) => r.serviceCode)}
+                onCreate={async (b) => {
+                  const id = await captainCreateJob(b);
+                  if (id === null) return false;
+                  void notifyFarmerBooked(id);
+                  return true;
+                }}
+                onDone={() => {
+                  setScreen({ name: 'home' });
+                  void runSync();
                 }}
               />
             )}

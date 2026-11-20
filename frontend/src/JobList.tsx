@@ -6,6 +6,7 @@ import { t, type StringKey } from './i18n';
 import {
   canCancel,
   canRelease,
+  canRetrace,
   ratingAsk,
   searchState,
   type Job,
@@ -192,6 +193,8 @@ interface CaptainCardProps {
   onDisputeArea?: ((job: Job) => void) | undefined;
   /** Which of his machines, when he has two of a kind (4.6). */
   machineLabel?: string | undefined;
+  /** Measure the real field of a phone booking (4.3). */
+  onRetrace?: ((job: Job) => void) | undefined;
 }
 
 /**
@@ -214,6 +217,7 @@ export function CaptainJobCard({
   onRelease,
   onDisputeArea,
   machineLabel,
+  onRetrace,
 }: CaptainCardProps) {
   const service = SERVICE_BY_CODE.get(job.serviceCode);
   const incoming = job.status === 'searching';
@@ -261,6 +265,13 @@ export function CaptainJobCard({
           {job.status === 'in_progress' && (
             <Button label={t('markComplete', locale)} onPress={() => onAdvance(job)} flex />
           )}
+        </View>
+      )}
+
+      {/* Booked by phone: the area is the farmer's word until he measures it. */}
+      {onRetrace !== undefined && canRetrace(job) && (
+        <View style={s.actions}>
+          <Button label={t('measureField', locale)} onPress={() => onRetrace(job)} variant="secondary" flex />
         </View>
       )}
 

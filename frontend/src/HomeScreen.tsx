@@ -114,6 +114,9 @@ interface Props {
   onVerifyCaptains?: (() => void) | undefined;
   /** Founder dispatch. Undefined for everyone who is not staff. */
   onOpenFounder?: (() => void) | undefined;
+  /** A captain logs a job a farmer booked with him by phone (4.3). */
+  onLogPhoneJob?: (() => void) | undefined;
+  onRetrace?: ((job: Job) => void) | undefined;
 }
 
 /**
@@ -145,6 +148,8 @@ export function HomeScreen({
   onOpenFieldTest,
   onVerifyCaptains,
   onOpenFounder,
+  onLogPhoneJob,
+  onRetrace,
 }: Props) {
   const locale = profile.language;
   const captain = isCaptain(profile);
@@ -271,6 +276,7 @@ export function HomeScreen({
                     job={job}
                     locale={locale}
                     machineLabel={labelOf(job)}
+                    onRetrace={onRetrace}
                     onAccept={onAcceptJob}
                     sending={sendingAccepts?.has(job.id)}
                     onAdvance={onAdvanceJob}
@@ -279,6 +285,10 @@ export function HomeScreen({
                   />
                 ))}
               </>
+            )}
+
+            {onLogPhoneJob !== undefined && (
+              <Button label={t('captainLogJob', locale)} onPress={onLogPhoneJob} variant="secondary" />
             )}
 
             <Text style={s.sectionTitle}>{t('yourMachines', locale)}</Text>
