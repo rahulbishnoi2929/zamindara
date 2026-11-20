@@ -13,8 +13,8 @@ Newest first, so the most recent work is always at the top. Each entry says what
 | | |
 |---|---|
 | **Phase** | Code done through 5. **Phase 1 field test never run — the gate was walked past.** See the revision at the top of BUILD_PLAN. |
-| **Brief** | Working through the 16 Nov staged brief. Stage 1 done (awaiting your phone install). Stage 2: 2.1–2.7, 2.10 done; **2.8, 2.9 open**. |
-| **Tests** | 225 unit (122 packages + 103 app) + **177 database assertions**, all green in CI |
+| **Brief** | Working through the 16 Nov staged brief. Stage 1 done (awaiting your phone install). Stage 2: 2.1–2.7, 2.9, 2.10 done; **2.8 open** (design sketch first). |
+| **Tests** | 231 unit (122 packages + 109 app) + **177 database assertions**, all green in CI |
 | **App** | Signed release APK, **35.3 MB** (from 75.8), R8 on, ARM only. Shows `v0.1.0` on home; an `app_config` row tells old phones to update. **Install once:** JS changes reach a phone over the air. |
 | **Not yet done** | Never run on a physical device; sync never run against a hosted Supabase project |
 | **Blocking next step** | Setup: Maps key, hosted Supabase project, `expo prebuild` + APK, a phone, a 50 m tape |
@@ -24,7 +24,7 @@ Newest first, so the most recent work is always at the top. Each entry says what
 ```
 C:\Zamidara\
 ├── docs\              16 product and engineering documents
-├── frontend\          Expo SDK 57 Android app — 103 tests
+├── frontend\          Expo SDK 57 Android app — 109 tests
 ├── backend\supabase\  23 migrations, RLS, dispatch functions — 177 assertions
 ├── packages\          units · geo · catalog · pricing · scheduling — 122 tests
 └── assets\            logo
@@ -58,6 +58,24 @@ The most useful part of this log. Each of these was believed, written down, then
 ---
 
 # Entries
+
+## 45 · 2.9 — walk checkpoints are appended, not rewritten
+
+**Asked:** stop rewriting the whole track on every GPS point; move to append-only storage and migrate any existing saved data.
+
+**What "working" meant:** each fix is one small write regardless of walk length; a crash restore returns every point in walking order; a new walk can never inherit an old walk's points; a walk saved by the previous build survives the update.
+
+**Before:** every GPS fix (one a second) re-serialised and re-wrote the entire track as one JSON blob. Twenty minutes in, that is ~1,200 points — around 100 KB — written every second on the cheapest phone in the district, while it is also running GPS and the screen.
+
+**Now:** one AsyncStorage key per point, `zamindara/walk/<startedAt>/<seq>`, plus a small meta key. No new dependency. Restore reads them back and sorts **numerically** (as text, point 10 sorts before point 9 — there is a test). Keys carry the walk's start time, so leftovers from an earlier walk are ignored and swept; starting a walk clears everything *except* its own keys, because its first fix can land before the clear finishes.
+
+**Migration:** the old single-blob key is read once, rewritten as point keys, and removed — so a farmer mid-walk when the update lands keeps his walk.
+
+**Verified by running:** 231 unit tests (6 new, AsyncStorage mocked in memory: largest write under 200 bytes across a 300-point walk, numeric order, no inheritance, legacy migration, clear, the start race), typecheck clean, Android bundle exports. **Not verified:** on a phone.
+
+**Manual check:** (1) start walking a field; (2) after a minute, swipe the app away from recents; (3) reopen and go to Walk — it shows the walk recovered and paused with the distance it had; (4) resume, finish — the area is shown; (5) start a new walk — it begins at 0 m, not with the old track.
+
+---
 
 ## 44 · 2.5 — an accept on a bad signal says "sending", and a retry is not a lost race
 

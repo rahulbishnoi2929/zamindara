@@ -35,28 +35,93 @@ export interface ActiveWalk {
 }
 
 /**
- * Checkpoint the walk in progress.
+ * Checkpoint the walk in progress, append-only.
+ *
+ * One key per GPS fix, so each point is one small write. The walk used to be
+ * one JSON blob rewritten on every fix: twenty minutes in, that is 1,200
+ * points re-serialised and re-written every second, on the cheapest phone in
+ * the district, while it is also running GPS and the screen.
+ *
+ * Keys carry the walk's start time, so a new walk can never pick up points a
+ * previous one left behind, even if clearing them had not finished.
  *
  * Called as points arrive, so that a crash, a dead battery or an accidental
  * back-press does not cost the farmer his walk.
  */
-export async function saveActiveWalk(walk: ActiveWalk): Promise<void> {
-  await AsyncStorage.setItem(KEY_ACTIVE_WALK, JSON.stringify(walk));
+const WALK_PREFIX = 'zamindara/walk/';
+const KEY_WALK_META = `${WALK_PREFIX}meta`;
+
+async function walkKeys(): Promise<string[]> {
+  return (await AsyncStorage.getAllKeys()).filter(
+    (k) => k.startsWith(WALK_PREFIX) || k === KEY_ACTIVE_WALK,
+  );
+}
+
+/**
+ * Start a fresh walk: forget any other, then record when this one began.
+ * Spares this walk's own keys, in case its first fix lands before the
+ * clear has listed what to remove.
+ */
+export async function beginActiveWalk(startedAt: number): Promise<void> {
+  const own = `${WALK_PREFIX}${startedAt}/`;
+  await AsyncStorage.multiRemove((await walkKeys()).filter((k) => !k.startsWith(own)));
+  await AsyncStorage.setItem(KEY_WALK_META, JSON.stringify({ startedAt }));
+}
+
+export async function appendWalkPoint(
+  startedAt: number,
+  seq: number,
+  point: GpsPoint,
+): Promise<void> {
+  await AsyncStorage.setItem(`${WALK_PREFIX}${startedAt}/${seq}`, JSON.stringify(point));
 }
 
 export async function loadActiveWalk(): Promise<ActiveWalk | null> {
-  const raw = await AsyncStorage.getItem(KEY_ACTIVE_WALK);
-  if (raw === null) return null;
+  // A walk saved by a build from before append-only storage: one blob.
+  // Move it into the new form so it is not lost on the update.
+  const legacy = await AsyncStorage.getItem(KEY_ACTIVE_WALK);
+  if (legacy !== null) {
+    await AsyncStorage.removeItem(KEY_ACTIVE_WALK);
+    try {
+      const parsed = JSON.parse(legacy) as ActiveWalk;
+      if (Array.isArray(parsed.points) && typeof parsed.startedAt === 'number') {
+        await beginActiveWalk(parsed.startedAt);
+        await Promise.all(
+          parsed.points.map((p, i) => appendWalkPoint(parsed.startedAt, i, p)),
+        );
+      }
+    } catch {
+      // Unreadable: nothing to recover.
+    }
+  }
+
+  const meta = await AsyncStorage.getItem(KEY_WALK_META);
+  if (meta === null) return null;
+  let startedAt: number;
   try {
-    const parsed = JSON.parse(raw) as ActiveWalk;
-    return Array.isArray(parsed.points) ? parsed : null;
+    startedAt = (JSON.parse(meta) as { startedAt: number }).startedAt;
   } catch {
     return null;
   }
+
+  const prefix = `${WALK_PREFIX}${startedAt}/`;
+  const keys = (await AsyncStorage.getAllKeys()).filter((k) => k.startsWith(prefix));
+  const points: [number, GpsPoint][] = [];
+  for (const [key, value] of await AsyncStorage.multiGet(keys)) {
+    if (value === null) continue;
+    try {
+      points.push([Number(key.slice(prefix.length)), JSON.parse(value) as GpsPoint]);
+    } catch {
+      // One torn write loses one point, not the walk.
+    }
+  }
+  // Numeric, not text: "10" sorts before "9".
+  points.sort((a, b) => a[0] - b[0]);
+  return { startedAt, points: points.map(([, p]) => p) };
 }
 
 export async function clearActiveWalk(): Promise<void> {
-  await AsyncStorage.removeItem(KEY_ACTIVE_WALK);
+  await AsyncStorage.multiRemove(await walkKeys());
 }
 
 export async function loadFields(): Promise<SavedField[]> {

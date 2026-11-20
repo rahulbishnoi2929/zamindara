@@ -7,7 +7,7 @@ import {
 } from '@zamindara/geo';
 import * as Location from 'expo-location';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { clearActiveWalk, loadActiveWalk, saveActiveWalk } from './storage';
+import { appendWalkPoint, beginActiveWalk, clearActiveWalk, loadActiveWalk } from './storage';
 
 export type WalkPhase = 'idle' | 'acquiring' | 'ready' | 'walking' | 'paused' | 'done';
 
@@ -120,9 +120,9 @@ export function useBoundaryWalk(): BoundaryWalk {
 
           setPoints((prev) => {
             const next = [...prev, point];
-            // Checkpoint every point. Cheap, and it is the difference between
-            // losing a walk and not.
-            void saveActiveWalk({ startedAt: startedAt.current, points: next });
+            // Checkpoint every point, appended rather than rewriting the
+            // track. It is the difference between losing a walk and not.
+            void appendWalkPoint(startedAt.current, next.length - 1, point);
             if (next.length % PREVIEW_EVERY === 0) {
               setPreview(processWalk(next));
             }
@@ -147,6 +147,7 @@ export function useBoundaryWalk(): BoundaryWalk {
 
   const start = useCallback(() => {
     startedAt.current = Date.now();
+    void beginActiveWalk(startedAt.current);
     setPoints([]);
     setPreview(null);
     setRecoveredWalk(false);
