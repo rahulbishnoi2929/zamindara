@@ -14,18 +14,18 @@ Newest first, so the most recent work is always at the top. Each entry says what
 |---|---|
 | **Phase** | Code done through 5. **Phase 1 field test never run — the gate was walked past.** See the revision at the top of BUILD_PLAN. |
 | **Brief** | Working through the 16 Nov staged brief. Stage 1 done (awaiting your phone install). **All seven stages of the brief are done.** Current facts: [docs/CURRENT_STATE.md](docs/CURRENT_STATE.md). Waiting on you: Supabase project, Firebase, first-phone test. |
-| **Tests** | 288 unit (125 packages + 163 app) + **300 database assertions** (run twice in CI: before and after a backup-and-restore) + **19-step end-to-end test** covering every server call, against a real database, all green in CI |
+| **Tests** | 292 unit (125 packages + 167 app) + **311 database assertions** (run twice in CI: before and after a backup-and-restore) + **20-step end-to-end test** covering every server call, against a real database, all green in CI |
 | **App** | Signed release APK, **35.3 MB** (from 75.8), R8 on, ARM only. Shows `v0.1.0` on home; an `app_config` row tells old phones to update. **Install once:** JS changes reach a phone over the air. |
 | **Not yet done** | Never run on a physical device; sync never run against a hosted Supabase project |
 | **Blocking next step** | Setup: Maps key, hosted Supabase project, `expo prebuild` + APK, a phone, a 50 m tape |
 | **Repo** | [rahulbishnoi2929/zamindara](https://github.com/rahulbishnoi2929/zamindara) — private, CI green |
-| **Backend** | ✅ **Schema verified.** 38 migrations apply; all three guarantees hold. |
+| **Backend** | ✅ **Schema verified.** 39 migrations apply; all three guarantees hold. |
 
 ```
 C:\Zamidara\
 ├── docs\              16 product and engineering documents
-├── frontend\          Expo SDK 57 Android app — 163 tests + e2e
-├── backend\supabase\  38 migrations, RLS, dispatch functions — 300 assertions
+├── frontend\          Expo SDK 57 Android app — 167 tests + e2e
+├── backend\supabase\  39 migrations, RLS, dispatch functions — 311 assertions
 ├── packages\          units · geo · catalog · pricing · scheduling — 122 tests
 └── assets\            logo
 ```
@@ -67,6 +67,37 @@ The most useful part of this log. Each of these was believed, written down, then
 ---
 
 # Entries
+
+## 62 · Batch C — machine pictures (dummy), "free near you now", the captain's distance
+
+**Asked:** Batch C, with the founder's instruction to "use dummy photos".
+
+**Read as:** placeholder pictures wherever a machine photo is shown, swappable for real ones with no code change. Taking real photos of jobs and machines needs a camera library and file storage, and a dummy there would show a farmer a picture that isn't his job, so that waits for real photos.
+
+**What "working" meant:**
+- The machine picker shows a picture per machine, not a symbol.
+- A farmer sees which in-season machines are free near his field right now, and can book from there.
+- While his captain is on the way or working, the farmer sees how far away he is and how fresh that is.
+
+**Built:**
+- **Dummy machine photos:** 21 placeholder JPEGs in `frontend/assets/machines/<code>.jpg`, 140 KB in all, coloured by category and labelled "DUMMY PHOTO". They show in the picker grid and in his machine list. A real photo saved under the same name replaces one. A test checks that every catalogue machine has a file and an entry.
+- **Migration 0039.**
+  - `available_nearby(field)`: for the field's owner only, how many verified, online captains with an *idle* machine of each type can reach it now. Counts only, never who or where.
+  - `job_locations`: a table with RLS on, no policies and no grants, so the functions are the only way in.
+  - `report_job_location(job, lat, lng)`: the job's captain only, while en route or in progress.
+  - `job_captain_location(job)`: the job's farmer only, while live, and only if the position is under 30 minutes old.
+- **App.**
+  - The farmer's home screen shows **"Free near you now: 🌾 Combine harvester × 2"** with a **Book** button. It lists in-season machines only, at most two.
+  - While his job is on the way or in progress, his card shows **"📍 Captain 3.2 km away · 1 min ago"**, refreshed every 30 seconds while the app is open.
+  - The captain's app reports his position once a minute while it is open and he has a live job. It uses foreground location only: no background tracking, so no battery drain in a pocket.
+
+**Why the position has its own table:** `captains_read` (0011) lets any signed-in user read a verified captain's `current_location`. Tracking every minute into that column would have turned that into a live map of every captain. That pre-existing exposure is unchanged and reported to the founder, along with the phone-number one from Batch A.
+
+**Verified by running:** 292 unit tests (125 packages + 167 app; 4 new), typecheck clean, bundle exports. **In CI:** 311 database assertions (11 new), twice; 20 end-to-end steps. The new step: the captain sets off and reports his position; the farmer's sync shows the distance; a captain asking about someone else's field learns nothing.
+
+**Not verified (needs a phone):** the photos at real size on a cheap screen, the banner with real captains around, and the once-a-minute report from a phone in a moving tractor.
+
+---
 
 ## 61 · Batch B — dispatch rounds, a wider search, ringing again
 

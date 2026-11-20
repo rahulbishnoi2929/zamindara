@@ -8,7 +8,7 @@ import {
   searchState,
   type Job,
 } from './jobs';
-import { canCall, canRetrace, canWiden, machineLabels, searchClockNeeded, splitJobs, telUrl } from './jobs';
+import { canCall, canRetrace, canWiden, farmerClockNeeded, machineLabels, nearbyBanner, splitJobs, telUrl, trackedJobIds } from './jobs';
 
 describe('canRetrace (4.3)', () => {
   const j = (status: Job['status'], fieldDeclared: boolean) => ({ status, fieldDeclared }) as Job;
@@ -265,12 +265,37 @@ describe('dispatch rounds (batch B)', () => {
   });
   it('the 30-second clock runs only while one of his own "now" jobs is searching', () => {
     const mine = new Set(['f1']);
-    expect(searchClockNeeded([j({})], mine)).toBe(true);
+    expect(farmerClockNeeded([j({})], mine)).toBe(true);
     // An offer on someone else's field, on a captain's phone.
-    expect(searchClockNeeded([j({ fieldId: 'other' })], mine)).toBe(false);
-    expect(searchClockNeeded([j({ isImmediate: false })], mine)).toBe(false);
-    expect(searchClockNeeded([j({ status: 'accepted' })], mine)).toBe(false);
+    expect(farmerClockNeeded([j({ fieldId: 'other' })], mine)).toBe(false);
+    expect(farmerClockNeeded([j({ isImmediate: false })], mine)).toBe(false);
+    expect(farmerClockNeeded([j({ status: 'accepted' })], mine)).toBe(false);
     // Exhausted: nothing left to run until he widens it.
-    expect(searchClockNeeded([j({ searchExhaustedAt: 1 })], mine)).toBe(false);
+    expect(farmerClockNeeded([j({ searchExhaustedAt: 1 })], mine)).toBe(false);
+  });
+});
+
+describe('available now, and the live job (batch C)', () => {
+  const j = (over: Partial<Job>) => ({ status: 'searching', isImmediate: true, fieldId: 'f1', ...over }) as Job;
+  it('the farmer clock also runs while his captain is on the way or working', () => {
+    const mine = new Set(['f1']);
+    expect(farmerClockNeeded([j({ status: 'en_route' })], mine)).toBe(true);
+    expect(farmerClockNeeded([j({ status: 'in_progress', isImmediate: false })], mine)).toBe(true);
+    expect(farmerClockNeeded([j({ status: 'completed' })], mine)).toBe(false);
+  });
+  it('a captain reports his position only for his own live jobs', () => {
+    const jobs = [
+      j({ id: 'a', status: 'en_route', captainId: 'me' }),
+      j({ id: 'b', status: 'accepted', captainId: 'me' }),
+      j({ id: 'c', status: 'in_progress', captainId: 'other' }),
+      j({ id: 'd', status: 'in_progress', captainId: 'me' }),
+    ];
+    expect(trackedJobIds(jobs, 'me')).toEqual(['a', 'd']);
+  });
+  it('the banner names in-season machines that are free, most first, at most two', () => {
+    // April: wheat harvest (combine) and straw (straw_reaper) are in season; a rotavator is not.
+    const shown = nearbyBanner({ combine: 2, straw_reaper: 1, rotavator: 4, baler: 0 }, 4);
+    expect(shown).toEqual([{ machineCode: 'combine', count: 2 }, { machineCode: 'straw_reaper', count: 1 }]);
+    expect(nearbyBanner({}, 4)).toEqual([]);
   });
 });

@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { PricingUnit } from '@zamindara/catalog';
+import { SERVICES, type PricingUnit } from '@zamindara/catalog';
 import { fromSqm } from '@zamindara/units';
 import type { CaptainMachine } from './profile';
 
@@ -95,6 +95,9 @@ export interface Job {
   searchExtraKm?: number;
   /** Batch B: a "now" job's rounds ran out with nobody accepting. */
   searchExhaustedAt?: number | null;
+  /** Batch C, farmer side: how far his captain is, and when that was. Local only. */
+  captainKm?: number | null;
+  captainSeenAt?: number | null;
   /**
    * When nobody could be offered this job because it is smaller than the
    * captains nearby take: the smallest size they do take (4.5). Server-told.
@@ -373,12 +376,41 @@ export const canWiden = (job: Job): boolean =>
   job.status === 'searching' && job.isImmediate && job.searchExhaustedAt != null && (job.searchExtraKm ?? 0) < 30;
 
 /**
- * Batch B. The farmer's app is what moves dispatch rounds on, so it syncs
- * every 30 seconds while one of his own "now" jobs is still being searched.
- * Not for an offer on someone else's field, a job for later, or a search that
- * has run out (nothing to do until he widens it).
+ * The farmer's app syncs every 30 seconds, while it is open, when one of his
+ * own jobs needs watching:
+ *   * a "now" job still being searched: his passes move dispatch rounds on
+ *     (Batch B); not one whose search has run out, nothing to do until he widens it;
+ *   * a job on the way or in progress: his captain's distance (Batch C).
+ * Never for an offer on someone else's field.
  */
-export const searchClockNeeded = (jobs: readonly Job[], myFieldIds: ReadonlySet<string>): boolean =>
+export const farmerClockNeeded = (jobs: readonly Job[], myFieldIds: ReadonlySet<string>): boolean =>
   jobs.some(
-    (j) => j.status === 'searching' && j.isImmediate && j.searchExhaustedAt == null && myFieldIds.has(j.fieldId),
+    (j) =>
+      myFieldIds.has(j.fieldId) &&
+      ((j.status === 'searching' && j.isImmediate && j.searchExhaustedAt == null) ||
+        j.status === 'en_route' ||
+        j.status === 'in_progress'),
   );
+
+const TRACKED: ReadonlySet<JobStatus> = new Set(['en_route', 'in_progress']);
+
+/** Batch C: the jobs a captain reports his position for: his own, on the way or working. */
+export const trackedJobIds = (jobs: readonly Job[], myId: string): string[] =>
+  jobs.filter((j) => j.captainId === myId && TRACKED.has(j.status)).map((j) => j.id);
+
+/**
+ * Batch C: the "available now" banner. Machines free near his field whose
+ * work is in season this month, most first, at most two: one line he can
+ * read at a glance, not an inventory.
+ */
+export function nearbyBanner(
+  counts: Readonly<Record<string, number>>,
+  month: number,
+): { machineCode: string; count: number }[] {
+  const inSeason = new Set(SERVICES.filter((s) => s.seasonMonths.includes(month)).map((s) => s.machineCode));
+  return Object.entries(counts)
+    .filter(([code, n]) => n > 0 && inSeason.has(code))
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 2)
+    .map(([machineCode, count]) => ({ machineCode, count }));
+}

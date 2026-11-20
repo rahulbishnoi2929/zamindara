@@ -21,6 +21,7 @@ import {
   captainRatesToWire,
   fieldFromWire,
   fieldToWire,
+  fromIso,
   isUuid,
   jobEditsToWire,
   jobFromWire,
@@ -741,9 +742,22 @@ export async function syncJobs(
 
   // The pull predates this pass's writes, so anything just pushed must win
   // until the next pass confirms it.
-  return keepJustPushed(mergeById(jobs, remote), jobs, pushed).filter(
+  const merged = keepJustPushed(mergeById(jobs, remote), jobs, pushed).filter(
     (j) => !gone.has(j.id) || j.status !== 'searching',
   );
+
+  // Batch C: where his captain is, for the farmer's own live jobs.
+  const out: Job[] = [];
+  for (const j of merged) {
+    if (j.captainId !== uid && (j.status === 'en_route' || j.status === 'in_progress') && isUuid(j.id)) {
+      const { data } = await supabase.rpc('job_captain_location', { p_job_id: j.id });
+      const at = (data as Array<{ km: number; seen_at: string }> | null)?.[0];
+      out.push({ ...j, captainKm: at === undefined ? null : Number(at.km), captainSeenAt: fromIso(at?.seen_at ?? null) });
+    } else {
+      out.push(j);
+    }
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------
@@ -1186,5 +1200,20 @@ export async function notifyFarmerBooked(jobId: string): Promise<void> {
 export async function widenSearch(jobId: string): Promise<boolean> {
   if (!isBackendConfigured()) return false;
   const { error } = await supabase.rpc('widen_search', { p_job_id: jobId });
+  return error === null;
+}
+
+/** Batch C: idle machines that can reach this field now, by machine code. Empty on any failure. */
+export async function fetchNearby(fieldId: string): Promise<Record<string, number>> {
+  if (!isBackendConfigured() || !isUuid(fieldId)) return {};
+  const { data, error } = await supabase.rpc('available_nearby', { p_field_id: fieldId });
+  if (error !== null || data === null) return {};
+  return Object.fromEntries((data as Array<{ machine_code: string; captains: number }>).map((r) => [r.machine_code, r.captains]));
+}
+
+/** Batch C: the captain's position on a live job, for its farmer only. Best effort. */
+export async function reportJobLocation(jobId: string, lat: number, lng: number): Promise<boolean> {
+  if (!isBackendConfigured()) return false;
+  const { error } = await supabase.rpc('report_job_location', { p_job_id: jobId, p_lat: lat, p_lng: lng });
   return error === null;
 }

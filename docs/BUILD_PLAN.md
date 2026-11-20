@@ -240,7 +240,7 @@ A 50 m fibreglass tape costs about ₹500–1,000 and is accurate to roughly 0.2
 **Build**
 
 - [x] Onboarding flow from [USER_FLOWS.md](USER_FLOWS.md#flow-1--captain-onboarding) · *built: Phase 3*
-- [ ] **Illustrated machine picker** — pictures of a combine, rotavator, laser leveller. Never an English dropdown.
+- [x] **Illustrated machine picker** — pictures of a combine, rotavator, laser leveller. Never an English dropdown. · *built: DUMMY photos in frontend/assets/machines, swap for real ones*
 - [x] Owned vs **arrangeable** distinction, with lead time · *built: MachineRegistry*
 - [ ] Machine photos, compressed hard for 2G
 - [x] `with_operator_only` flag (Balwinder's constraint) · *built: MachineRegistry*
@@ -315,7 +315,7 @@ A 50 m fibreglass tape costs about ₹500–1,000 and is accurate to roughly 0.2
 - [ ] Captain queue with reorder and distance-sorted suggestion
 - [x] Queue position and ETA visible to the farmer · *built: FarmerJobCard*
 - [ ] Lifecycle: en route → in progress → completed, photos at start and end
-- [ ] Live captain location during an active job, with the tracking intervals from [TECH_ARCHITECTURE.md](TECH_ARCHITECTURE.md#location-tracking)
+- [x] Live captain location during an active job, with the tracking intervals from [TECH_ARCHITECTURE.md](TECH_ARCHITECTURE.md#location-tracking) · *built: Batch C, foreground only, farmer sees distance*
 - [x] Call button on every job screen · *built: job cards, 20 Nov*
 - [x] Amount and payment mode recorded — settled off-app · *built: CompleteJobSheet*
 - [ ] Offline outbox with retry and idempotency keys
@@ -404,7 +404,7 @@ The differentiator, and the reason Fazilka is the right beachhead. Built now so 
 **Build**
 
 - [x] Travelling toggle: current location, days staying, forward route · *built: route stops, Stage 4.7*
-- [ ] "Combine available now" banner for farmers in radius
+- [x] "Combine available now" banner for farmers in radius · *built: Batch C*
 - [x] Pre-booking on a declared forward route · *built: Stages 4.7, 4.8*
 - [ ] Portable ratings — reputation earned in Ganganagar must travel into Fazilka
 - [x] Field access notes surfaced to the operator (can a truck reach it?) · *built: field card + captain job card, 20 Nov*

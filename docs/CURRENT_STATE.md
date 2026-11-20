@@ -2,7 +2,7 @@
 
 **The single source for what exists today.** Folder names, packages, counts and what is actually built live here, and only here. Other documents describe plans and reasons. Where one of them disagrees with this page, this page wins, and the other is marked *Superseded*.
 
-**As of 20 Nov 2026: the 16 Nov brief done, plus Batches A and B of the open BUILD_PLAN items.** Update this page in the same commit as any change to a count or a folder.
+**As of 20 Nov 2026: the 16 Nov brief done, plus Batches A, B and C of the open BUILD_PLAN items.** Update this page in the same commit as any change to a count or a folder.
 
 ---
 
@@ -54,14 +54,16 @@ npm workspaces; the app imports each by name, nothing is published.
 
 | | Count | How to check |
 |---|---|---|
-| Database migrations | **38** (`…0001_extensions` to `…0038_dispatch_rounds`) | `ls backend/supabase/migrations` |
-| Database test files | **24** | `ls backend/supabase/tests` |
-| Database assertions | **300**, run twice in CI: before and after a backup, wipe and restore | CI log, "Files=24, Tests=300" |
-| Unit tests | **288**: 125 packages + 163 app | `npm test` at the root |
-| End-to-end steps | **19**, the app's own sync code against a real database | CI, "Core loop, end to end" |
+| Database migrations | **39** (`…0001_extensions` to `…0039_nearby_and_tracking`) | `ls backend/supabase/migrations` |
+| Database test files | **25** | `ls backend/supabase/tests` |
+| Database assertions | **311**, run twice in CI: before and after a backup, wipe and restore | CI log, "Files=25, Tests=311" |
+| Unit tests | **292**: 125 packages + 167 app | `npm test` at the root |
+| End-to-end steps | **20**, the app's own sync code against a real database | CI, "Core loop, end to end" |
 | Edge functions | **1** (`notify-dispatch`) | `ls backend/supabase/functions` |
 
 ## What is built
+
+**Machine pictures** are DUMMY placeholders in `frontend/assets/machines/`; replace each with a real photo of the same name.
 
 **Measuring a field**
 - Walk the boundary with GPS, or draw on satellite imagery. Drawing uses a fixed crosshair, a zoom limit and a rectangle snap (Stage 6).
@@ -85,6 +87,7 @@ npm workspaces; the app imports each by name, nothing is published.
   - free on the right machine type, with a queue per machine (4.6);
   - at a route stop that covers the job's day (4.7);
   - the job is at least his smallest size.
+- A farmer sees which in-season machines are free near his field now (counts only), and, while his captain is on the way or working, how far away he is (Batch C).
 - Both sides can call each other while a job is live. A farmer's note on how to reach a field shows on the captain's card.
 - A captain can accept, travel, work, complete, hand a job back, or log a phone booking and measure the field on arrival (4.3).
 - A request lapses at the end of its day.

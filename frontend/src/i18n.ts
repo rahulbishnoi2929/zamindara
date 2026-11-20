@@ -332,6 +332,10 @@ const strings = {
     hi: 'नक्शा खिसकाएँ ताकि पिन खेत पर आए',
     en: 'Move the map so the pin sits on the field',
   },
+  availableNow: { pa: 'ਹੁਣੇ ਨੇੜੇ ਖ਼ਾਲੀ', hi: 'अभी पास में ख़ाली', en: 'Free near you now' },
+  bookNow: { pa: 'ਬੁੱਕ ਕਰੋ', hi: 'बुक करें', en: 'Book' },
+  captainAway: { pa: 'ਕੈਪਟਨ {km} ਕਿ.ਮੀ. ਦੂਰ', hi: 'कैप्टन {km} कि.मी. दूर', en: 'Captain {km} km away' },
+  minutesAgo: { pa: '{n} ਮਿੰਟ ਪਹਿਲਾਂ', hi: '{n} मिनट पहले', en: '{n} min ago' },
   searchExhausted: {
     pa: 'ਹਾਲੇ ਕਿਸੇ ਕੈਪਟਨ ਨੇ ਕੰਮ ਨਹੀਂ ਲਿਆ।',
     hi: 'अभी किसी कैप्टन ने काम नहीं लिया।',

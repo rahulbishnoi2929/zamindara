@@ -671,6 +671,29 @@ describe.skipIf(URL_ === '')('core loop against the database', { timeout: 60_000
     await admin.from('app_config').update({ auto_dispatch: false }).eq('id', true);
   });
 
+  it('batch C: the captain sets off; the farmer sees how far away he is', async () => {
+    // One of the two founder-booked jobs from 4.6, still accepted, on the farmer's account.
+    const live = twoCombineJobs[0]!;
+    await signInAs(CAPTAIN_PHONE, CAPTAIN_CODE);
+    captainJobs = await app.sync.syncJobs(captainJobs, captain);
+    captainJobs = captainJobs.map((j) => (j.id === live ? { ...j, status: 'en_route' as const } : j));
+    captainJobs = await app.sync.syncJobs(captainJobs, captain);
+    expect(app.jobs.trackedJobIds(captainJobs, captainUid)).toContain(live);
+    expect(await app.sync.reportJobLocation(live, 30.43, 74.04)).toBe(true);
+    // Nobody can learn about a field that is not theirs.
+    expect(await app.sync.fetchNearby(fieldId)).toEqual({});
+
+    await signInAs(FARMER_PHONE, FARMER_CODE);
+    farmerJobs = await app.sync.syncJobs(farmerJobs, farmer);
+    const seen = farmerJobs.find((j) => j.id === live)!;
+    expect(seen.status).toBe('en_route');
+    expect(seen.captainKm).toBeGreaterThan(0);
+    expect(seen.captainKm).toBeLessThan(5);
+    // His own field: a plain answer, whatever is free right now.
+    const free = await app.sync.fetchNearby(fieldId);
+    expect(Object.values(free).every((n) => typeof n === 'number')).toBe(true);
+  });
+
   it('a phone that lost its local copy gets everything back, cursors notwithstanding', async () => {
     await signInAs(FARMER_PHONE, FARMER_CODE);
     const restored = await app.sync.syncJobs([], farmer);

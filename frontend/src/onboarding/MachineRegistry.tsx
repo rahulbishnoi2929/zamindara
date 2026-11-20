@@ -7,9 +7,10 @@ import {
 } from '@zamindara/catalog';
 import type { Locale } from '@zamindara/units';
 import { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Image, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { Button, Card } from '../components';
 import { t } from '../i18n';
+import { MACHINE_PHOTOS } from '../machinePhotos';
 import type { CaptainMachine, Ownership } from '../profile';
 import { colors, radius, space, TOUCH_MIN, type } from '../theme';
 import { uuid } from '../sync/mapping';
@@ -96,7 +97,11 @@ export function MachineRegistry({ locale, machines, onChange }: Props) {
               onPress={() => setEditing(machine)}
               style={({ pressed }) => [s.row, pressed && s.pressed]}
             >
-              <Text style={s.rowGlyph}>{type.glyph}</Text>
+              {MACHINE_PHOTOS[type.code] !== undefined ? (
+                <Image source={MACHINE_PHOTOS[type.code]!} style={s.rowPhoto} accessibilityIgnoresInvertColors />
+              ) : (
+                <Text style={s.rowGlyph}>{type.glyph}</Text>
+              )}
               <View style={s.rowText}>
                 <Text style={s.rowName}>{type.name[locale]}</Text>
                 <Text style={s.rowMeta}>
@@ -130,7 +135,11 @@ export function MachineRegistry({ locale, machines, onChange }: Props) {
                       accessibilityRole="button"
                       accessibilityLabel={machine.name[locale]}
                     >
-                      <Text style={s.tileGlyph}>{machine.glyph}</Text>
+                      {MACHINE_PHOTOS[machine.code] !== undefined ? (
+                        <Image source={MACHINE_PHOTOS[machine.code]!} style={s.tilePhoto} accessibilityIgnoresInvertColors />
+                      ) : (
+                        <Text style={s.tileGlyph}>{machine.glyph}</Text>
+                      )}
                       <Text style={s.tileName} numberOfLines={2}>
                         {machine.name[locale]}
                       </Text>
@@ -258,6 +267,7 @@ const s = StyleSheet.create({
   },
   pressed: { opacity: 0.85 },
   rowGlyph: { fontSize: 32 },
+  rowPhoto: { width: 72, height: 48, borderRadius: radius.sm },
   rowText: { flex: 1, gap: 2 },
   rowName: { ...type.body, color: colors.text },
   rowMeta: { ...type.label, fontWeight: '400', color: colors.textMuted },
@@ -283,6 +293,8 @@ const s = StyleSheet.create({
     gap: space.xs,
   },
   tileGlyph: { fontSize: 34 },
+  // 3:2, like the photos. A real photo dropped in later keeps the shape.
+  tilePhoto: { width: '100%', aspectRatio: 3 / 2, borderRadius: radius.sm },
   tileName: { ...type.label, fontSize: 13, color: colors.text, textAlign: 'center' },
 
   sheetBackdrop: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'flex-end' },

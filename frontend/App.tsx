@@ -31,7 +31,9 @@ import {
   addJob,
   cancelJob,
   loadJobs,
-  searchClockNeeded,
+  farmerClockNeeded,
+  nearbyBanner,
+  trackedJobIds,
   rateJob,
   releaseJob,
   updateJob,
@@ -59,6 +61,8 @@ import {
   syncFields,
   cancelJobRemote,
   fetchAppConfig,
+  fetchNearby,
+  reportJobLocation,
   fetchRateGuidance,
   pushRating,
   releaseJobRemote,
@@ -122,6 +126,8 @@ export default function App() {
   const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
   // Stage 5: a captain whose work pings would not be seen is told on his home screen.
   const [alertsAtRisk, setAlertsAtRisk] = useState(false);
+  // Batch C: idle machines near the farmer's field, by machine code.
+  const [nearby, setNearby] = useState<Record<string, number>>({});
   const [signedIn, setSignedIn] = useState(false);
   // He chose to carry on without an account. Field measurement works fully
   // offline, so this is a legitimate way to use the app, not an escape hatch.
@@ -189,6 +195,9 @@ export default function App() {
     if (nextFields !== fields) setFields(nextFields);
     const nextJobs = await syncJobs(jobs, current);
     if (nextJobs !== jobs) setJobs(nextJobs);
+    // Batch C: what could come to his field right now. Counts only.
+    const first = nextFields.find((f) => f.synced);
+    if (first !== undefined) setNearby(await fetchNearby(first.id));
   };
 
   // Refresh tokens and sync only while the app is in front of him. The
@@ -203,7 +212,24 @@ export default function App() {
   // Batch B: dispatch rounds move on when the farmer's app syncs, so while
   // one of his "now" jobs is being searched and the app is in front of him,
   // sync every 30 seconds. Nothing runs otherwise: no timer in a pocket.
-  const searching = searchClockNeeded(jobs, new Set(fields.map((f) => f.id)));
+  const searching = farmerClockNeeded(jobs, new Set(fields.map((f) => f.id)));
+
+  // Batch C: on the way or working, the captain reports where he is once a
+  // minute while the app is open, for that job's farmer only. Foreground
+  // only: no background location, so no battery drain in a pocket.
+  const tracked = profile === null ? '' : trackedJobIds(jobs, profile.id).join(',');
+  useEffect(() => {
+    if (tracked === '') return;
+    const report = async () => {
+      if (AppState.currentState !== 'active') return;
+      const fix = await currentLatLng();
+      if (fix === null) return;
+      for (const id of tracked.split(',')) await reportJobLocation(id, fix.lat, fix.lng);
+    };
+    void report();
+    const timer = setInterval(() => void report(), 60_000);
+    return () => clearInterval(timer);
+  }, [tracked]);
   useEffect(() => {
     if (!searching) return;
     const timer = setInterval(() => {
@@ -703,6 +729,7 @@ export default function App() {
                 onRateJob={(job, stars) => void rateJobNow(job, stars)}
                 onReleaseJob={(job) => exitJob(job, 'release')}
                 onDisputeArea={disputeArea}
+                nearby={nearbyBanner(nearby, new Date().getMonth() + 1)}
                 onWidenSearch={(job) => {
                   void widenSearch(job.id).then(async (ok) => {
                     if (ok && profile !== null) setJobs(await syncJobs(await loadJobs(), profile));

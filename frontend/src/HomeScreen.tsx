@@ -105,6 +105,8 @@ interface Props {
   onReleaseJob: (job: Job) => void;
   /** Either party: "the area is wrong" (4.4). */
   onDisputeArea?: ((job: Job) => void) | undefined;
+  /** Batch C: in-season machines free near his field right now. */
+  nearby?: { machineCode: string; count: number }[] | undefined;
   /** Batch B: widen an exhausted search. */
   onWidenSearch?: ((job: Job) => void) | undefined;
   /** The farmer records the area on his papers; null clears it. */
@@ -153,6 +155,7 @@ export function HomeScreen({
   onReleaseJob,
   onDisputeArea,
   onWidenSearch,
+  nearby,
   onSetPapersArea,
   onSetAccessNotes,
   onEditProfile,
@@ -340,6 +343,18 @@ export function HomeScreen({
               </View>
             )}
           </>
+        )}
+
+        {farmer && nearby !== undefined && nearby.length > 0 && (
+          <Card>
+            <Text style={s.sectionTitle}>{t('availableNow', locale)}</Text>
+            <Text style={s.fieldName}>
+              {nearby
+                .map((n) => `${MACHINE_BY_CODE.get(n.machineCode)?.glyph ?? ''} ${MACHINE_BY_CODE.get(n.machineCode)?.name[locale] ?? n.machineCode} × ${n.count}`)
+                .join('   ')}
+            </Text>
+            <Button label={t('bookNow', locale)} onPress={onBookWork} />
+          </Card>
         )}
 
         {farmer && (

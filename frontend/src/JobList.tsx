@@ -87,6 +87,12 @@ export function FarmerJobCard({
           <Button label={t('askFarther', locale)} onPress={() => onWiden(job)} variant="secondary" flex />
         </View>
       )}
+      {job.captainKm != null && job.captainSeenAt != null && (
+        <Text style={s.searchNote}>
+          📍 {t('captainAway', locale).replace('{km}', String(job.captainKm))} ·{' '}
+          {t('minutesAgo', locale).replace('{n}', String(Math.max(0, Math.round((Date.now() - job.captainSeenAt) / 60_000))))}
+        </Text>
+      )}
       <CallButton job={job} label={t('callCaptain', locale)} />
 
       {/* The question a farmer actually asks is never "is a machine coming"
