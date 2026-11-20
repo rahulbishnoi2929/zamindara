@@ -1,9 +1,10 @@
 import { SERVICE_BY_CODE } from '@zamindara/catalog';
 import { formatAreaShort, type Locale } from '@zamindara/units';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Button, Card } from './components';
 import { t, type StringKey } from './i18n';
 import {
+  canCall,
   canCancel,
   canRelease,
   canRetrace,
@@ -11,6 +12,7 @@ import {
   searchState,
   type Job,
   type JobStatus,
+  telUrl,
 } from './jobs';
 import { colors, radius, space, TOUCH_MIN, type } from './theme';
 
@@ -73,6 +75,7 @@ export function FarmerJobCard({
       </Text>
       {job.captainName !== null && <Text style={s.captain}>{job.captainName}</Text>}
       <SearchNote job={job} locale={locale} />
+      <CallButton job={job} label={t('callCaptain', locale)} />
 
       {/* The question a farmer actually asks is never "is a machine coming"
           but "when does it reach me". */}
@@ -245,6 +248,11 @@ export function CaptainJobCard({
           .join(' · ')}
       </Text>
 
+      {/* The farmer's directions: before he accepts, so "no truck entry" can change his mind. */}
+      {job.accessNotes != null && job.accessNotes !== '' && (
+        <Text style={[s.meta, incoming && s.metaIncoming]}>🚜 {job.accessNotes}</Text>
+      )}
+
       {incoming ? (
         <View style={s.actions}>
           <Button
@@ -268,6 +276,8 @@ export function CaptainJobCard({
         </View>
       )}
 
+      <CallButton job={job} label={t('callFarmer', locale)} />
+
       {/* Booked by phone: the area is the farmer's word until he measures it. */}
       {onRetrace !== undefined && canRetrace(job) && (
         <View style={s.actions}>
@@ -283,6 +293,16 @@ export function CaptainJobCard({
         </Pressable>
       )}
       <AreaDispute job={job} locale={locale} onDispute={onDisputeArea} />
+    </View>
+  );
+}
+
+/** Ring the other side, only while the job is live between them. The dialer does the rest. */
+function CallButton({ job, label }: { job: Job; label: string }) {
+  if (!canCall(job)) return null;
+  return (
+    <View style={s.actions}>
+      <Button label={label} onPress={() => void Linking.openURL(telUrl(job.contactPhone!))} variant="secondary" flex />
     </View>
   );
 }

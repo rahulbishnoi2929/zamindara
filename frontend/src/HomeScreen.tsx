@@ -107,6 +107,8 @@ interface Props {
   onDisputeArea?: ((job: Job) => void) | undefined;
   /** The farmer records the area on his papers; null clears it. */
   onSetPapersArea?: ((field: SavedField, sqm: number | null) => void) | undefined;
+  /** How a machine reaches the field; shown to the captain. Empty clears it. */
+  onSetAccessNotes?: ((field: SavedField, notes: string | null) => void) | undefined;
   onEditProfile: () => void;
   onToggleOnline: () => void;
   onOpenFieldTest: () => void;
@@ -149,6 +151,7 @@ export function HomeScreen({
   onReleaseJob,
   onDisputeArea,
   onSetPapersArea,
+  onSetAccessNotes,
   onEditProfile,
   onToggleOnline,
   onOpenFieldTest,
@@ -371,6 +374,7 @@ export function HomeScreen({
                   <AreaDisplay sqm={field.areaSqm} locale={locale} compact />
                   {!field.synced && <Text style={s.pending}>⟳</Text>}
                   <PapersArea field={field} locale={locale} onSet={onSetPapersArea} />
+                  <AccessNotes field={field} locale={locale} onSet={onSetAccessNotes} />
                 </Card>
               ))
             )}
@@ -533,6 +537,46 @@ function PapersArea({
         disabled={sqm === null}
         onPress={() => {
           onSet(field, sqm);
+          setOpen(false);
+        }}
+      />
+    </View>
+  );
+}
+
+/** "Gate on the canal side, no truck entry": written once, shown to every captain sent there. */
+function AccessNotes({
+  field,
+  locale,
+  onSet,
+}: {
+  field: SavedField;
+  locale: Locale;
+  onSet?: ((field: SavedField, notes: string | null) => void) | undefined;
+}) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState(field.accessNotes ?? '');
+  if (onSet === undefined) return null;
+  if (!open) {
+    return (
+      <Pressable onPress={() => setOpen(true)} style={{ minHeight: 56, justifyContent: 'center' }}>
+        <Text style={s.empty}>{field.accessNotes ? `🚜 ${field.accessNotes}` : t('accessNotesAdd', locale)}</Text>
+      </Pressable>
+    );
+  }
+  return (
+    <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+      <TextInput
+        style={papersInput}
+        placeholder={t('accessNotesHint', locale)}
+        value={text}
+        onChangeText={setText}
+        maxLength={200}
+      />
+      <Button
+        label={t('save', locale)}
+        onPress={() => {
+          onSet(field, text.trim() === '' ? null : text.trim());
           setOpen(false);
         }}
       />

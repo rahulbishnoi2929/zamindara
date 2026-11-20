@@ -173,6 +173,7 @@ export interface WireFieldInsert {
   confirmed_by_owner: boolean;
   created_at: string;
   papers_area_sqm: number | null;
+  access_notes: string | null;
 }
 
 export interface WireFieldRow {
@@ -184,6 +185,7 @@ export interface WireFieldRow {
   gps_accuracy_m: number | null;
   created_at: string;
   papers_area_sqm?: number | null;
+  access_notes?: string | null;
 }
 
 /**
@@ -204,6 +206,7 @@ export function fieldToWire(field: SavedField): WireFieldInsert | null {
     confirmed_by_owner: true,
     created_at: toIso(field.capturedAt),
     papers_area_sqm: field.papersAreaSqm ?? null,
+    access_notes: field.accessNotes?.trim() || null,
   };
 }
 
@@ -224,6 +227,7 @@ export function fieldFromWire(row: WireFieldRow): SavedField | null {
     meanAccuracyM: row.gps_accuracy_m ?? 0,
     synced: true,
     papersAreaSqm: row.papers_area_sqm ?? null,
+    accessNotes: row.access_notes ?? null,
   };
 }
 
@@ -265,7 +269,11 @@ export interface WireJobRow {
   area_disputed_at?: string | null;
   machine_id?: string | null;
   /** Embedded on the captain's pull. */
-  field?: { capture_method?: string } | null;
+  field?: { capture_method?: string; access_notes?: string | null } | null;
+  /** Embedded on the captain's pulls: who to call. */
+  farmer?: { phone?: string | null } | null;
+  /** Embedded on the farmer's pull. */
+  captain?: { profile?: { phone?: string | null } | null } | null;
   field_id: string;
   captain_id: string | null;
   service_id: string;
@@ -390,6 +398,8 @@ export function jobFromWire(
     areaDisputedAt: fromIso(row.area_disputed_at ?? null),
     machineId: row.machine_id ?? null,
     fieldDeclared: row.field?.capture_method === 'declared',
+    contactPhone: row.captain?.profile?.phone ?? row.farmer?.phone ?? null,
+    accessNotes: row.field?.access_notes ?? null,
   };
 }
 

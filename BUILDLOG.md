@@ -14,7 +14,7 @@ Newest first, so the most recent work is always at the top. Each entry says what
 |---|---|
 | **Phase** | Code done through 5. **Phase 1 field test never run — the gate was walked past.** See the revision at the top of BUILD_PLAN. |
 | **Brief** | Working through the 16 Nov staged brief. Stage 1 done (awaiting your phone install). **All seven stages of the brief are done.** Current facts: [docs/CURRENT_STATE.md](docs/CURRENT_STATE.md). Waiting on you: Supabase project, Firebase, first-phone test. |
-| **Tests** | 279 unit (125 packages + 154 app) + **287 database assertions** (run twice in CI: before and after a backup-and-restore) + **18-step end-to-end test** covering every server call, against a real database, all green in CI |
+| **Tests** | 285 unit (125 packages + 160 app) + **287 database assertions** (run twice in CI: before and after a backup-and-restore) + **18-step end-to-end test** covering every server call, against a real database, all green in CI |
 | **App** | Signed release APK, **35.3 MB** (from 75.8), R8 on, ARM only. Shows `v0.1.0` on home; an `app_config` row tells old phones to update. **Install once:** JS changes reach a phone over the air. |
 | **Not yet done** | Never run on a physical device; sync never run against a hosted Supabase project |
 | **Blocking next step** | Setup: Maps key, hosted Supabase project, `expo prebuild` + APK, a phone, a 50 m tape |
@@ -24,7 +24,7 @@ Newest first, so the most recent work is always at the top. Each entry says what
 ```
 C:\Zamidara\
 ├── docs\              16 product and engineering documents
-├── frontend\          Expo SDK 57 Android app — 154 tests + e2e
+├── frontend\          Expo SDK 57 Android app — 160 tests + e2e
 ├── backend\supabase\  37 migrations, RLS, dispatch functions — 287 assertions
 ├── packages\          units · geo · catalog · pricing · scheduling — 122 tests
 └── assets\            logo
@@ -67,6 +67,33 @@ The most useful part of this log. Each of these was believed, written down, then
 ---
 
 # Entries
+
+## 60 · Batch A — call buttons, access notes, the radius on a map
+
+**Asked:** "complete the things we have not completed." An audit of BUILD_PLAN's open items found most were built but never ticked, and ten genuinely missing. The founder OK'd them in batches; this is Batch A.
+
+**What "working" meant:**
+- Once a job is live between them, the farmer can ring his captain and the captain his farmer, in one tap.
+- The farmer writes once how a machine reaches his field, and every captain sent there reads it before accepting.
+- A captain sees and sets how far he'll travel, as a circle on a map.
+
+**Built (no database change, no new dependency):**
+- **Call buttons** on both job cards: 📞 Call captain / 📞 Call farmer. They show only while the job is accepted, on the way or in progress. The number comes from rows the existing privacy rules already let each side read (`shares_a_job_with`), and the phone's own dialer does the call.
+- **Access notes.** Each field card has "+ How to reach this field" (up to 200 characters). It is saved to `fields.access_notes`, a column that had existed since migration 0007 and was never used. The captain's card shows "🚜 …" on offers as well as accepted jobs, so "no truck entry" can change his mind before he accepts.
+- **Service radius.** The last onboarding step now has a − / + control from 5 to 50 km in steps of 5, and a map with his radius drawn as a circle. Before this, the radius was fixed at 15 km with no way to change it.
+- **Seasonal ordering** of services turned out to be built already (`servicesForMonth`).
+- **BUILD_PLAN:** 38 items ticked, each with where it was built or which test proves it. 78 remain, most of them the founder's own work: the field test, captains, devices.
+
+**Found, not changed (pre-existing):** phone numbers are more visible than "only on a shared job".
+- `profiles_read_counterparty` lets any signed-in user read a verified captain's whole profile row, phone included.
+- `shares_a_job_with` counts an *offer*, so a captain offered a job can read the farmer's number before he accepts.
+- Captains are businesses, so the first is arguably fine. The second is worth tightening, with a phone-free view or a column grant, as its own item with its own tests.
+
+**Verified by running:** 285 unit tests (125 packages + 160 app; 6 new), typecheck clean, bundle exports. **In CI:** 287 database assertions twice; 18 end-to-end steps, now also checking the access note reaching the captain on the offer, and each side receiving the other's number.
+
+**Not verified (needs a phone):** the dialer opening with the number; the map circle at 5 km and 50 km.
+
+---
 
 ## 59 · Stage 7 — one page for what exists today
 

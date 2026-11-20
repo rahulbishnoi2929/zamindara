@@ -28,3 +28,4 @@ fixed. The point is that the choice was seen, not that it was solved.
 | Stage 5 — phone setup | Nothing on the server: settings are read on the phone, and ticks stay there. No cost at any number of captains. If the founder needs to know which captains have not set up, add one column to `captains` then. |
 | Stage 6 — draw screen | All on the phone; nothing new on the server. The snap is one rectangle fit over four points. No scaling concern. |
 | Stage 7 — current state page | Documentation only. The risk is drift, not load: the page goes stale the moment a count changes without it. If that starts happening, have CI compare its migration and test counts with the repo. |
+| Batch A — calls, access notes, radius | Two extra columns on three existing embeds; nothing new on the server. No scaling concern. |

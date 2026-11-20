@@ -125,7 +125,7 @@ export function RouteScreen({ locale, stops: initial, near, onDone }: Props) {
   );
 }
 
-function Stepper({
+export function Stepper({
   label,
   value,
   onMinus,

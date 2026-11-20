@@ -205,20 +205,20 @@ A 50 m fibreglass tape costs about ₹500–1,000 and is accurate to roughly 0.2
 **Build**
 
 - [ ] Supabase project, PostGIS enabled
-- [ ] Full schema from [DATA_MODEL.md](DATA_MODEL.md) as migrations
-- [ ] RLS policies on every table
-- [ ] Seed data: machine types, services, Fazilka villages, region + unit set
+- [x] Full schema from [DATA_MODEL.md](DATA_MODEL.md) as migrations · *built: 37 migrations*
+- [x] RLS policies on every table · *built: migration 0011 onward*
+- [x] Seed data: machine types, services, Fazilka villages, region + unit set · *built: seed.sql from packages/catalog*
 - [ ] Phone OTP auth (MSG91 or Twilio — needs DLT registration in India, start it early)
-- [ ] Profile creation, language preference
-- [ ] Field sync: local walk → Postgres, with the `area_sqm` trigger computing area **server-side**
+- [x] Profile creation, language preference · *built: onboarding*
+- [x] Field sync: local walk → Postgres, with the `area_sqm` trigger computing area **server-side** · *built: e2e step 2*
 - [ ] Generated TypeScript types from the schema
 
 **Test**
 
-- [ ] The area trigger: a client cannot submit its own acreage
-- [ ] RLS: farmer A cannot read farmer B's field boundary — this is land records, not public data
+- [x] The area trigger: a client cannot submit its own acreage · *built: pgTAP 02, 08*
+- [x] RLS: farmer A cannot read farmer B's field boundary — this is land records, not public data · *built: pgTAP 02*
 - [ ] RLS: a captain sees a field's geometry only through an accepted job
-- [ ] Geospatial: `ST_Area` on a stored polygon matches what the app computed
+- [x] Geospatial: `ST_Area` on a stored polygon matches what the app computed · *built: e2e step 2*
 - [ ] Auth: OTP round-trip on a real phone number
 - [ ] Sync: walk offline, reconnect, field appears in Postgres unchanged
 
@@ -239,22 +239,22 @@ A 50 m fibreglass tape costs about ₹500–1,000 and is accurate to roughly 0.2
 
 **Build**
 
-- [ ] Onboarding flow from [USER_FLOWS.md](USER_FLOWS.md#flow-1--captain-onboarding)
+- [x] Onboarding flow from [USER_FLOWS.md](USER_FLOWS.md#flow-1--captain-onboarding) · *built: Phase 3*
 - [ ] **Illustrated machine picker** — pictures of a combine, rotavator, laser leveller. Never an English dropdown.
-- [ ] Owned vs **arrangeable** distinction, with lead time
+- [x] Owned vs **arrangeable** distinction, with lead time · *built: MachineRegistry*
 - [ ] Machine photos, compressed hard for 2G
-- [ ] `with_operator_only` flag (Balwinder's constraint)
-- [ ] Services and rates per machine, with rate *units*
-- [ ] Base location + service radius, live map preview
-- [ ] Online/offline toggle
-- [ ] Farmer/captain/**both** role switching
+- [x] `with_operator_only` flag (Balwinder's constraint) · *built: MachineRegistry*
+- [x] Services and rates per machine, with rate *units* · *built: onboarding rates step*
+- [x] Base location + service radius, live map preview · *built: radius stepper and map circle, 20 Nov*
+- [x] Online/offline toggle · *built: home screen*
+- [x] Farmer/captain/**both** role switching · *built: onboarding*
 
 **Test**
 
 - [ ] Device: full onboarding on a low-end phone, 2 GB RAM
 - [ ] Device: photo upload on a 2G connection
 - [ ] Every screen complete in Gurmukhi — no English leaking through
-- [ ] Arrangeable machines are excluded from instant jobs, included in scheduled ones beyond their lead time
+- [x] Arrangeable machines are excluded from instant jobs, included in scheduled ones beyond their lead time · *built: pgTAP 03*
 - [ ] A `role = 'both'` account can act as either without re-registering
 
 **Do**
@@ -273,25 +273,25 @@ A 50 m fibreglass tape costs about ₹500–1,000 and is accurate to roughly 0.2
 
 **Build**
 
-- [ ] Job posting: field → service → timing
-- [ ] Seasonally reordered service grid (harvesting first in April, sowing in November)
-- [ ] Rate guidance — a *range* from recent nearby jobs, never a single number
-- [ ] Price calculation: `(area ÷ unit) × rate + travel beyond 5 km`
+- [x] Job posting: field → service → timing · *built: JobPostFlow*
+- [x] Seasonally reordered service grid (harvesting first in April, sowing in November) · *built: servicesForMonth*
+- [x] Rate guidance — a *range* from recent nearby jobs, never a single number · *built: rate_guidance*
+- [x] Price calculation: `(area ÷ unit) × rate + travel beyond 5 km` · *built: quote_job + packages/pricing*
 > **Superseded (20 Nov 2026):** dispatch was built as database functions (`dispatch_job`, `eligible_captains`, `accept_job`), not an edge function, with one round to the top five and open offers for later-day jobs. No server timeout or rounds. Current facts: [CURRENT_STATE.md](CURRENT_STATE.md).
 
 - [ ] **Dispatch edge function**: eligibility query, scoring, broadcast to top 5, 90-second timeout, three rounds
 - [ ] Live matching screen showing who was pinged and who replied
-- [ ] Accept/decline, assignment, cancelling the other dispatches
+- [x] Accept/decline, assignment, cancelling the other dispatches · *built: accept_job*
 
 **Test**
 
-- [ ] **Pricing unit tests before any UI** — money code, same rule as area
-- [ ] Dispatch eligibility: right service, right machine, inside radius, online, verified
-- [ ] Owned vs arrangeable filtering by job timing
-- [ ] Race: two captains accept simultaneously — exactly one wins
+- [x] **Pricing unit tests before any UI** — money code, same rule as area · *built: packages/pricing, pgTAP 06*
+- [x] Dispatch eligibility: right service, right machine, inside radius, online, verified · *built: pgTAP 03*
+- [x] Owned vs arrangeable filtering by job timing · *built: pgTAP 03*
+- [x] Race: two captains accept simultaneously — exactly one wins · *built: pgTAP 03, 11*
 - [ ] Timeout escalates to the next five
 - [ ] No eligible captains → farmer is told, offered a wider radius
-- [ ] Travel charge: 5 km → ₹0, 9 km → 4 × rate
+- [x] Travel charge: 5 km → ₹0, 9 km → 4 × rate · *built: pgTAP 06*
 
 **Do**
 
@@ -309,15 +309,15 @@ A 50 m fibreglass tape costs about ₹500–1,000 and is accurate to roughly 0.2
 
 - [ ] Push via Expo → FCM, dedicated max-importance Android channel, custom loud sound
 - [ ] **Full-screen job ping** that wakes the device and behaves like an incoming call
-- [ ] Accept/decline as notification actions, no app launch needed
+- [x] Accept/decline as notification actions, no app launch needed · *built: notifications.ts*
 - [ ] Escalation: unanswered in 30 s, ring again
-- [ ] Respect declared working hours
+- [x] Respect declared working hours · *built: withinWorkingHours*
 - [ ] Captain queue with reorder and distance-sorted suggestion
-- [ ] Queue position and ETA visible to the farmer
+- [x] Queue position and ETA visible to the farmer · *built: FarmerJobCard*
 - [ ] Lifecycle: en route → in progress → completed, photos at start and end
 - [ ] Live captain location during an active job, with the tracking intervals from [TECH_ARCHITECTURE.md](TECH_ARCHITECTURE.md#location-tracking)
-- [ ] Call button on every job screen
-- [ ] Amount and payment mode recorded — settled off-app
+- [x] Call button on every job screen · *built: job cards, 20 Nov*
+- [x] Amount and payment mode recorded — settled off-app · *built: CompleteJobSheet*
 - [ ] Offline outbox with retry and idempotency keys
 
 **Test**
@@ -379,13 +379,13 @@ A 50 m fibreglass tape costs about ₹500–1,000 and is accurate to roughly 0.2
 > **Superseded (20 Nov 2026):** no admin web console. Verifying captains, live jobs and intervening are founder screens in the app (Stages 3 and 4.1–4.2); metrics are a database view. Current facts: [CURRENT_STATE.md](CURRENT_STATE.md).
 
 - [ ] Next.js admin console on Vercel: verify captains, view live jobs, intervene, basic metrics
-- [ ] Two-way ratings
-- [ ] Dispute flow (you mediate manually this season)
+- [x] Two-way ratings · *built: ratings*
+- [x] Dispute flow (you mediate manually this season) · *built: Stage 4.4*
 - [ ] Fix everything November exposed — this is most of the phase
 
 **Test**
 
-- [ ] Ratings write once per job per rater
+- [x] Ratings write once per job per rater · *built: ratings table*
 - [ ] Admin can reassign or cancel a stuck job
 - [ ] Regression pass over the whole flow
 
@@ -403,17 +403,17 @@ The differentiator, and the reason Fazilka is the right beachhead. Built now so 
 
 **Build**
 
-- [ ] Travelling toggle: current location, days staying, forward route
+- [x] Travelling toggle: current location, days staying, forward route · *built: route stops, Stage 4.7*
 - [ ] "Combine available now" banner for farmers in radius
-- [ ] Pre-booking on a declared forward route
+- [x] Pre-booking on a declared forward route · *built: Stages 4.7, 4.8*
 - [ ] Portable ratings — reputation earned in Ganganagar must travel into Fazilka
-- [ ] Field access notes surfaced to the operator (can a truck reach it?)
+- [x] Field access notes surfaced to the operator (can a truck reach it?) · *built: field card + captain job card, 20 Nov*
 - [ ] Geographic clustering of a migrant's queue
 
 **Test**
 
 - [ ] Operator goes live → nearby farmers see him within a minute
-- [ ] Pre-booking in a district he has not yet entered
+- [x] Pre-booking in a district he has not yet entered · *built: pgTAP 22*
 - [ ] Ratings visible across district boundaries
 
 **Do**

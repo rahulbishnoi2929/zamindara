@@ -158,3 +158,7 @@ export const overlapsRoute = (
   stops: readonly RouteStop[],
   next: { fromDate: string; toDate: string },
 ): boolean => stops.some((s) => s.fromDate <= next.toDate && next.fromDate <= s.toDate);
+
+/** The service radius stepper: 5 km steps, 5 to 50 km. */
+export const stepRadius = (km: number, dir: 1 | -1): number =>
+  Math.min(50, Math.max(5, (dir === 1 ? Math.floor(km / 5) + 1 : Math.ceil(km / 5) - 1) * 5));

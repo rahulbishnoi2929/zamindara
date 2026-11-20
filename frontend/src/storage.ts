@@ -29,6 +29,8 @@ export interface SavedField {
   synced: boolean;
   /** The area on his land papers (4.4). Shown beside the measured one; never priced. */
   papersAreaSqm?: number | null;
+  /** How a machine reaches this field, e.g. "gate on the canal side". Shown to the captain. */
+  accessNotes?: string | null;
 }
 
 export interface ActiveWalk {

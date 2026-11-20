@@ -242,7 +242,7 @@ const strings = {
   payCash: { pa: 'ਨਕਦ', hi: 'नकद', en: 'Cash' },
   payUpi: { pa: 'UPI', hi: 'UPI', en: 'UPI' },
   payPending: { pa: 'ਬਾਅਦ ਵਿੱਚ', hi: 'बाद में', en: 'Later' },
-  callFarmer: { pa: 'ਫ਼ੋਨ ਕਰੋ', hi: 'फ़ोन करें', en: 'Call' },
+  callFarmer: { pa: '📞 ਕਿਸਾਨ ਨੂੰ ਫ਼ੋਨ ਕਰੋ', hi: '📞 किसान को फ़ोन करें', en: '📞 Call farmer' },
   awayKm: { pa: 'ਕਿ.ਮੀ. ਦੂਰ', hi: 'कि.मी. दूर', en: 'km away' },
   // What "finding a captain" is actually doing. Without this the farmer
   // cannot tell a slow answer from nobody having been asked at all.
@@ -332,6 +332,18 @@ const strings = {
     hi: 'नक्शा खिसकाएँ ताकि पिन खेत पर आए',
     en: 'Move the map so the pin sits on the field',
   },
+  callCaptain: { pa: '📞 ਕੈਪਟਨ ਨੂੰ ਫ਼ੋਨ ਕਰੋ', hi: '📞 कैप्टन को फ़ोन करें', en: '📞 Call captain' },
+  accessNotesAdd: {
+    pa: '+ ਖੇਤ ਤੱਕ ਕਿਵੇਂ ਪਹੁੰਚਣਾ ਹੈ',
+    hi: '+ खेत तक कैसे पहुँचें',
+    en: '+ How to reach this field',
+  },
+  accessNotesHint: {
+    pa: 'ਜਿਵੇਂ: ਨਹਿਰ ਵਾਲੇ ਪਾਸਿਓਂ ਗੇਟ, ਟਰੱਕ ਨਹੀਂ ਜਾਂਦਾ',
+    hi: 'जैसे: नहर वाली तरफ़ से गेट, ट्रक नहीं जाता',
+    en: 'e.g. gate on the canal side, no truck entry',
+  },
+  serviceRadius: { pa: 'ਕਿੰਨੀ ਦੂਰ ਤੱਕ ਕੰਮ ਤੇ ਜਾਓਗੇ?', hi: 'कितनी दूर तक काम पर जाएँगे?', en: 'How far will you travel for work?' },
   phoneSetup: { pa: 'ਫ਼ੋਨ ਤਿਆਰ ਕਰੋ', hi: 'फ़ोन तैयार करें', en: 'Phone setup' },
   phoneSetupHint: {
     pa: 'ਤਾਂ ਜੋ ਕੰਮ ਦੀ ਘੰਟੀ ਕਦੇ ਨਾ ਖੁੰਝੇ।',

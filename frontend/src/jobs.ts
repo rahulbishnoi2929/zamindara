@@ -87,6 +87,10 @@ export interface Job {
   machineId?: string | null;
   /** The field is the farmer's word, not a measurement: booked by phone (4.2, 4.3). */
   fieldDeclared?: boolean;
+  /** The other side's number on this job, as RLS lets us read it: the captain's for a farmer, the farmer's for a captain. */
+  contactPhone?: string | null;
+  /** How to reach the field, written by the farmer: shown to the captain. */
+  accessNotes?: string | null;
   /**
    * When nobody could be offered this job because it is smaller than the
    * captains nearby take: the smallest size they do take (4.5). Server-told.
@@ -351,3 +355,11 @@ export function machineLabels(
 export const canRetrace = (job: Job): boolean =>
   job.fieldDeclared === true &&
   (job.status === 'accepted' || job.status === 'en_route' || job.status === 'in_progress');
+
+const CALLABLE: ReadonlySet<JobStatus> = new Set(['accepted', 'en_route', 'in_progress']);
+
+/** A call button only while the job is live between the two of them. */
+export const canCall = (job: Job): boolean => CALLABLE.has(job.status) && (job.contactPhone ?? null) !== null;
+
+/** Numbers are stored as 91XXXXXXXXXX. */
+export const telUrl = (phone: string): string => `tel:+${phone.replace(/\D/g, '')}`;

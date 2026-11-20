@@ -155,8 +155,10 @@ describe.skipIf(URL_ === '')('core loop against the database', { timeout: 60_000
         method: 'drawn',
         meanAccuracyM: 0,
         synced: false,
+        accessNotes: 'Gate on the canal side',
       },
     ]);
+    expect(fields[0]!.accessNotes).toBe('Gate on the canal side');
     if (!fields[0]!.synced) {
       // syncFields keeps a failed push for the next pass and says nothing;
       // repeat it here to get the server's reason.
@@ -296,9 +298,14 @@ describe.skipIf(URL_ === '')('core loop against the database', { timeout: 60_000
     captainJobs = await app.sync.syncJobs([], captain);
     expect(captainJobs.map((j) => [j.id, j.status])).toEqual([[jobId, 'searching']]);
 
+    // The farmer's directions reach him before he decides.
+    expect(captainJobs[0]!.accessNotes).toBe('Gate on the canal side');
+
     expect(await app.sync.acceptJobRemote(jobId)).toBe('accepted');
     captainJobs = await app.sync.syncJobs(captainJobs, captain);
     expect(captainJobs.find((j) => j.id === jobId)?.status).toBe('accepted');
+    // Batch A: once it is his, he can ring the farmer.
+    expect(captainJobs.find((j) => j.id === jobId)?.contactPhone).toBe('91' + FARMER_PHONE);
 
     for (const status of ['en_route', 'in_progress', 'completed'] as const) {
       captainJobs = captainJobs.map((j) =>
@@ -328,6 +335,7 @@ describe.skipIf(URL_ === '')('core loop against the database', { timeout: 60_000
     const done = farmerJobs.find((j) => j.id === jobId);
     expect(done?.status).toBe('completed');
     expect(done?.captainName).toBe('Jaspal Singh');
+    expect(done?.contactPhone).toBe('91' + CAPTAIN_PHONE);
     expect(done?.finalAmount).toBe(4200);
 
     expect(await app.sync.pushRating(jobId, captainUid, 4)).toBe(true);

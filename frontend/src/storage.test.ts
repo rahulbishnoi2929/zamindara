@@ -96,3 +96,14 @@ describe('route stops (4.7)', () => {
     expect(overlapsRoute(stops, { fromDate: '2027-04-08', toDate: '2027-04-10' })).toBe(false);
   });
 });
+
+describe('service radius (batch A)', () => {
+  it('moves in 5 km steps between 5 and 50', async () => {
+    const { stepRadius } = await import('./profile');
+    expect(stepRadius(15, 1)).toBe(20);
+    expect(stepRadius(15, -1)).toBe(10);
+    expect(stepRadius(5, -1)).toBe(5);
+    expect(stepRadius(50, 1)).toBe(50);
+    expect(stepRadius(12, 1)).toBe(15);
+  });
+});

@@ -1,6 +1,7 @@
 import { servicesForMachines, type PricingUnit } from '@zamindara/catalog';
 import { fromSqm, LOCALES, toSqm, type Locale } from '@zamindara/units';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import MapView, { Circle, PROVIDER_GOOGLE } from 'react-native-maps';
 import {
   Pressable,
   ScrollView,
@@ -10,6 +11,8 @@ import {
   View,
 } from 'react-native';
 import { Button, Card } from '../components';
+import { currentLatLng } from '../location';
+import { Stepper } from '../RouteScreen';
 import { t } from '../i18n';
 import {
   emptyProfile,
@@ -18,6 +21,7 @@ import {
   type Profile,
   type Role,
   type ServiceRate,
+  stepRadius,
 } from '../profile';
 import { colors, radius, space, TOUCH_MIN, type } from '../theme';
 import { MachineRegistry } from './MachineRegistry';
@@ -233,6 +237,13 @@ export function OnboardingFlow({ initial, onDone }: Props) {
                 );
               })
             )}
+
+            <ServiceRadius
+              km={profile.serviceRadiusKm}
+              center={profile.baseLocation ?? profile.currentLocation}
+              label={t('serviceRadius', locale)}
+              onChange={(serviceRadiusKm) => patch({ serviceRadiusKm })}
+            />
           </>
         )}
       </ScrollView>
@@ -293,6 +304,56 @@ function RoleCard({
       <Text style={s.roleGlyph}>{glyph}</Text>
       <Text style={[s.roleLabel, primary && s.roleLabelPrimary]}>{label}</Text>
     </Pressable>
+  );
+}
+
+/**
+ * How far he will drive for work, and what that covers. Dispatch offers him
+ * only fields inside this circle around where he is. A circle on the map
+ * says it faster than "15 km" does.
+ */
+function ServiceRadius({
+  km,
+  center,
+  label,
+  onChange,
+}: {
+  km: number;
+  center: { lat: number; lng: number } | null;
+  label: string;
+  onChange: (km: number) => void;
+}) {
+  const [here, setHere] = useState(center);
+  useEffect(() => {
+    if (here === null) void currentLatLng().then(setHere);
+  }, [here]);
+  // Fazilka until the phone knows where he is.
+  const at = here ?? { lat: 30.4036, lng: 74.0284 };
+  // Degrees of latitude that fit the whole circle with a margin.
+  const span = (km * 2.4) / 111;
+  return (
+    <View style={{ gap: space.sm, marginTop: space.md }}>
+      <Stepper label={label} value={`${km} km`} onMinus={() => onChange(stepRadius(km, -1))} onPlus={() => onChange(stepRadius(km, 1))} />
+      <View style={{ height: 200, borderRadius: radius.md, overflow: 'hidden' }}>
+        <MapView
+          style={{ flex: 1 }}
+          provider={PROVIDER_GOOGLE}
+          region={{ latitude: at.lat, longitude: at.lng, latitudeDelta: span, longitudeDelta: span }}
+          scrollEnabled={false}
+          zoomEnabled={false}
+          rotateEnabled={false}
+          pitchEnabled={false}
+        >
+          <Circle
+            center={{ latitude: at.lat, longitude: at.lng }}
+            radius={km * 1000}
+            strokeColor={colors.primary}
+            strokeWidth={2}
+            fillColor="rgba(46,125,50,0.18)"
+          />
+        </MapView>
+      </View>
+    </View>
   );
 }
 

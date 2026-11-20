@@ -432,9 +432,11 @@ export default function App() {
     ]);
   };
 
-  const setPapersArea = (field: SavedField, sqm: number | null) => {
+  const setPapersArea = (field: SavedField, sqm: number | null) => editField(field, { papersAreaSqm: sqm });
+
+  const editField = (field: SavedField, patch: Partial<SavedField>) => {
     void (async () => {
-      const saved = await saveField({ ...field, papersAreaSqm: sqm, synced: false });
+      const saved = await saveField({ ...field, ...patch, synced: false });
       setFields(saved);
       if (signedIn) void syncFields(saved).then((next) => next !== saved && setFields(next));
     })();
@@ -688,6 +690,7 @@ export default function App() {
                 onReleaseJob={(job) => exitJob(job, 'release')}
                 onDisputeArea={disputeArea}
                 onSetPapersArea={setPapersArea}
+                onSetAccessNotes={(field, accessNotes) => editField(field, { accessNotes })}
                 onEditProfile={() => setScreen({ name: 'onboarding' })}
                 onToggleOnline={() => {
                   void (async () => {

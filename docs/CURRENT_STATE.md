@@ -2,7 +2,7 @@
 
 **The single source for what exists today.** Folder names, packages, counts and what is actually built live here, and only here. Other documents describe plans and reasons. Where one of them disagrees with this page, this page wins, and the other is marked *Superseded*.
 
-**As of 20 Nov 2026, main at Stage 6 of the 16 Nov staged brief.** Update this page in the same commit as any change to a count or a folder.
+**As of 20 Nov 2026: the 16 Nov brief done, plus Batch A of the open BUILD_PLAN items.** Update this page in the same commit as any change to a count or a folder.
 
 ---
 
@@ -57,7 +57,7 @@ npm workspaces; the app imports each by name, nothing is published.
 | Database migrations | **37** (`…0001_extensions` to `…0037_open_offers`) | `ls backend/supabase/migrations` |
 | Database test files | **23** | `ls backend/supabase/tests` |
 | Database assertions | **287**, run twice in CI: before and after a backup, wipe and restore | CI log, "Files=23, Tests=287" |
-| Unit tests | **279**: 125 packages + 154 app | `npm test` at the root |
+| Unit tests | **285**: 125 packages + 160 app | `npm test` at the root |
 | End-to-end steps | **18**, the app's own sync code against a real database | CI, "Core loop, end to end" |
 | Edge functions | **1** (`notify-dispatch`) | `ls backend/supabase/functions` |
 
@@ -85,6 +85,7 @@ npm workspaces; the app imports each by name, nothing is published.
   - free on the right machine type, with a queue per machine (4.6);
   - at a route stop that covers the job's day (4.7);
   - the job is at least his smallest size.
+- Both sides can call each other while a job is live. A farmer's note on how to reach a field shows on the captain's card.
 - A captain can accept, travel, work, complete, hand a job back, or log a phone booking and measure the field on arrival (4.3).
 - A request lapses at the end of its day.
 - The founder can create farmers and jobs for people who only phoned, and assign them (4.1, 4.2).

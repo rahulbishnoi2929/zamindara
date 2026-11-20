@@ -8,7 +8,7 @@ import {
   searchState,
   type Job,
 } from './jobs';
-import { canRetrace, machineLabels, splitJobs } from './jobs';
+import { canCall, canRetrace, machineLabels, splitJobs, telUrl } from './jobs';
 
 describe('canRetrace (4.3)', () => {
   const j = (status: Job['status'], fieldDeclared: boolean) => ({ status, fieldDeclared }) as Job;
@@ -235,5 +235,22 @@ describe('splitJobs — what goes where on home', () => {
     expect(splitJobs([j({})], { ...me, isOnline: false }, new Set()).incoming).toEqual([]);
     const farmer = { ...me, captain: false };
     expect(splitJobs([j({ id: 'a' })], farmer, new Set()).myJobs.map((x) => x.id)).toEqual(['a']);
+  });
+});
+
+describe('the call button (batch A)', () => {
+  const j = (status: Job['status'], contactPhone: string | null) => ({ status, contactPhone }) as Job;
+  it('while the job is live between them', () => {
+    expect(canCall(j('accepted', '919876500002'))).toBe(true);
+    expect(canCall(j('en_route', '919876500002'))).toBe(true);
+    expect(canCall(j('in_progress', '919876500002'))).toBe(true);
+  });
+  it('not on an open offer, a finished job, or with no number', () => {
+    expect(canCall(j('searching', '919876500002'))).toBe(false);
+    expect(canCall(j('completed', '919876500002'))).toBe(false);
+    expect(canCall(j('accepted', null))).toBe(false);
+  });
+  it('dials the number as stored, with its country code', () => {
+    expect(telUrl('919876500002')).toBe('tel:+919876500002');
   });
 });

@@ -346,7 +346,7 @@ export async function syncFields(fields: SavedField[]): Promise<SavedField[]> {
     .from('fields')
     // boundary as GeoJSON via the computed column (0029); the raw column
     // arrives as hex EWKB, which nothing on the phone can read.
-    .select('id, name, boundary:boundary_geojson, area_sqm, papers_area_sqm, capture_method, gps_accuracy_m, created_at, updated_at')
+    .select('id, name, boundary:boundary_geojson, area_sqm, papers_area_sqm, access_notes, capture_method, gps_accuracy_m, created_at, updated_at')
     .eq('owner_id', uid);
   if (since !== null) query = query.gte('updated_at', since);
   const pulled = await query.order('updated_at').limit(PAGE);
@@ -456,7 +456,7 @@ async function pullJobs(
       // PostgREST refused the whole
       // query and no farmer ever saw a job change — found by the
       // end-to-end test, 20 Nov 2026.
-      '*, field:fields(name), captain:captains!jobs_captain_id_fkey(profile:profiles!captains_profile_id_fkey(full_name)), job_dispatch(count), ratings(stars, rater_id)',
+      '*, field:fields(name), captain:captains!jobs_captain_id_fkey(profile:profiles!captains_profile_id_fkey(full_name, phone)), job_dispatch(count), ratings(stars, rater_id)',
     )
     .eq('farmer_id', uid)
     // Index: jobs_farmer_updated_idx (farmer_id, updated_at). An offer
@@ -494,7 +494,7 @@ async function pullJobs(
   if (captainSide) {
     const assigned = await supabase
       .from('jobs')
-      .select('*, field:fields(name, capture_method), farmer:profiles!jobs_farmer_id_fkey(full_name, village)')
+      .select('*, field:fields(name, capture_method, access_notes), farmer:profiles!jobs_farmer_id_fkey(full_name, village, phone)')
       .eq('captain_id', uid)
       .in('status', ['accepted', 'en_route', 'in_progress', 'completed'])
       // Index: jobs_captain_updated_idx. This was every job he had ever
@@ -532,7 +532,7 @@ async function pullJobs(
     const offers = await supabase
       .from('job_dispatch')
       .select(
-        'distance_km, job:jobs!inner(*, field:fields(name), farmer:profiles!jobs_farmer_id_fkey(full_name, village))',
+        'distance_km, job:jobs!inner(*, field:fields(name, access_notes), farmer:profiles!jobs_farmer_id_fkey(full_name, village))',
       )
       .eq('captain_id', uid)
       .eq('response', 'pending')

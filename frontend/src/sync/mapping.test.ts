@@ -631,3 +631,38 @@ describe('minimum job size (4.5)', () => {
     expect(rows.map((r) => r.min_area_sqm)).toEqual([8000, null]);
   });
 });
+
+describe('access notes and contact numbers (batch A)', () => {
+  it('a field carries its access note both ways, trimmed, blank as none', () => {
+    expect(fieldToWire(field({ accessNotes: '  gate on the canal side ' }))!.access_notes).toBe('gate on the canal side');
+    expect(fieldToWire(field({ accessNotes: '   ' }))!.access_notes).toBeNull();
+    expect(fieldToWire(field())!.access_notes).toBeNull();
+    const back = fieldFromWire({
+      id: '9b2f8a10-1111-4c1c-8e2a-0d6a9c3f7a01', name: 'k', boundary: polygonToGeoJson(CORNERS)!,
+      area_sqm: 1, capture_method: 'drawn', gps_accuracy_m: null, created_at: toIso(0), access_notes: 'no truck',
+    })!;
+    expect(back.accessNotes).toBe('no truck');
+  });
+
+  it('a job takes the other side\'s number and the field\'s note from the embeds', () => {
+    const row = {
+      id: '9b2f8a10-2222-4c1c-8e2a-0d6a9c3f7a01', field_id: 'f', captain_id: 'c', service_id: 's', area_sqm: 1,
+      status: 'accepted', is_immediate: true, scheduled_date: null, scheduled_window: 'any' as const,
+      quoted_rate: null, quoted_unit: null, quoted_subtotal: null, travel_charge: 0, quoted_total: null,
+      final_amount: null, payment_mode: null, notes: null, created_at: toIso(0), accepted_at: null,
+      started_at: null, completed_at: null,
+    };
+    const forCaptain = jobFromWire(
+      { ...row, field: { capture_method: 'drawn', access_notes: 'no truck' }, farmer: { phone: '919876500001' } },
+      'wheat_harvest', '', '', null, null, null, null,
+    )!;
+    expect(forCaptain.contactPhone).toBe('919876500001');
+    expect(forCaptain.accessNotes).toBe('no truck');
+    const forFarmer = jobFromWire(
+      { ...row, captain: { profile: { phone: '919876500002' } } },
+      'wheat_harvest', '', '', null, null, null, null,
+    )!;
+    expect(forFarmer.contactPhone).toBe('919876500002');
+    expect(forFarmer.accessNotes).toBeNull();
+  });
+});
